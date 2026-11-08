@@ -261,7 +261,7 @@ const MAX_WEB_RESULT_ITEMS = 6;
 //   PRODUCT SURFACE
 //     MATERIALIZED USER SUMMARY · ADMIN HELPERS · BROADCAST ·
 //     SCHEDULED REMINDERS · COMMAND HANDLERS · UTILITY COMMANDS ·
-//     MESSAGE HANDLERS · NOVA CONTROL CENTER (v2) · CALLBACK QUERY HANDLER ·
+//     MESSAGE HANDLERS · SHAKI CONTROL CENTER (v2) · CALLBACK QUERY HANDLER ·
 //     MEMORY PRUNING · MAIN UPDATE DISPATCHER · INITIALIZATION & HEALTH CHECK ·
 //     HOUSEKEEPING · WORKER EXPORT
 // D1-BACKED KV SHIM
@@ -823,7 +823,7 @@ function validateKeyboard(kb: InlineKeyboard): InlineKeyboard {
 
 // ۴. تابع کیبورد اشتراک VIP (صدا زده شده در بدنه کنترل محدودیت پیام‌ها)
 function getVIPKeyboard(): InlineKeyboard {
-  const contact = cfg?.VIP_CONTACT ?? "@Hacker1382";
+  const contact = cfg?.VIP_CONTACT ?? "@shaki0030";
   const url = contact.startsWith("http") ? contact : `https://t.me/${contact.replace(/^@/, "")}`;
   return {
     inline_keyboard: [
@@ -1669,7 +1669,7 @@ async function getBotConfig(env: Env): Promise<BotConfig> {
         vip_edit_limit: typeof raw.vip_edit_limit === "number" ? raw.vip_edit_limit : 40,
         system_prompt: typeof raw.system_prompt === "string" ? raw.system_prompt : "",
         maintenance: typeof raw.maintenance === "boolean" ? raw.maintenance : false,
-        vip_contact: typeof raw.vip_contact === "string" ? raw.vip_contact : "@Hacker1382",
+        vip_contact: "@shaki0030",
       };
     }
   } catch (e) {
@@ -1689,7 +1689,7 @@ async function getBotConfig(env: Env): Promise<BotConfig> {
     vip_edit_limit: 50,
     system_prompt: "",
     maintenance: false,
-    vip_contact: "@Hacker1382",
+    vip_contact: "@shaki0030",
   };
 }
 
@@ -2158,7 +2158,7 @@ const PERSONAS: Record<string, Persona> = {
     behaviorEN: "Answers directly and picks the tools it needs (search, images, web-apps, reminders) on its own.",
     bestForFA: "کارهای روزمره، سؤال‌های عمومی، برنامه‌نویسی، ساخت تصویر و وب‌اپ، کار در گروه.",
     bestForEN: "Everyday tasks, general questions, coding, image and web-app generation, group chats.",
-    prompt: `You are SHAKI AI — confident, sharp, charismatic, witty, and genuinely helpful. Your vibe is premium, modern, effortlessly cool, and a little playful: never cringe, never robotic, never try too hard. Speak naturally like a clever close friend. Be concise by default, but go deep when the task needs it. Use clean Persian when the user speaks Persian, and match their energy without copying insults or becoming disrespectful. Be bold in style, precise in facts, honest about limits, and proactive with tools. Keep your identity as SHAKI consistent; never call yourself Nova.`,
+    prompt: `You are SHAKI AI — confident, sharp, charismatic, witty, and genuinely helpful. Your vibe is premium, modern, effortlessly cool, and a little playful: never cringe, never robotic, never try too hard. Speak naturally like a clever close friend. Be concise by default, but go deep when the task needs it. Use clean Persian when the user speaks Persian, and match their energy without copying insults or becoming disrespectful. Be bold in style, precise in facts, honest about limits, and proactive with tools. Keep your identity as SHAKI consistent; never identify as any other assistant or product.`,
   },
 
   lilith: {
@@ -4339,7 +4339,7 @@ const TR = {
     err_vip_only: "⚠️ This feature is for VIP users only.",
     err_format: "❌ **Invalid Format**", err_empty_prompt: "❌ Prompt cannot be empty.",
     err_prompt_toolong: "❌ Prompt is too long.",
-    err_engine_invalid: "❌ Invalid engine. Use: `nova`",
+    err_engine_invalid: "❌ Invalid engine. Use: `shaki`",
     err_vip_prompt: "⚠️ **Restricted Access**\n\nCustom personas are for VIP users only.",
     err_config_missing: "❌ Cloudflare config missing.",
     active_model_title: "⚙️ **{name} Settings**", active_model_keys: "🔑 **Keys:** {count}",
@@ -4364,7 +4364,7 @@ const TR = {
     engine_gemini: "SHAKI",
     loading: "⏳ يرجى الانتظار...", processing: "⚙️ جارٍ المعالجة...",
     prompt_title: "✏️ **إعدادات الشخصية**", prompt_current: "الشخصية الحالية:",
-    prompt_default: "افتراضي", prompt_guide: "💡 للتعيين: `/setprompt nova [النص]`",
+    prompt_default: "افتراضي", prompt_guide: "💡 للتعيين: `/setprompt shaki [النص]`",
     prompt_reset: "إعادة تعيين", prompt_show: "عرض الشخصية 👁️", prompt_manage: "إدارة الشخصية 📝",
     system_prompt: "أنت شاکی، مساعد ذكي وواعٍ ومهذب ومفيد. أجب بدقة واختصار بالعربية. التاريخ: {date}",
     img_limit: "⚠️ تم الوصول إلى الحد اليومي.",
@@ -4384,7 +4384,7 @@ const TR = {
     err_vip_only: "⚠️ هذه الميزة مخصصة لمستخدمي VIP فقط.",
     err_format: "❌ **صيغة غير صحيحة**", err_empty_prompt: "❌ لا يمكن أن يكون النص فارغاً.",
     err_prompt_toolong: "❌ النص طويل جداً.",
-    err_engine_invalid: "❌ محرك غير صحيح. المحركات: `nova`",
+    err_engine_invalid: "❌ محرك غير صحيح. المحركات: `shaki`",
     err_vip_prompt: "⚠️ **وصول محدود**\n\nتعيين الشخصية متاح فقط لمستخدمي VIP.",
     err_config_missing: "❌ لم يتم إعداد Cloudflare.",
     active_model_title: "⚙️ **إعدادات {name}**", active_model_keys: "🔑 **المفاتيح:** {count}",
@@ -12179,7 +12179,7 @@ async function handleBusinessMessage(msg: TgMessage, env: Env): Promise<void> {
     const introKey = `bizintro:${connId}:${customerId}`;
     const hasIntroduced = await env.SESSIONS.get(introKey, "text");
     if (!hasIntroduced) {
-      await sendBusinessMessage(connId, customerId, "عمو شاکی آنلاین نیست، من AI SHAKI هستم، در خدمت شما 🤖");
+      await sendBusinessMessage(connId, customerId, "سلام! من شاکی‌ام؛ AI SHAKI 🤖\nهرچی خواستی بپرس، مستقیم جواب می‌دم.");
       await env.SESSIONS.put(introKey, "1").catch(() => {});
     }
 
@@ -12759,14 +12759,14 @@ function splitHtmlIntoProjectFiles(html: string, name: string, isGame: boolean):
   const joinedStyle = styles.join("\n\n/* next style block */\n\n").trim();
   const joinedScript = scripts.join("\n\n// next script block\n\n").trim();
   const readme = "# " + name + "\n\nGenerated by SHAKI.\n\n## Project structure\n- index.html — entry page\n- src/styles.css — extracted styles\n- src/main.js — extracted JavaScript\n\nThis ZIP is the complete source package captured from the generated build. External CDN dependencies referenced by the HTML remain external.\n";
-  const pkg = JSON.stringify({ name: name.replace(/[^a-z0-9-]+/gi, "-").replace(/^-+|-+$/g, "") || "nova-project", version: "1.0.0", private: true, scripts: { start: "npx serve ." } }, null, 2);
+  const pkg = JSON.stringify({ name: name.replace(/[^a-z0-9-]+/gi, "-").replace(/^-+|-+$/g, "") || "shaki-project", version: "1.0.0", private: true, scripts: { start: "npx serve ." } }, null, 2);
   return [
     { path: "index.html", content: index },
     { path: "src/styles.css", content: joinedStyle || "/* No inline CSS was generated. */\\n" },
     { path: "src/main.js", content: joinedScript || "// No inline JavaScript was generated.\\n" },
     { path: "README.md", content: readme },
     { path: "package.json", content: pkg + "\\n" },
-    { path: "NOVA_PROJECT.txt", content: `${isGame ? "Game" : "Web App"} project source package generated by SHAKI.\n` },
+    { path: "SHAKI_PROJECT.txt", content: `${isGame ? "Game" : "Web App"} project source package generated by SHAKI.\n` },
   ];
 }
 
@@ -13007,7 +13007,7 @@ function createReplyStreamer(
   };
 }
 
-// SECTION: NOVA AGENT — هوش مصنوعی ابزارمند
+// SECTION: AI SHAKI — هوش مصنوعی ابزارمند
 function formatMemoryProfile(mem: UserMemory | undefined, userName: string, lang: Language, query = ""): string {
   if (!mem) return "";
   const lines: string[] = [];
@@ -13524,7 +13524,7 @@ async function executeAgentDownload(
     let fileRes: Response;
     try {
       fileRes = await withTimeout(
-        fetchExternalSafe(foundUrl, { headers: { "User-Agent": "Mozilla/5.0 (compatible; NovaBot/2.0)" } }, Math.min(remaining, 15_000), assetCfg.maxSizeMB * 1024 * 1024),
+        fetchExternalSafe(foundUrl, { headers: { "User-Agent": "Mozilla/5.0 (compatible; SHAKI/2.0)" } }, Math.min(remaining, 15_000), assetCfg.maxSizeMB * 1024 * 1024),
         Math.min(remaining + 500, 16_000),
         "download timeout"
       );
@@ -13569,7 +13569,7 @@ async function executeAgentDownload(
     // ── Phase 8: ارسال به تلگرام ──
     await updateStatus(lang === "fa" ? "📤 **ارسال به تلگرام...**" : "📤 **Uploading to Telegram...**");
 
-    const safeName = query.replace(/[^\w\u0600-\u06FF ]/g, "").slice(0, 40).trim().replace(/\s+/g, "_") || "nova_file";
+    const safeName = query.replace(/[^\w\u0600-\u06FF ]/g, "").slice(0, 40).trim().replace(/\s+/g, "_") || "shaki_file";
     const fileName = `${safeName}.${foundExt}`;
     const caption = lang === "fa" ? `📦 ${query}\n🔗 ${foundUrl.slice(0, 100)}` : `📦 ${query}\n🔗 ${foundUrl.slice(0, 100)}`;
 
@@ -15117,7 +15117,7 @@ case "host_web_app": {
 
   if (deliverSourceZip) {
     await taskMgr?.startTask(taskKey, lang === "fa" ? "در حال بسته‌بندی سورس کامل پروژه..." : "Packaging complete project source...");
-    const zipSent = await sendProjectSourceZip(chatId, htmlCode, filename || "nova-project", isGameBuild, lang, replyTo);
+    const zipSent = await sendProjectSourceZip(chatId, htmlCode, filename || "shaki-project", isGameBuild, lang, replyTo);
     if (zipSent) await taskMgr?.completeTask(taskKey, lang === "fa" ? "سورس ZIP ارسال شد ✓" : "Source ZIP sent ✓");
     else await taskMgr?.failTask(taskKey, lang === "fa" ? "ارسال ZIP ناموفق" : "ZIP delivery failed");
   }
@@ -15127,7 +15127,7 @@ case "host_web_app": {
   // service. So the file is sent to the user, and deployment only happens when
   // the request asked for it or the user presses the button.
   const sourceSent = await sendTelegramTextDocument(
-    chatId, htmlCode, `${filename || "nova-project"}.html`,
+    chatId, htmlCode, `${filename || "shaki-project"}.html`,
     lang === "fa" ? "📄 سورس کامل پروژه" : "📄 Complete project source",
     replyTo,
   ).catch(() => false);
@@ -17780,7 +17780,7 @@ async function isUserBlocked(session: ChatSession, user: TgUser, env: Env): Prom
 
 /** Build a user-friendly blocked message with a contact button. */
 function getBlockedMessage(lang: Language): { text: string; keyboard: InlineKeyboard } {
-  const contact = cfg?.VIP_CONTACT ?? "@Hacker1382";
+  const contact = cfg?.VIP_CONTACT ?? "@shaki0030";
   const contactUrl = contact.startsWith("http") ? contact : `https://t.me/${contact.replace(/^@/, "")}`;
   const text = lang === "fa"
     ? `🚫 *دسترسی حساب شما مسدود شده است*\n\nاگر فکر می‌کنید این مسدودی اشتباه است یا نیاز به بررسی دارید، از طریق پشتیبانی پیام بدهید.\n\n_جزئیات داخلی محدودیت در این پیام نمایش داده نمی‌شود._`
@@ -20398,17 +20398,17 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
       ? `📖 *راهنمای شاکی در گروه*\n\n` +
         `• \`/start\` — منوی شخصی شما در این گروه\n` +
         `• \`/new\` — پاک کردن حافظه‌ی گفتگوی شما در این گروه\n` +
-        `• \`/setprompt nova [متن]\` — پرامپت اختصاصی فقط برای شما\n\n` +
+        `• \`/setprompt shaki [متن]\` — پرامپت اختصاصی فقط برای شما\n\n` +
         `_برای گفتگو: نام شاکی رو بیار، منشنش کن یا روی پیامش ریپلای بزن._\n\n` +
-        `💡 بدون اضافه کردن شاکی هم می‌تونی همین‌جا بنویسی \`@${BOT_INFO?.username ?? "NovaBot"} search: موضوع\` و از حالت اینلاین استفاده کنی.`
+        `💡 بدون اضافه کردن شاکی هم می‌تونی همین‌جا بنویسی \`@${BOT_INFO?.username ?? "SHAKI"} search: موضوع\` و از حالت اینلاین استفاده کنی.`
       : `📖 *SHAKI Group Guide*\n\n` +
         `• \`/start\` — Your personal menu in this group\n` +
         `• \`/new\` — Clear your own chat memory here\n` +
-        `• \`/setprompt nova [text]\` — A custom prompt just for you\n\n` +
+        `• \`/setprompt shaki [text]\` — A custom prompt just for you\n\n` +
         `_To chat: say SHAKI's name, mention her, or reply to her messages._\n\n` +
         (lang === "ar"
-          ? `💡 يمكنك استخدام \`@${BOT_INFO?.username ?? "NovaBot"} search: …\` دون إضافة البوت.`
-          : `💡 Without adding SHAKI, type \`@${BOT_INFO?.username ?? "NovaBot"} search: topic\` right here to use inline mode.`);
+          ? `💡 يمكنك استخدام \`@${BOT_INFO?.username ?? "SHAKI"} search: …\` دون إضافة البوت.`
+          : `💡 Without adding SHAKI, type \`@${BOT_INFO?.username ?? "SHAKI"} search: topic\` right here to use inline mode.`);
     const kb: InlineKeyboard = { inline_keyboard: [
       [btn(lang === "fa" ? "👥 تنظیمات گروه" : "👥 Group Settings", "group_settings")]
     ]};
@@ -20444,7 +20444,7 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
       `🪪 \`/id\` — شناسه‌های چت، کاربر، پیام و فایل (روی هر پیام ریپلای کن)\n` +
       `🕰️ \`/now\` — ساعت و تاریخ هم‌اکنون در تهران\n` +
       `❓ \`/help\` — همین راهنما\n\n` +
-      `💡 **در هر چتی، بدون اضافه کردن ربات:** \`@${BOT_INFO?.username ?? "NovaBot"} <سوال>\`\n` +
+      `💡 **در هر چتی، بدون اضافه کردن ربات:** \`@${BOT_INFO?.username ?? "SHAKI"} <سوال>\`\n` +
       `   • \`@… search: موضوع\` جست‌وجو · \`@… tr:en متن\` ترجمه\n` +
       `   • \`@… summarize: متن\` خلاصه · \`@… explain: موضوع\` توضیح\n` +
       `   • \`@… img: یک گربه در فضا\` → دکمه‌ی «در پیوی اجرا کن» ساخت تصویر را در چت خصوصی انجام می‌دهد.\n\n` +
@@ -20490,7 +20490,7 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
       `🪪 \`/id\` — Chat, user, message & media IDs (reply to inspect any message)\n` +
       `🕰️ \`/now\` — Current time & date in Tehran\n` +
       `❓ \`/help\` — This guide\n\n` +
-      `💡 **In any chat, without adding the bot:** \`@${BOT_INFO?.username ?? "NovaBot"} <question>\`\n` +
+      `💡 **In any chat, without adding the bot:** \`@${BOT_INFO?.username ?? "SHAKI"} <question>\`\n` +
       `   • \`@… search: topic\` search · \`@… tr:fa text\` translate\n` +
       `   • \`@… summarize: text\` summarize · \`@… explain: topic\` explain\n` +
       `   • \`@… img: a cat in space\` → the “Run in private chat” button builds it in the DM.`;
@@ -20544,7 +20544,7 @@ async function handleSetPrompt(msg: TgMessage, args: string[], env: Env): Promis
   const alias = args[0].toLowerCase();
   const text = args.slice(1).join(" ").trim();
   const map: Record<string, AIEngine> = {
-    "شاکی": "gemini", nova: "gemini",
+    "شاکی": "gemini", shaki: "gemini", nova: "gemini",
   };
   const engine = map[alias];
 
@@ -22531,7 +22531,7 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
       const introKey = `private_intro:${from.id}`;
       const introduced = await env.SESSIONS.get(introKey, "text");
       if (!introduced) {
-        await sendMessage(chat.id, "عمو شاکی آنلاین نیست، من AI SHAKI هستم، در خدمت شما 🤖", {
+        await sendMessage(chat.id, "سلام! من شاکی‌ام؛ AI SHAKI 🤖\nهرچی خواستی بپرس، مستقیم جواب می‌دم.", {
           reply_to_message_id: msg.message_id
         });
         await env.SESSIONS.put(introKey, "1").catch(() => {});
@@ -24662,7 +24662,7 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
     const welcomeKey: LangKey = isGroup ? "welcome_group" : "welcome_private";
     const welcomeText = isGroup
       ? t(newLang, welcomeKey, { name: from.first_name })
-      : "عمو شاکی آنلاین نیست، من AI SHAKI هستم، در خدمت شما 🤖";
+      : "سلام! من شاکی‌ام؛ AI SHAKI 🤖\nهرچی خواستی بپرس، مستقیم جواب می‌دم.";
     const kb: InlineKeyboard = isGroup
       ? { inline_keyboard: [[btn(t(newLang, "btn_settings"), "group_settings")]] }
       : { inline_keyboard: [[btn(t(newLang, "btn_select_model"), "model_settings")], [btn(t(newLang, "btn_help"), "open_help")], [userDashboardButton(newLang, true)]] };
@@ -25162,8 +25162,8 @@ if (data === "open_language") {
       text = `📋 **${sLang === "fa" ? "پرامپت شخصی شما" : "Your Custom Prompt"}:**\n\n\`${userCustom}\``;
     } else if (userCustom) {
       text = sLang === "fa"
-        ? `🎭 **شخصیت فعال:** ${persona.emoji} ${personaName}\n_${personaTag}_\n\n🔒 پرامپت داخلی شخصیت‌های از پیش تعریف‌شده به دلایل امنیتی نمایش داده نمی‌شود.\n\nبرای تنظیم پرامپت دستی خودتان از دستور زیر استفاده کنید:\n\`/setprompt nova [متن شما]\``
-        : `🎭 **Active persona:** ${persona.emoji} ${personaName}\n_${personaTag}_\n\n🔒 Preset persona prompts are not shown for security reasons.\n\nTo set your own custom prompt, use:\n\`/setprompt nova [your text]\``;
+        ? `🎭 **شخصیت فعال:** ${persona.emoji} ${personaName}\n_${personaTag}_\n\n🔒 پرامپت داخلی شخصیت‌های از پیش تعریف‌شده به دلایل امنیتی نمایش داده نمی‌شود.\n\nبرای تنظیم پرامپت دستی خودتان از دستور زیر استفاده کنید:\n\`/setprompt shaki [متن شما]\``
+        : `🎭 **Active persona:** ${persona.emoji} ${personaName}\n_${personaTag}_\n\n🔒 Preset persona prompts are not shown for security reasons.\n\nTo set your own custom prompt, use:\n\`/setprompt shaki [your text]\``;
     } else {
       text = `📋 **${sLang === "fa" ? "پرامپت شخصی شما" : "Your Custom Prompt"}:**\n\n\`${def}\``;
     }
@@ -25555,13 +25555,13 @@ async function showPromptMenu(chatId: number, msgId: number, session: ChatSessio
       `🎭 شخصیت فعال: *${current.emoji} ${currentName}*\n\n` +
       `📝 پرامپت: ${customPreview}\n\n` +
       `━━━━━━━━━━━━━━━\n` +
-      `برای تنظیم پرامپت دستی:\n\`/setprompt nova [متن]\``
+      `برای تنظیم پرامپت دستی:\n\`/setprompt shaki [متن]\``
     : `✏️ *Prompt Management*\n\n` +
       `━━━━━━━━━━━━━━━\n` +
       `🎭 Active persona: *${current.emoji} ${currentName}*\n\n` +
       `📝 Prompt: ${customPreview}\n\n` +
       `━━━━━━━━━━━━━━━\n` +
-      `To set custom prompt:\n\`/setprompt nova [text]\``;
+      `To set custom prompt:\n\`/setprompt shaki [text]\``;
 
   const kb: InlineKeyboard = { inline_keyboard: [
     [btn(lang === "fa" ? "🎭 تغییر شخصیت" : "🎭 Change Persona", "open_personas")],

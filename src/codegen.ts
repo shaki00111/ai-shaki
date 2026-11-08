@@ -1,10 +1,10 @@
 /**
- * Nova Codegen — direct, model-authored source delivery.
+ * SHAKI Studio — direct, model-authored source delivery.
  *
  * WHY THE OLD ENGINES ARE GONE
  * ────────────────────────────
- * Games and web apps used to be produced by two *engines* (`Nova Game Engine`
- * and `Nova Web Builder`). Each one carried a fixed template layer:
+ * Games and web apps used to be produced by two *engines* (`SHAKI Game Engine`
+ * and `SHAKI Web Builder`). Each one carried a fixed template layer:
  *
  *   · a ~660-line injected runtime (`NOVA_GE_RUNTIME`) with its own scene API,
  *     so gameplay code had to be written against `NovaGE.scene(...)` and the
@@ -39,7 +39,7 @@ import { classifyBuildTarget } from "./artifact";
 import { inspectWebArtifact } from "./artifactValidation";
 import { assessVisualQuality, buildUniversalDesignSkills, type ContentDirection, type DesignSurface } from "./designSkills";
 
-export const NOVA_CODEGEN_NAME = "Nova Codegen";
+export const NOVA_CODEGEN_NAME = "SHAKI Studio";
 export const NOVA_CODEGEN_VERSION = "1.0.0 (Direct Model Authorship)";
 
 export type BuildSurface = "game" | "webapp";
@@ -221,7 +221,7 @@ export function buildCodegenSystemInstruction(
     : `it is a production web application where the user completes a real task (create, edit, search, compute or track something)`;
   const designSkills = buildUniversalDesignSkills(direction, surface as DesignSurface);
   return [
-    `You are Nova Codegen, a senior product engineer and interface designer. You write complete, production-quality, runnable source in one pass.`,
+    `You are SHAKI Studio, a senior product engineer and interface designer. You write complete, production-quality, runnable source in one pass.`,
     `The artifact you produce must be a single self-contained HTML document: ${surfaceRule}.`,
     ``,
     designSkills,

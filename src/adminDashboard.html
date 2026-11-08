@@ -1596,7 +1596,7 @@ function rowHtml(u){
     `<span style="min-width:0"><b>${esc(u.firstName||"Unknown")}</b>`+
     `<div class="mono">${u.userName?("@"+esc(u.userName)+" · "):""}${u.userId}</div></span></button></td>`+
     `<td>${u.vipStatus?'<span class="tag vip">VIP</span>':'<span class="tag">Free</span>'} ${u.blocked?'<span class="tag blocked">Block</span>':""}</td>`+
-    `<td>${esc(u.personaId||"nova")}</td><td>${fmtNum(st.totalMessages)}</td>`+
+    `<td>${esc(u.personaId||"SHAKI")}</td><td>${fmtNum(st.totalMessages)}</td>`+
     `<td>${fmtNum(dl.messages)}/${fmtNum(dl.imagesGenerated)}/${fmtNum(dl.imagesEdited)}</td>`+
     `<td><span class="${rc}">${risk}/100</span></td><td>${esc(fmt(u.lastSeen||st.firstUsed))}</td></tr>`;
 }
@@ -1687,7 +1687,7 @@ function renderDetail(){
       ${d.sessionMissing?'<div class="pill" style="margin-bottom:8px">ℹ️ سشن ذخیره‌شده‌ای موجود نیست — این اعداد از رکورد پایگاه‌داده‌اند، نه از حافظه‌ی گفتگو.</div>':""}
       <div class="kv">
         <div><span>زبان</span><b>${esc(u.language||"fa")}</b></div>
-        <div><span>Persona</span><b>${esc(u.personaId||"nova")}</b></div>
+        <div><span>Persona</span><b>${esc(u.personaId||"SHAKI")}</b></div>
         <div><span>VIP</span><b>${u.vipStatus?"فعال":"غیرفعال"}</b></div>
         <div><span>مسدود</span><b>${u.blocked?"بله":"خیر"}</b></div>
         <div><span>کل پیام</span><b>${fmtNum(st.totalMessages)}</b></div>
@@ -1849,8 +1849,8 @@ async function doAction(act){
   if(act==="block") value = !u.blocked;
   if(act==="persona"){
     const opts = (personaCache||[]).map(p=>({ value:p.id, label:(p.emoji||"")+" "+(p.nameFA||p.id) }));
-    value = opts.length ? await askInput("تغییر Persona","یکی را انتخاب کن",u.personaId||"nova",{options:opts})
-                        : await askInput("تغییر Persona","شناسه Persona",u.personaId||"nova");
+    value = opts.length ? await askInput("تغییر Persona","یکی را انتخاب کن",u.personaId||"SHAKI",{options:opts})
+                        : await askInput("تغییر Persona","شناسه Persona",u.personaId||"SHAKI");
     if(value===null) return;
   }
   if(act==="language"){

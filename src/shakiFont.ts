@@ -1,9 +1,9 @@
 /**
- * NOVA OFFICE — Embedded Persian/Arabic font (Vazirmatn Regular, subset).
+ * SHAKI OFFICE — Embedded Persian/Arabic font (Vazirmatn Regular, subset).
  * ────────────────────────────────────────────────────────────────────────
  * Subset of Vazirmatn (SIL OFL 1.1) covering Latin, Arabic, Arabic
  * Presentation Forms A+B and Persian digits (~41KB TTF). Embedded as a
- * CIDFontType2 with Identity-H in the PDF renderer so Nova Office can ship a
+ * CIDFontType2 with Identity-H in the PDF renderer so SHAKI Office can ship a
  * REAL vector PDF for Persian/Arabic text (no more forced PDF→DOCX reroute).
  *
  * uni2gid: Unicode code point -> glyph id (== CID under Identity-H).

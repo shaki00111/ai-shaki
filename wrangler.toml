@@ -32,7 +32,7 @@ fallthrough = true
 
 # ── D1 ────────────────────────────────────────────────────────────────────────
 # Replace database_name/database_id with your real values:
-#   npx wrangler d1 create nova-db
+#   npx wrangler d1 create ai-shaki-db
 # The kv_store table used by the D1-backed KV shim is auto-migrated at runtime
 # (see ensureCoreSchema in src/index.ts), so no manual SQL step is required.
 [[d1_databases]]
@@ -45,7 +45,7 @@ database_id = "a289ea4c-452d-4799-b540-dce3435095ab"
 # KV shim, where every blob is a `kv_store` row bound by D1's 2,000,000-byte
 # per-value limit. Binding a bucket as MEDIA moves that binary out of D1:
 #
-#   npx wrangler r2 bucket create nova-media
+#   npx wrangler r2 bucket create shaki-media
 #
 # then uncomment the block below. No migration is needed — reads check R2 first
 # and fall back to D1, so blobs written before the switch keep serving, and the
@@ -55,7 +55,7 @@ database_id = "a289ea4c-452d-4799-b540-dce3435095ab"
 #
 # [[r2_buckets]]
 # binding = "MEDIA"
-# bucket_name = "nova-media"
+# bucket_name = "shaki-media"
 
 # ── Non-secret configuration ─────────────────────────────────────────────────
 # Only put NON-SENSITIVE values here. [vars] are stored in plaintext and are

@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Nova — local development secrets
+# AI SHAKI — local development secrets
 #
 # Copy this file to `.dev.vars` (git-ignored) and fill in your own values:
 #   cp .dev.vars.example .dev.vars

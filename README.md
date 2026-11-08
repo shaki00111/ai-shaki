@@ -386,7 +386,7 @@ git clone https://github.com/shaki00111/ai-shaki.git && cd ai-shaki && npm insta
 npx wrangler login
 
 # 3. Create database
-npx wrangler d1 create nova-db
+npx wrangler d1 create ai-shaki-db
 # → Copy the database_id and add it to wrangler.toml
 
 # 4. Set secrets (one by one)
@@ -448,7 +448,7 @@ npx wrangler login
 ## 3. Create D1
 
 ```bash
-npx wrangler d1 create nova-db
+npx wrangler d1 create ai-shaki-db
 ```
 
 Add the generated database ID to `wrangler.toml`.
@@ -458,7 +458,7 @@ Example:
 ```toml
 [[d1_databases]]
 binding = "DB"
-database_name = "nova-db"
+database_name = "ai-shaki-db"
 database_id = "<YOUR_DATABASE_ID>"
 ```
 
@@ -599,13 +599,13 @@ npm run tail
 # 📁 Project Structure
 
 ```text
-nova/
+ai-shaki/
 ├── src/
 │   ├── index.ts
 │   ├── gameEngine.ts
 │   ├── webBuilder.ts
 │   ├── exportEngine.ts
-│   ├── novaFont.ts
+│   ├── shakiFont.ts
 │   ├── dashboard.html
 │   └── telegram-web-app.txt
 │
@@ -792,17 +792,12 @@ If you enjoy SHAKI and want to support its development:
 
 # ❤️ Credits
 
-Built and maintained by:
+**SHAKI AI is customized, branded, and maintained by Arman**  
+Telegram owner & support: [@shaki0030](https://t.me/shaki0030)
 
-**Hsoofi82**
-
-Telegram:
-
-[@Hacker1382](https://t.me/Hacker1382)
-
-Bot:
-
-[@MyNovaChatBot](https://t.me/MyNovaChatBot)
+This repository is a modified fork of **NovaAgent**, originally created by **Hsoofi82**.  
+The upstream copyright and AGPL-3.0 license notices are retained in this repository.  
+This project is not an original rewrite of the upstream codebase.
 
 ---
 
@@ -810,9 +805,9 @@ Bot:
 
 ### SHAKI AI
 
-**Open Source AI Agent Platform for Telegram**
+**Independent SHAKI-branded Telegram AI assistant**
 
-Made with 🖤 by Hsoofi82
+Customized and maintained by 🖤 Arman · [@shaki0030](https://t.me/shaki0030)
 
 </div>
 
@@ -969,7 +964,7 @@ SHAKI شامل مکانیزم‌هایی مانند:
 ## 🚀 نصب
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/nova.git
+git clone https://github.com/shaki00111/ai-shaki.git
 cd ai-shaki
 npm install
 npx wrangler login
@@ -1034,6 +1029,6 @@ Pull Request و Contribution استقبال می‌شود.
 
 ### پلتفرم متن‌باز ایجنت هوش مصنوعی برای Telegram
 
-ساخته شده توسط **Hsoofi82**
+سفارشی‌سازی و نگهداری توسط **آرمان (@shaki0030)**\n\nاین مخزن نسخه‌ای تغییریافته از NovaAgent اثر Hsoofi82 است و تحت مجوز AGPL-3.0 منتشر می‌شود؛ اطلاعیه‌های حق‌نشر و مجوز نسخه اصلی حفظ شده‌اند.
 
 </div>

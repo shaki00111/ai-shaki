@@ -3,7 +3,7 @@ import {
   NOVA_FONT_TTF_B64,
   NOVA_FONT_UNI2GID,
   NOVA_FONT_GID2ADV,
-} from "./novaFont";
+} from "./shakiFont";
 import { sanitizeHyperlink } from "./core";
 import { reorderBidi, directionalRuns, pdfUnicodeString, spreadsheetNumber } from "./typography";
 import { inspectJpeg, type JpegImage } from "./documentImages";
@@ -14,7 +14,7 @@ import { inspectJpeg, type JpegImage } from "./documentImages";
 
 /** Engine identity — bump the version when you extend renderers/themes. */
 export const NOVA_OFFICE_VERSION = "0.30";
-export const NOVA_OFFICE_NAME = "Nova Office Engine";
+export const NOVA_OFFICE_NAME = "SHAKI Office Engine";
 
 export type ExportFormat = "pdf" | "docx" | "xlsx" | "pptx" | "html" | "md";
 
@@ -643,7 +643,7 @@ export const THEMES: Record<BuiltinThemeName, Theme> = {
 /**
  * Runtime registry for custom themes added via `registerTheme()`. Built-ins in
  * THEMES always win a name clash unless explicitly overridden here. This is the
- * seam that lets future Nova Office versions ship extra palettes — or lets a
+ * seam that lets future SHAKI Office versions ship extra palettes — or lets a
  * caller inject a brand theme — without touching the core renderers.
  */
 const CUSTOM_THEMES = new Map<string, Theme>();
@@ -901,11 +901,11 @@ function toWinAnsiChars(text: string): string {
 }
 
 /* ════════════════════════════════════════════════════════════════════════
- * SECTION 6.5 — ARABIC/PERSIAN SHAPING + EMBEDDED-FONT SUPPORT (Nova Office)
+ * SECTION 6.5 — ARABIC/PERSIAN SHAPING + EMBEDDED-FONT SUPPORT (SHAKI Office)
  * ════════════════════════════════════════════════════════════════════════
  * The base-14 PDF fonts cannot shape Arabic script, which historically forced
- * a PDF→DOCX reroute for Persian/Arabic. Nova Office instead embeds a real
- * Unicode font (Vazirmatn subset, see novaFont.ts) and does its own contextual
+ * a PDF→DOCX reroute for Persian/Arabic. SHAKI Office instead embeds a real
+ * Unicode font (Vazirmatn subset, see shakiFont.ts) and does its own contextual
  * shaping + RTL reordering, so a user who asks for a PDF gets a REAL Persian
  * PDF. The renderer maps each shaped code point to a glyph id and emits it via
  * an Identity-H CIDFontType2 (2-byte glyph codes).
@@ -3087,8 +3087,8 @@ export function exportDocument(content: string, options: ExportOptions = {}): Ex
     : `Unsupported format "${String(opts.format)}" — exported as PDF instead.`;
 
   // NOTE: Persian/Arabic PDF used to be force-routed to DOCX because the base-14
-  // fonts can't shape Arabic. Nova Office now embeds a real Unicode font and does
-  // its own shaping (see SECTION 6.5 + novaFont.ts), so a requested PDF is
+  // fonts can't shape Arabic. SHAKI Office now embeds a real Unicode font and does
+  // its own shaping (see SECTION 6.5 + shakiFont.ts), so a requested PDF is
   // delivered as a REAL Persian PDF. The user only gets DOCX if they ask for it.
 
   // XLSX only makes sense with tabular data; if none, still emit an outline sheet
