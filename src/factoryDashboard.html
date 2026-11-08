@@ -3,6 +3,19 @@
 <title>SHAKI — Application Builds</title><script src="/tg-webapp.js"></script>
 <style>
 :root{font-family:system-ui,sans-serif;color-scheme:dark;background:#0b1120;color:#e8eef9}body{max-width:900px;margin:auto;padding:24px}*{box-sizing:border-box}h1{font-size:24px}h2{font-size:18px}.card{border:1px solid #32405a;background:#121d30;padding:20px;border-radius:14px;margin:18px 0}p,small{color:#b7c2d6;line-height:1.6}label{display:block;margin:12px 0 5px}input,textarea,select,button{font:inherit;min-height:44px;border:1px solid #4b5871;border-radius:8px;padding:10px;background:#142038;color:inherit}input,select,textarea{width:100%}textarea{min-height:120px}button{cursor:pointer}button:disabled,fieldset:disabled{opacity:.6;cursor:default}fieldset{border:0;padding:0;margin:0}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.build{border-top:1px solid #32405a;padding:16px 0}.status{font-weight:600}a{color:#8bdbfa;margin-inline-end:12px;overflow-wrap:anywhere}code{overflow-wrap:anywhere}#notice{white-space:pre-wrap}#notice:empty{display:none}:focus-visible{outline:2px solid #a39cfa;outline-offset:3px}
+
+/* AI SHAKI brand palette: charcoal, ember and amber */
+:root{
+ --bg:#08090d;--bg-1:#101116;--bg-2:#171920;--bg-3:#20232c;
+ --surface-1:#111319;--surface-2:#1a1d26;--surface-3:#242833;
+ --border:rgba(255,255,255,.08);--border-2:rgba(255,255,255,.14);
+ --text:#f3f3f5;--text-2:#c9cbd2;--text-3:#9699a4;
+ --accent:#ff513d;--accent-2:#ffb04a;--warn:#ffc16b;--danger:#ff596b;--ok:#57d6a2;
+ --shadow:0 12px 34px rgba(0,0,0,.38);
+}
+body{background-color:#08090d}
+button:focus-visible,a:focus-visible,input:focus-visible{outline-color:#ff8a52}
+
 </style></head><body>
 <header><h1>Application builds</h1><p>Android APK/AAB and Windows EXE bundles, using an optional external build worker.</p></header>
 <section class="card" aria-live="polite"><h2 id="availability">Checking availability…</h2><p id="availabilityText">No build is accepted until an external worker is connected.</p><button id="refresh" type="button">Refresh status</button></section>
