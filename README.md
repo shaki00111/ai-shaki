@@ -1,8 +1,8 @@
 <div align="center">
 
-# SHAKI AI — Advanced AI Agent Platform for Telegram
+# AI SHAKI — Advanced AI Agent Platform for Telegram
 
-### A powerful, self-hostable AI Agent platform built on Cloudflare Workers
+### The official AI SHAKI assistant — powered by Cloudflare Workers
 
 <p>
   <a href="#english">English</a> ·
