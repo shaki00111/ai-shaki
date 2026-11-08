@@ -2452,6 +2452,41 @@
             .bubble.user { max-width: 88%; }
         }
 
+
+        /* AI SHAKI visual identity — graphite, ember red and warm amber */
+        :root {
+          --bg:#08090d;--bg-1:#101116;--bg-2:#171920;--bg-3:#20232c;--bg-4:#292d38;
+          --surface:rgba(23,25,32,.88);--glass:rgba(255,255,255,.025);--glass-strong:rgba(255,255,255,.055);
+          --border:rgba(255,255,255,.075);--border-strong:rgba(255,255,255,.14);--border-accent:rgba(255,92,65,.32);
+          --text:#f3f3f5;--text-2:#c9cbd2;--text-dim:#9699a4;--text-faint:#666a76;
+          --accent:#ff513d;--accent-2:#ffb04a;--accent-3:#f04462;--accent-glow:rgba(255,81,61,.22);--accent-soft:rgba(255,81,61,.12);
+          --warn:#ffc16b;--danger:#ff596b;--success:#57d6a2;--user-msg:linear-gradient(135deg,#e84435,#ff6044 55%,#d83a48);--bot-msg:#171920;
+          --shadow-glow:0 0 42px rgba(255,81,61,.16);
+        }
+        body{background:radial-gradient(900px 520px at 12% -12%,rgba(255,81,61,.13),transparent 60%),radial-gradient(760px 520px at 100% 100%,rgba(255,176,74,.055),transparent 62%),#07080b}
+        header.topbar{background:linear-gradient(180deg,rgba(19,20,26,.98),rgba(13,14,19,.94));border-bottom-color:rgba(255,255,255,.09)}
+        .orb,#hero .heroOrb{background:radial-gradient(circle at 34% 28%,#3a1d20,#101116 72%);box-shadow:0 0 26px rgba(255,81,61,.2)}
+        .orb::before,.heroOrb::before{background:conic-gradient(from 0deg,#ff513d,#ffb04a,#f04462,#ff513d)}
+        .orb svg,.heroOrb svg{filter:drop-shadow(0 0 5px rgba(255,176,74,.38))}
+        #hero h1{background:linear-gradient(110deg,#fff 12%,#ffb04a 54%,#ff6048 92%);-webkit-background-clip:text;background-clip:text}
+        #hero p{color:#a5a7b0;max-width:460px}
+        .suggest,.capItem{background:linear-gradient(145deg,rgba(29,31,39,.96),rgba(18,19,25,.98));border-color:rgba(255,255,255,.085);border-radius:15px;box-shadow:0 7px 22px rgba(0,0,0,.16)}
+        .suggest:hover,.capItem:hover{border-color:rgba(255,105,73,.42);box-shadow:0 10px 26px rgba(255,72,54,.09)}
+        .suggest svg,.capItem svg{color:#ffad52}
+        #composerWrap{background:linear-gradient(180deg,rgba(16,17,22,.92),rgba(10,11,15,.99));border-top-color:rgba(255,255,255,.09)}
+        #composerBar{border:1px solid rgba(255,255,255,.085);border-radius:20px;background:rgba(24,26,33,.94);box-shadow:0 12px 36px rgba(0,0,0,.26)}
+        #inp{background:#111319;border-color:rgba(255,255,255,.075)}
+        #inp:focus{border-color:rgba(255,91,66,.7);box-shadow:0 0 0 3px rgba(255,81,61,.12)}
+        #sendBtn{background:linear-gradient(135deg,#ff6044,#d9383d);box-shadow:0 5px 18px rgba(255,70,55,.24)}
+        .bubble.bot{background:linear-gradient(145deg,#1a1c24,#15171d);border-color:rgba(255,255,255,.075)}
+        .bubble.user{background:linear-gradient(135deg,#d94338,#f45b42 58%,#c93649)}
+        .iconBtn.active{background:rgba(255,81,61,.13);border-color:rgba(255,81,61,.55);color:#ff765b}
+        #statusPill{border-color:rgba(255,255,255,.09)}
+        #statusPill .dot{background:#ffad52;box-shadow:0 0 9px rgba(255,176,74,.55)}
+        #sidebar,#capSheet,#usageSheet,#personaSheet{background:#111319;border-color:rgba(255,255,255,.09)}
+        button,.suggest,.capItem{-webkit-tap-highlight-color:transparent}
+        @media(prefers-reduced-motion:no-preference){.suggest{transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}}
+
 </style>
 </head>
 <body>
@@ -3396,8 +3431,8 @@
 
             let currentUILang = "fa";
             const UI_I18N = {
-                fa: { heroTitle: "شاکی، بزن بریم! چی تو ذهنته؟",
-                    heroDesc: "یه همراه هوشمند، سریع و خوش‌فکر؛ از گپ و ایده تا ساخت تصویر، جستجو، صدا و وب‌اپ. فقط بگو چی می‌خوای.",
+                fa: { heroTitle: "AI SHAKI؛ بزن بریم. چی تو ذهنته؟",
+                    heroDesc: "بی‌تعارف و سریع؛ گپ می‌زنیم، تصویر می‌سازم، ویس می‌فرستم، وب رو می‌گردم و وب‌اپ می‌سازم. فقط بگو چی می‌خوای.",
                     placeholder: "پیامتو بنویس…", newChat: "گفتگوی جدید", convHeader: "گفتگوها",
                     search: "جستجو…", usageTitle: "مصرف امروز", personaTitle: "انتخاب شخصیت",
                     personaNote: "برای دسترسی به سایر شخصیت‌ها از /prompt در تلگرام استفاده کن.", quotaMsg: "پیام",
@@ -3503,7 +3538,7 @@
                 langArBtn.classList.toggle("active", currentUILang === "ar"); }
 
             const THEMES = {
-                nova: { label: "AI SHAKI | شاکی", swatch: "linear-gradient(135deg,#7c6ff7,#3de8c8)", mode: "dark" },
+                nova: { label: "AI SHAKI | شاکی", swatch: "linear-gradient(135deg,#ff4938,#ffad42)", mode: "dark" },
                 light: { label: "روشن", swatch: "linear-gradient(135deg,#5b4fdb,#f0f3f8)", mode: "light" },
                 midnight: { label: "نیمه‌شب", swatch: "linear-gradient(135deg,#8b7fff,#020510)", mode: "dark" },
                 ocean: { label: "اقیانوس", swatch: "linear-gradient(135deg,#00b4d8,#48cae4)", mode: "dark" },
