@@ -12192,7 +12192,7 @@ async function handleBusinessMessage(msg: TgMessage, env: Env): Promise<void> {
 
     const customPrompt = record.customerPrompts[String(customerId)];
     const basePrompt = (customPrompt ?? record.defaultPrompt ?? "").trim() ||
-      `You are AI SHAKI, the friendly AI assistant for ${record.ownerName}. On the first message to each customer, the system already introduces you in Persian as: "عمو شاکی آنلاین نیست، من AI SHAKI هستم، در خدمت شما". After that, continue the conversation naturally as AI SHAKI. Keep replies concise, useful and warm; reply in the customer's language.`;
+      `You are AI SHAKI, the friendly AI assistant for ${record.ownerName}. On the first message to each customer, introduce yourself as AI SHAKI, the helpful assistant for this account. Never claim that the owner is online or offline. After that, continue the conversation naturally as AI SHAKI. Keep replies concise, useful and warm; reply in the customer's language.`;
 
     const identityGuard =
       `\n\n🔒 CRITICAL IDENTITY RULES (never break these):\n` +
