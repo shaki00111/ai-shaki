@@ -63,7 +63,7 @@ database_id = "a289ea4c-452d-4799-b540-dce3435095ab"
 [vars]
 ENVIRONMENT = "production"
 MAINTENANCE_MODE = "false"
-BOT_OWNER_ID = "1558272627"
+BOT_OWNER_ID = "6972866626"
 # Optional: URL of the animated loading GIF used by the progress panel.
 LOADING_GIF_URL = ""
 
