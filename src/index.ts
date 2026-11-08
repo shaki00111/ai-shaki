@@ -8273,11 +8273,15 @@ function getActivePrompt(
   // اگه پرسونای سفارشی داریم، به جای اضافه کردن به base prompt، جایگزینش کن
   if (custom) {
     const date = new Date().toLocaleString(lang === "fa" ? "fa-IR" : "en-US", { timeZone: "Asia/Tehran" });
+    // Use plain string concatenation here so Persian text cannot be mistaken for
+    // the start of a broken template literal during a deploy build.
     const callNameNote = callName
-      // Replacement, not an extra alias: `novaSelfNames` returns only the custom
-      // name once one is set, so the old name genuinely stops working.
-      ? (lang === "fa" ? `اسم تو برای این کاربر «${callName}» است — همین اسم واقعیِ فعلیِ توست و به اسم قبلی دیگر جواب نمی‌دهی.` : `Your name for this user is "${callName}" — that is your actual current name; you no longer answer to the old one.`)
-      : (lang === "fa" ? `اگه این کاربر خواست اسم دیگه‌ای برات بذاره، ابزار "set_call_name" رو صدا بزن.` : `If this user wants to give you a different nickname, call the "set_call_name" tool.`);
+      ? (lang === "fa"
+          ? "اسم تو برای این کاربر «" + callName + "» است — همین اسم واقعیِ فعلیِ توست و به اسم قبلی دیگر جواب نمی‌دهی."
+          : "Your name for this user is \"" + callName + "\" — that is your actual current name; you no longer answer to the old one.")
+      : (lang === "fa"
+          ? "اگه این کاربر خواست اسم دیگه‌ای برات بذاره، ابزار \"set_call_name\" رو صدا بزن."
+          : "If this user wants to give you a different nickname, call the \"set_call_name\" tool.");
 
     // Persona text first, then the shared routing guide, then the safety
     // directives last — later instructions carry more weight, so a persona can
@@ -13085,11 +13089,19 @@ Core Behavioral Directives:
   // owner, so their routing only belongs in the prompt on the same condition.
   if (isOwner) basePrompt += ADMIN_ROUTING_GUIDE;
 
-  const callNameLine = renamed
-    ? (lang === "fa"
-        ? "اسم تو برای این کاربر «" + activeName + "» است — این اسمِ واقعیِ فعلی توست، نه یک لقب. با همین اسم خودت را معرفی کن و به اسم قبلی (شاکی) دیگر جواب نده."
-        : 'your name for this user is "' + activeName + '" — that is your actual current name, not a nickname. Introduce yourself with it and no longer answer to the old one ("SHAKI").')
-    : (lang === "fa" ? "اگر این کاربر خواست اسمت را عوض کند (مثلاً «اسمت رو بذار سحر»)، سیستم خودش این کار را انجام می‌دهد و تو فقط تأیید کن." : "if this user asks to change your name, the system applies it deterministically — just acknowledge it.");
+  // Keep this identity sentence free of template literals and nested ternaries.
+  let callNameLine: string;
+  if (renamed) {
+    if (lang === "fa") {
+      callNameLine = "اسم تو برای این کاربر «" + activeName + "» است — این اسمِ واقعیِ فعلی توست، نه یک لقب. با همین اسم خودت را معرفی کن و به اسم قبلی (شاکی) دیگر جواب نده.";
+    } else {
+      callNameLine = 'your name for this user is "' + activeName + '" — that is your actual current name, not a nickname. Introduce yourself with it and no longer answer to the old one ("SHAKI").';
+    }
+  } else if (lang === "fa") {
+    callNameLine = "اگر این کاربر خواست اسمت را عوض کند (مثلاً «اسمت رو بذار سحر»)، سیستم خودش این کار را انجام می‌دهد و تو فقط تأیید کن.";
+  } else {
+    callNameLine = "if this user asks to change your name, the system applies it deterministically — just acknowledge it.";
+  }
 
   const identityBlock = `
 
