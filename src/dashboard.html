@@ -2440,6 +2440,18 @@
             #composerBar { padding-inline: 10px; }
         }
 
+        /* Conversation layout: assistant text-first, user messages compact */
+        .row { width: min(100%, 900px); margin-inline: auto; padding: 7px clamp(12px, 3vw, 24px); gap: 10px; }
+        .bubble { font-size: 15px; line-height: 1.9; letter-spacing: 0; }
+        .bubble.bot { max-width: 100%; width: 100%; padding: 8px 2px; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+        .bubble.user { max-width: min(82%, 720px); padding: 11px 16px; border-radius: 20px; }
+        .bubble img { border-radius: 16px; }
+        @media (max-width: 560px) {
+            .row { padding-inline: 13px; }
+            .bubble { font-size: 14.5px; }
+            .bubble.user { max-width: 88%; }
+        }
+
 </style>
 </head>
 <body>
@@ -2685,8 +2697,8 @@
                 conversations = [],
                 currentConvId = null,
                 currentPersonaId = "nova";
-            let personasCache = [{ id: "nova", emoji: "🤖", nameFA: "شاکی", tagFA: "دستیار هوشمند",
-                descFA: "دستیار عمومی برای کارهای روزمره، ساخت تصویر، جستجوی وب و وب‌اپ." }];
+            let personasCache = [{ id: "nova", emoji: "🤖", nameFA: "شاکی", tagFA: "رفیق زبون‌دراز و بی‌تعارف",
+                descFA: "شاکیِ رک و شوخ؛ اهل کل‌کل و فحشِ به‌جا، با همه ابزارهای هوشمند." }];
             let sessionState = null;
 
             // شبیه‌ساز فشرده‌سازی تصویر با HTML5 Canvas برای رفع خطای SQLite SQLITE_TOOBIG
