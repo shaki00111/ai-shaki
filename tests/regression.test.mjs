@@ -1,5 +1,5 @@
 /**
- * Nova regression suite.
+ * SHAKI regression suite.
  *
  * Runs on plain `node` with no dependencies (Workers code cannot be imported
  * directly — it has top-level Cloudflare bindings — so pure, self-contained

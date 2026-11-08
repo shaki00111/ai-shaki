@@ -1,5 +1,5 @@
 /**
- * Nova content-generation engine regression suite.
+ * SHAKI content-generation engine regression suite.
  *
  * Covers exportEngine (PDF/DOCX/XLSX/PPTX/HTML/MD), gameEngine's browser
  * runtime, webBuilder and designSkills. Each test pins a defect that was found

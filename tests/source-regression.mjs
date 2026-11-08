@@ -66,7 +66,7 @@ const sourceFiles = tracked.filter((f) =>
   f === "globals.d.ts"
 );
 // Vendored third-party works keep their own licenses (see THIRD_PARTY_NOTICES.md).
-const headerExempt = new Set(["src/telegram-web-app.txt"]);
+const headerExempt = new Set(["src/telegram-web-app.txt", "src/shakiFont.ts"]);
 for (const f of sourceFiles) {
   if (headerExempt.has(f)) continue;
   readFileSync(f, "utf8").includes(SPDX)

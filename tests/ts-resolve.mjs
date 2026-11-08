@@ -1,5 +1,5 @@
 // Resolver hook: the worker uses extensionless imports (Wrangler resolves them);
-// Node ESM does not. This maps "./novaFont" -> "./novaFont.ts" for tests only.
+// Node ESM does not. This maps "./shakiFont" -> "./shakiFont.ts" for tests only.
 import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, resolve as resolvePath } from "node:path";
