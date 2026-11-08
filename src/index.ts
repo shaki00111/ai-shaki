@@ -20293,10 +20293,13 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
     const personaName = glang === "fa" ? currentPersona.nameFA : currentPersona.nameEN;
 
     const welcomeText = glang === "fa"
-      ? `👋 سلام <b>${escapeHTML(from.first_name)}</b>!\n\n` +
-        `این پنل فقط برای خودته؛ هر چی این‌جا تنظیم کنی (شخصیت، پرامپت شخصی) فقط رو گفتگوهای خودت با شاکی تو همین گروه اثر می‌ذاره و هیچ اثری روی بقیه اعضا نداره.\n\n` +
-        `🎭 شخصیت فعال شما: <b>${currentPersona.emoji} ${escapeHTML(personaName)}</b>\n\n` +
-        `💬 برای گفتگو با شاکی کافیه اسمش رو بیاری، منشنش کنی یا روی پیامش ریپلای بزنی.`
+      ? `⚡ <b>AI SHAKI · پنل شخصی</b>\n` +
+        `━━━━━━━━━━━━━━━━━━\n\n` +
+        `سلام <b>${escapeHTML(from.first_name)}</b>؛ خوش اومدی به مرکز کنترل شاکی.\n\n` +
+        `🎭 <b>شخصیت فعال:</b> ${currentPersona.emoji} <b>${escapeHTML(personaName)}</b>\n` +
+        `🔒 <i>این تنظیمات فقط برای خودت ذخیره می‌شن و روی بقیه اعضای گروه اثری ندارن.</i>\n\n` +
+        `💬 برای شروع گفتگو، اسم SHAKI رو صدا بزن، منشنش کن یا روی پیامش ریپلای بزن.\n\n` +
+        `<i>یکی از ابزارهای زیر رو انتخاب کن:</i>`
       : `👋 Hi <b>${escapeHTML(from.first_name)}</b>!\n\n` +
         `This panel is just for you — anything you set here (persona, custom prompt) only affects your own chats with SHAKI in this group and doesn't touch anyone else.\n\n` +
         `🎭 Your active persona: <b>${currentPersona.emoji} ${escapeHTML(personaName)}</b>\n\n` +
@@ -20334,7 +20337,11 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
     await saveSession(session, env);
     if (!isGroup) await notifyAdminNewUser(from, env);
     await sendMessage(chat.id,
-      `👋 *سلام / Hello*\n\nزبان خود را انتخاب کنید:\nSelect your language:`,
+      `⚡ <b>AI SHAKI</b>\n` +
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `<b>دستیار هوشمند شخصی تو</b>\n\n` +
+      `برای ورود به پنل، زبانت رو انتخاب کن.\n` +
+      `<i>Choose your language to initialize your workspace.</i>`,
       {
         reply_markup: JSON.stringify({ inline_keyboard: [
           [btn("🇮🇷  فارسی", "set_lang_fa"), btn("🇺🇸  English", "set_lang_en")],
@@ -20343,6 +20350,7 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
           // is the safe shape everywhere (web_app buttons are private-only).
           ...(BOT_INFO?.username ? [[urlBtn("🚀 My Dashboard / داشبورد من", `https://t.me/${BOT_INFO.username}?start=mydash`)]] : []),
         ]}),
+        parse_mode: "HTML",
         reply_to_message_id: msg.message_id,
       }
     );
