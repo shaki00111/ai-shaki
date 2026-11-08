@@ -1,5 +1,5 @@
 /**
- * Inline mode (@Nova in any chat) — pure logic.
+ * Inline mode (@SHAKI in any chat) — pure logic.
  *
  * WHAT THIS FIXES
  * ───────────────
@@ -13,7 +13,7 @@
  * Everything in this module is pure so the behaviour can be pinned by tests
  * without a Worker, a network or a Telegram client:
  *
- *   · `parseInlineCommand` — one grammar for the inline surface. Nova's own
+ *   · `parseInlineCommand` — one grammar for the inline surface. SHAKI's own
  *     question router is deliberately NOT reused here: inline must answer in a
  *     few seconds, so the kind decides a *strategy* (`search`, one model call,
  *     KV lookup), and a bare question stays `ask`. Heavy work is never started
@@ -379,8 +379,8 @@ export function inlineKindLabel(kind: InlineKind, lang: string): string {
     case "code": return fa ? "💻 کد" : ar ? "💻 كود" : "💻 Code";
     case "image": return fa ? "🎨 ساخت تصویر در پیوی" : ar ? "🎨 إنشاء صورة في الخاص" : "🎨 Generate an image in private chat";
     case "build": return fa ? "🛠 ساخت پروژه در پیوی" : ar ? "🛠 بناء مشروع في الخاص" : "🛠 Build a project in private chat";
-    case "help": return fa ? "🤖 راهنمای نوا" : ar ? "🤖 دليل نوفا" : "🤖 Nova guide";
-    default: return fa ? "💬 پاسخ نوا" : ar ? "💬 رد نوفا" : "💬 Nova's answer";
+    case "help": return fa ? "🤖 راهنمای شاکی" : ar ? "🤖 دليل نوفا" : "🤖 SHAKI guide";
+    default: return fa ? "💬 پاسخ شاکی" : ar ? "💬 رد نوفا" : "💬 SHAKI's answer";
   }
 }
 
@@ -416,12 +416,12 @@ export function inlineCardDescription(text: string, max = 160): string {
 export function inlineHelpCards(lang: string): InlineCard[] {
   if (lang === "fa") {
     return [
-      { title: "💬 سوال بپرس", description: "مثلاً: تفاوت HTTP و HTTPS چیست؟", text: "نوا را در هر چتی صدا بزن و همین‌جا بپرس — نیازی به عضو بودن ربات در آن چت نیست." },
+      { title: "💬 سوال بپرس", description: "مثلاً: تفاوت HTTP و HTTPS چیست؟", text: "شاکی را در هر چتی صدا بزن و همین‌جا بپرس — نیازی به عضو بودن ربات در آن چت نیست." },
       { title: "🔎 جست‌وجو", description: "search: آخرین اخبار هوش مصنوعی", text: "🔎 برای جست‌وجوی واقعی بنویس: <code>search: موضوع</code>" },
       { title: "🌐 ترجمه", description: "tr:en سلام دنیا", text: "🌐 برای ترجمه بنویس: <code>tr:fa متن</code> یا <code>tr:en text</code>" },
       { title: "🧾 خلاصه کن", description: "summarize: <متن یا موضوع>", text: "🧾 برای خلاصه‌سازی بنویس: <code>summarize: متن</code>" },
       { title: "🎨 ساخت تصویر", description: "img: یک گربه در فضا", text: "🎨 ساخت تصویر سنگین است و داخل اینلاین اجرا نمی‌شود؛ دکمه‌ی «در پیوی اجرا کن» را بزن." },
-      { title: "🛠 ساخت سایت/بازی", description: "build: یک سایت فروشگاه", text: "🛠 ساخت پروژه در پیوی نوا انجام می‌شود؛ دکمه‌ی «در پیوی اجرا کن» را بزن." },
+      { title: "🛠 ساخت سایت/بازی", description: "build: یک سایت فروشگاه", text: "🛠 ساخت پروژه در پیوی شاکی انجام می‌شود؛ دکمه‌ی «در پیوی اجرا کن» را بزن." },
     ];
   }
   if (lang === "ar") {
@@ -435,7 +435,7 @@ export function inlineHelpCards(lang: string): InlineCard[] {
     ];
   }
   return [
-    { title: "💬 Ask anything", description: "e.g. what is the difference between HTTP and HTTPS?", text: "Summon Nova in any chat and ask right here — the bot does not need to be a member." },
+    { title: "💬 Ask anything", description: "e.g. what is the difference between HTTP and HTTPS?", text: "Summon SHAKI in any chat and ask right here — the bot does not need to be a member." },
     { title: "🔎 Search", description: "search: latest AI news", text: "🔎 For a real lookup type: <code>search: your topic</code>" },
     { title: "🌐 Translate", description: "tr:fa hello world", text: "🌐 Type: <code>tr:en text</code> or <code>tr:fa متن</code>" },
     { title: "🧾 Summarize", description: "summarize: <text or topic>", text: "🧾 Type: <code>summarize: text</code>" },
