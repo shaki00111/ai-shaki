@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="color-scheme" content="dark light">
-    <title>ƝØVΛ — Agent</title>
+    <title>SHAKI — دستیار هوشمند</title>
 
 
     <script src="/tg-webapp.js"></script>
@@ -342,7 +342,7 @@
             }
         }
 
-         /* Future/Sleek Cosmic ƝØVΛ N Logo */
+         /* SHAKI cosmic brand mark */
         .orb {
             width: 38px;
             height: 38px;
@@ -2084,7 +2084,7 @@
         }
     
         /* =========================================================
-           NOVA RESPONSIVE / FULL-SCREEN UI v2
+           SHAKI RESPONSIVE / FULL-SCREEN UI v3
            - True edge-to-edge desktop shell
            - Dynamic viewport support (dvh + JS viewport sync)
            - Large-screen workspace with comfortable reading width
@@ -2410,6 +2410,36 @@
             max-width: 100%;
         }
 
+        /* SHAKI Chat — refined, keyboard-aware, ChatGPT-like composer */
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap');
+        :root { --font: 'Vazirmatn', 'IRANSansX', 'Segoe UI', Tahoma, Arial, sans-serif; }
+        #app { height: var(--app-height) !important; min-height: 0; }
+        #composerWrap {
+            padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+            background: color-mix(in srgb, var(--bg-1) 94%, transparent);
+        }
+        #composerBar {
+            width: min(100%, 920px); margin-inline: auto; align-items: flex-end;
+            gap: 8px; padding: 9px clamp(10px, 2vw, 20px);
+        }
+        #inp {
+            min-height: 44px; max-height: 160px; padding: 11px 17px;
+            border-radius: 22px; font: 15px/1.65 var(--font);
+            background: var(--bg-2); border: 1px solid var(--border-strong);
+            box-shadow: 0 3px 16px rgba(0,0,0,.12);
+        }
+        #inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 8px 28px rgba(0,0,0,.18); }
+        #sendBtn { width: 42px; height: 42px; box-shadow: 0 5px 18px var(--accent-glow); }
+        .iconBtn { width: 40px; height: 40px; border-radius: 14px; }
+        .bubble { font-family: var(--font); font-size: 15px; line-height: 1.85; }
+        .bubble pre, .bubble code { direction: ltr; text-align: left; }
+        #chatScroll { scroll-padding-bottom: 24px; }
+        html.keyboard-open #app { height: var(--app-height) !important; }
+        @media (max-width: 899px) {
+            #composerWrap { padding-bottom: max(6px, env(safe-area-inset-bottom, 0px)); }
+            #composerBar { padding-inline: 10px; }
+        }
+
 </style>
 </head>
 <body>
@@ -2566,15 +2596,17 @@
 
             function applyHeight() {
                 const vv = window.visualViewport;
-                const tgH = Number(tg.viewportStableHeight) || 0;
-                const visualH = vv ? Math.round(vv.height) : Math.round(window.innerHeight || 0);
-                const h = Math.max(320, tgH || visualH || window.innerHeight || 320);
+                // viewportStableHeight ignores the software keyboard; use the live viewport.
+                const tgLive = Number(tg.viewportHeight) || 0;
+                const visualH = vv && vv.height > 0 ? Math.round(vv.height) : Math.round(tgLive || window.innerHeight || 0);
+                const h = Math.max(280, visualH || Math.round(window.innerHeight || 280));
                 const w = Math.round(window.innerWidth || document.documentElement.clientWidth || 0);
-
+                const top = vv ? Math.max(0, Math.round(vv.offsetTop || 0)) : 0;
                 document.documentElement.style.setProperty("--app-height", h + "px");
                 document.documentElement.style.setProperty("--app-width", w + "px");
-                document.documentElement.style.setProperty("--viewport-h", visualH + "px");
-
+                document.documentElement.style.setProperty("--viewport-h", h + "px");
+                document.documentElement.style.setProperty("--viewport-offset", top + "px");
+                document.documentElement.classList.toggle("keyboard-open", h < (window.innerHeight || h) - 120);
                 document.documentElement.classList.toggle("desktop-layout", w >= 900);
                 document.documentElement.classList.toggle("compact-layout", w < 560);
             }
@@ -3040,7 +3072,7 @@
                 toastTimer = setTimeout(() => toast.classList.remove("show"), 3200); }
 
             function autoResize() { inp.style.height = "auto";
-                inp.style.height = Math.min(inp.scrollHeight, 110) + "px"; }
+                inp.style.height = Math.min(inp.scrollHeight, 160) + "px"; }
             inp.addEventListener("input", autoResize);
             inp.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault();
                     composerBar.requestSubmit(); } });
