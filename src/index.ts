@@ -25878,10 +25878,10 @@ async function initBot(env: Env): Promise<void> {
   try {
     const origin = (requestOrigin || "").trim().replace(/\/+$/, "");
     if (origin.startsWith("https://")) {
-      const menuUrl = "https://nova.hsoofi1382.workers.dev/dashboard";
+      const menuUrl = `${origin}/dashboard`;
       const lastMenuUrl = await env.SESSIONS.get("menu_button:url", "text").catch(() => null);
       if (lastMenuUrl !== menuUrl) {
-        await tg("setChatMenuButton", { menu_button: { type: "web_app", text: "𝗠𝗜𝗡𝗜 𝗔𝗣𝗣✨", web_app: { url: menuUrl } } }, { timeoutMs: 8000 });
+        await tg("setChatMenuButton", { menu_button: { type: "web_app", text: "AI SHAKI", web_app: { url: menuUrl } } }, { timeoutMs: 8000 });
         await env.SESSIONS.put("menu_button:url", menuUrl).catch(() => {});
         logger.info(`[menu] chat menu button → ${menuUrl}`);
       }
