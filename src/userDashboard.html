@@ -134,11 +134,43 @@ input,textarea,select{background:#101218!important;color:#f5f5f6!important;borde
 a{color:#ff9a76}
 *{scrollbar-color:#3a3030 transparent}
 </style>
+
+<style id="shaki-user-glass-refresh">
+:root{
+ --bg:#08090d;--bg-1:#111217;--bg-2:#191b22;--bg-3:#242630;
+ --text:#f3f3f5;--text-2:#c9cbd2;--text-3:#9699a4;
+ --accent:#ff603b;--accent-2:#ffad62;--ok:#57d6a2;
+ --border:rgba(255,255,255,.085);--border-2:rgba(255,255,255,.15);
+ --shadow:0 14px 36px rgba(0,0,0,.38);
+}
+body{background:radial-gradient(ellipse at 50% -10%,rgba(255,96,59,.15),transparent 48%),#08090d}
+header.top,.card,.item{
+ background:linear-gradient(145deg,rgba(26,27,34,.9),rgba(15,16,21,.88))!important;
+ border-color:rgba(255,255,255,.09)!important;
+ box-shadow:0 12px 30px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.035);
+ -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);
+}
+.logo{background:linear-gradient(135deg,#ff5738,#ffad62)!important;box-shadow:0 7px 22px rgba(255,87,56,.24)}
+nav.tabs button,button.act{
+ background:linear-gradient(145deg,rgba(255,255,255,.07),rgba(255,255,255,.025))!important;
+ border-color:rgba(255,255,255,.12)!important;
+ -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+ transition:transform .16s ease,border-color .16s ease,background .16s ease;
+}
+nav.tabs button[aria-selected="true"],button.act.primary{
+ background:linear-gradient(135deg,#ff5738,#ff9d55)!important;border-color:transparent!important;color:#fff!important;
+ box-shadow:0 6px 20px rgba(255,87,56,.2);
+}
+nav.tabs button:hover,button.act:hover{border-color:rgba(255,150,104,.45)!important;transform:translateY(-1px)}
+button.act.danger{color:#ff7882!important;border-color:rgba(255,95,109,.35)!important}
+input,textarea,select{background:rgba(12,13,18,.82)!important;border-color:rgba(255,255,255,.12)!important}
+</style>
+
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="logo" aria-hidden="true">N</div>
+    <div class="logo" aria-hidden="true">S</div>
     <div class="who">
       <b id="userName">…</b>
       <span id="userSub">داشبورد من</span>
