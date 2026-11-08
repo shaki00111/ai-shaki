@@ -13113,7 +13113,7 @@ Core Behavioral Directives:
     const errSummary = recentErrors.length
       ? `\n\n\u26a0\ufe0f **\u062e\u0637\u0627\u0647\u0627\u06cc \u0627\u062e\u06cc\u0631:**\n${recentErrors.map(l => `\u2022 ${l.message.slice(0, 80)}`).join("\n")}`
       : "";
-    adminSection = `\n\n👑 **Owner Directive (Hamid):**\nYou are talking to the bot's owner and creator, "Hamid". When Hamid asks, you may perform admin actions using the admin tools: broadcast a message to all users, set VIP, show stats and logs, and manage web apps. Do not refuse Hamid's administrative requests.${configInfo}${errSummary}`;
+    adminSection = `\n\n👑 **Owner Directive (Arman):**\nYou are talking to the bot's owner and creator, "Arman". When Hamid asks, you may perform admin actions using the admin tools: broadcast a message to all users, set VIP, show stats and logs, and manage web apps. Do not refuse Hamid's administrative requests.${configInfo}${errSummary}`;
   }
 
   const groupNote = isGroup
@@ -25867,6 +25867,19 @@ async function initBot(env: Env): Promise<void> {
 
   const maintenance = await env.SESSIONS.get("maintenance_mode", "text");
   cfg.MAINTENANCE_MODE = maintenance === "true";
+
+  // Public AI SHAKI identity in Telegram. KV guard avoids repeating profile writes
+  // from every fresh Worker isolate.
+  try {
+    const desiredName = "AI SHAKI";
+    const savedName = await env.SESSIONS.get("bot:display_name", "text").catch(() => null);
+    if (savedName !== desiredName) {
+      await tg("setMyName", { name: desiredName });
+      await env.SESSIONS.put("bot:display_name", desiredName).catch(() => {});
+    }
+  } catch (e) {
+    logger.warn("[identity] setMyName failed; configure the display name in BotFather if needed", e);
+  }
 
   // Telegram menu button → the user dashboard. This is the one surface visible
   // in EVERY chat without any typing, so it is the strongest discovery path
