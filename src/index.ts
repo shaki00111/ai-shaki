@@ -20279,9 +20279,9 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
   const session = await getOrCreateSession(chat, from, env);
   const isGroup = chat.type !== "private";
 
-  // GROUP ACTIVATION: in groups the bot stays dormant until the BOT OWNER runs
-  // /start. Owner /start enables it; everything is then configurable from the
-  // in-group advanced settings panel (no code edits needed afterwards).
+  // GROUP AVAILABILITY: groups are enabled by default.
+  // If an administrator explicitly disables replies, /start only opens the
+  // settings surface; it never silently re-enables a disabled group.
   if (isGroup) {
     const gc = await getGroupConfig(chat.id, env);
     if (!gc.enabled) {

@@ -174,7 +174,7 @@ SHAKI can operate inside Telegram groups while maintaining:
 * Group-specific prompts
 * VIP/group access controls
 
-New groups can remain dormant until explicitly activated.
+New groups are enabled by default. SHAKI replies when a member mentions the bot, addresses it by name, or replies to one of its messages; group administrators can disable replies.
 
 ---
 
