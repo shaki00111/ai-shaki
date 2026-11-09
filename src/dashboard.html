@@ -3266,20 +3266,44 @@ button,.iconBtn,.capItem,.suggest{touch-action:manipulation}
                     icon: '<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' },
                 { id: "persona", get label() { return tUI("capPersona"); }, action: "persona",
                     icon: '<circle cx="12" cy="8" r="3.2" stroke="currentColor" stroke-width="1.6"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4S17.8 16.4 19 20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
+                { id: "pdf", label: "ساخت PDF", fill: "یک فایل PDF بساز: ",
+                    icon: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M8 13h8M8 17h6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' },
+                { id: "code", label: "کدنویسی", fill: "کد کامل بنویس: ",
+                    icon: '<path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>' },
+                { id: "translate", label: "ترجمه", fill: "این متن را ترجمه کن: ",
+                    icon: '<path d="M4 5h10M9 3v2m-3 4c1 3 3 5 6 6M12 8c-1 3-3 5-6 7M14 19l3-8 3 8m-5-2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' },
+                { id: "analyze", label: "تحلیل", fill: "این موضوع را دقیق تحلیل کن: ",
+                    icon: '<path d="M4 19V5m0 14h17M7 15l4-4 3 2 6-7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>' },
+                { id: "game", label: "ساخت بازی", fill: "یک بازی تحت وب بساز: ",
+                    icon: '<path d="M7 9h10a4 4 0 0 1 3.8 5.2l-1 3A2.5 2.5 0 0 1 16 18l-2-2h-4l-2 2a2.5 2.5 0 0 1-3.8-.8l-1-3A4 4 0 0 1 7 9Z" stroke="currentColor" stroke-width="1.5"/><path d="M8 11v4m-2-2h4m6-1h.01M18 14h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' },
+                { id: "calculate", label: "محاسبه", fill: "این را دقیق محاسبه کن: ",
+                    icon: '<rect x="5" y="3" width="14" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 7h8M8 11h2m4 0h2m-8 4h2m4 0h2m-8 3h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' },
             ];
 
-            function buildCapabilityMarkup(container, withLabel) { container.innerHTML = CAPS.map(c => `
-            <div class="${withLabel?'suggest':'capItem'}" ${c.fill?`data-fill="${escapeHtml(c.fill)}"`:`data-action="${c.action}"`} role="button" tabindex="0">
-              <svg viewBox="0 0 24 24" fill="none">${c.icon}</svg><span>${c.label}</span>
-            </div>`).join(""); container.querySelectorAll("[data-fill],[data-action]").forEach(el => { el.addEventListener(
-                    "click", () => { haptic("impact", "light"); const f = el.getAttribute("data-fill"); const a = el
-                        .getAttribute("data-action"); if (f) { inp.value = f;
-                        autoResize();
+            function buildCapabilityMarkup(container, withLabel) {
+                container.innerHTML = CAPS.map(c => `
+                <div class="${withLabel?'suggest':'capItem'}" ${c.fill?`data-fill="${escapeHtml(c.fill)}"`:`data-action="${c.action}"`} role="button" tabindex="0">
+                  <svg viewBox="0 0 24 24" fill="none">${c.icon}</svg><span>${c.label}</span>
+                </div>`).join("");
+                container.querySelectorAll("[data-fill],[data-action]").forEach(el => {
+                    const activate = () => {
+                        haptic("impact", "light");
+                        const f = el.getAttribute("data-fill");
+                        const a = el.getAttribute("data-action");
+                        if (f) {
+                            inp.value = f; autoResize(); closeCapSheet(); inp.focus();
+                            inp.selectionStart = inp.selectionEnd = inp.value.length; return;
+                        }
                         closeCapSheet();
-                        inp.focus();
-                        inp.selectionStart = inp.selectionEnd = inp.value.length; return; }
-                        closeCapSheet(); if (a === "newchat") startNewConversation(); else if (a === "persona")
-                        openPersonaSheet(); }); }); }
+                        if (a === "newchat") startNewConversation();
+                        else if (a === "persona") openPersonaSheet();
+                    };
+                    el.addEventListener("click", activate);
+                    el.addEventListener("keydown", event => {
+                        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(); }
+                    });
+                });
+            }
 
             function isNearBottom() { return chatScroll.scrollHeight - chatScroll.scrollTop - chatScroll.clientHeight <
                 100; }
