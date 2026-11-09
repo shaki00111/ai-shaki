@@ -112,6 +112,20 @@ for (const f of tracked) {
 }
 ok(`scanned ${scanned} tracked text files`);
 
+// ── SHAKI Mini App delivery invariants ────────────────────────────────────
+console.log("\n[6] Mini App media and mobile layout invariants");
+const indexSource = readFileSync("src/index.ts", "utf8");
+const dashboardSource = readFileSync("src/dashboard.html", "utf8");
+indexSource.includes('putMediaBlob(env, id, bytesToArrayBuffer(audio), "audio/mpeg")')
+  ? ok("Mini App voice blobs keep their real MPEG MIME type")
+  : fail("Mini App voice blobs must use audio/mpeg for synthesized MP3 bytes");
+indexSource.includes('${requestOrigin}/app/${id}.mp3')
+  ? ok("Mini App voice URLs use the .mp3 extension")
+  : fail("Mini App voice URL extension does not match synthesized MP3 bytes");
+dashboardSource.includes('#app{display:flex!important;width:100vw!important;max-width:none!important')
+  ? ok("Telegram Mini App shell fills the viewport on mobile")
+  : fail("Telegram Mini App shell is missing the full-width viewport fix");
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
