@@ -20526,17 +20526,24 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
     const personaName = glang === "fa" ? currentPersona.nameFA : currentPersona.nameEN;
 
     const welcomeText = glang === "fa"
-      ? `⚡ <b>AI SHAKI · پنل شخصی</b>\n` +
-        `━━━━━━━━━━━━━━━━━━\n\n` +
-        `سلام <b>${escapeHTML(from.first_name)}</b>؛ خوش اومدی به مرکز کنترل شاکی.\n\n` +
-        `🎭 <b>شخصیت فعال:</b> ${currentPersona.emoji} <b>${escapeHTML(personaName)}</b>\n` +
-        `🔒 <i>این تنظیمات فقط برای خودت ذخیره می‌شن و روی بقیه اعضای گروه اثری ندارن.</i>\n\n` +
-        `💬 برای شروع گفتگو، اسم SHAKI رو صدا بزن، منشنش کن یا روی پیامش ریپلای بزن.\n\n` +
-        `<i>یکی از ابزارهای زیر رو انتخاب کن:</i>`
-      : `👋 Hi <b>${escapeHTML(from.first_name)}</b>!\n\n` +
-        `This panel is just for you — anything you set here (persona, custom prompt) only affects your own chats with SHAKI in this group and doesn't touch anyone else.\n\n` +
-        `🎭 Your active persona: <b>${currentPersona.emoji} ${escapeHTML(personaName)}</b>\n\n` +
-        `💬 To chat with SHAKI: mention her name, tag her, or reply to her messages.`;
+      ? `🟣━━━━━━━━━━━━━━━━━━━━🔵\n` +
+        `⚡ <b>AI SHAKI · NEON CORE</b>\n` +
+        `<i>PERSONAL CONTROL INTERFACE</i>\n` +
+        `🟣━━━━━━━━━━━━━━━━━━━━🔵\n\n` +
+        `خوش اومدی <b>${escapeHTML(from.first_name)}</b>؛ هستهٔ شخصی شاکی آماده‌ست.\n\n` +
+        `◈ 🎭 <b>شخصیت فعال:</b> ${currentPersona.emoji} <b>${escapeHTML(personaName)}</b>\n` +
+        `◈ 🔐 <b>حریم خصوصی:</b> تنظیمات فقط برای حساب خودت ذخیره می‌شن.\n\n` +
+        `🔹 برای گفتگو، SHAKI رو صدا بزن، منشن کن یا روی پیامش ریپلای بزن.\n\n` +
+        `<i>یک ماژول رو از منوی زیر انتخاب کن:</i>`
+      : `🟣━━━━━━━━━━━━━━━━━━━━🔵\n` +
+        `⚡ <b>AI SHAKI · NEON CORE</b>\n` +
+        `<i>PERSONAL CONTROL INTERFACE</i>\n` +
+        `🟣━━━━━━━━━━━━━━━━━━━━🔵\n\n` +
+        `Welcome <b>${escapeHTML(from.first_name)}</b>. Your personal SHAKI core is ready.\n\n` +
+        `◈ 🎭 Active persona: <b>${currentPersona.emoji} ${escapeHTML(personaName)}</b>\n` +
+        `◈ 🔐 Privacy: these settings affect only your own account.\n\n` +
+        `🔹 Mention SHAKI or reply to one of her messages to start chatting.\n\n` +
+        `<i>Select a module below:</i>`;
 
     const rows: InlineBtn[][] = [
       [btn(glang === "fa" ? "🎭 انتخاب شخصیت (فقط برای من)" : "🎭 Choose Persona (just for me)", "home:personas")],
