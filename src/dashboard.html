@@ -2799,6 +2799,46 @@ a{color:#7dd3fc}
 *{scrollbar-color:#51418b transparent}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
+
+<style id="shaki-mobile-repair-2026">
+:root{--accent:#9b7bff!important;--accent-2:#38bdf8!important;--accent-3:#a78bfa!important;--accent-glow:rgba(124,92,255,.24)!important;--accent-soft:rgba(124,92,255,.13)!important}
+html{width:100%;height:100%;overflow:hidden;overscroll-behavior:none}
+body{width:100%;height:100%;min-height:0;overflow:hidden;overscroll-behavior:none}
+#app{width:100%;height:100dvh!important;min-height:0!important;max-height:100dvh;overflow:hidden}
+#chatScroll{min-height:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#composerWrap{position:relative;flex:0 0 auto;z-index:30}
+#capSheet{z-index:80!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;width:100%;max-height:min(52dvh,390px);overflow-y:auto!important;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch;padding:12px 10px max(12px,env(safe-area-inset-bottom))!important;scrollbar-width:thin;visibility:hidden}
+#capSheet.open{visibility:visible}
+#capSheet .capItem{min-height:68px;justify-content:center;padding:10px 5px!important;font-size:11px!important;line-height:1.4;text-align:center;overflow-wrap:anywhere}
+#capSheet .capItem svg{width:20px!important;height:20px!important;flex:0 0 auto}
+#composerBar{max-width:100%;min-width:0}
+#inp{min-width:0;font-size:16px!important}
+#sidebar{z-index:90;max-height:100dvh;overflow-y:auto;overscroll-behavior:contain}
+#sidebarBackdrop{z-index:85}
+#usageSheet,#personaSheet{max-height:min(84dvh,720px);overflow-y:auto;overscroll-behavior:contain}
+button,.iconBtn,.capItem,.suggest{touch-action:manipulation}
+@media(max-width:560px){
+ :root{--page-gutter:8px;--chat-pad-x:6px;--composer-pad-x:6px}
+ header.topbar{min-height:52px!important;padding:5px 8px!important}
+ #hero{margin:10px 8px 8px!important;padding:16px 12px!important}
+ #hero h1{font-size:19px!important}
+ #hero p{font-size:12px!important;line-height:1.6}
+ #suggestGrid{gap:7px!important}
+ .suggest{min-height:64px;padding:9px 6px!important;font-size:11px!important}
+ #composerWrap{padding:5px 6px max(5px,env(safe-area-inset-bottom))!important}
+ #composerBar{gap:5px!important;padding:5px!important}
+ .iconBtn{width:36px!important;height:36px!important;flex:0 0 36px}
+ #sendBtn{width:38px!important;height:38px!important;flex:0 0 38px}
+ #capSheet{grid-template-columns:repeat(3,minmax(0,1fr))!important;max-height:48dvh}
+}
+@media(max-width:360px){
+ #capSheet{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ #hero h1{font-size:17px!important}
+ .brand span{display:none}
+}
+@media(prefers-reduced-motion:reduce){#capSheet,.capItem{transition:none!important;animation:none!important}}
+</style>
+
 </head>
 <body>
     <a class="skipLink" href="#chatScroll">پرش به گفتگو</a>
