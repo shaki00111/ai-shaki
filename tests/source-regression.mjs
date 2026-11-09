@@ -126,6 +126,15 @@ dashboardSource.includes('#app{display:flex!important;width:100vw!important;max-
   ? ok("Telegram Mini App shell fills the viewport on mobile")
   : fail("Telegram Mini App shell is missing the full-width viewport fix");
 
+dashboardSource.includes("--accent:#9b7bff!important") && dashboardSource.includes("--accent-2:#38bdf8!important")
+  ? ok("Mini App uses the violet/blue SHAKI identity")
+  : fail("Mini App violet/blue brand tokens are missing");
+const adminSource = readFileSync("src/adminDashboard.html", "utf8");
+adminSource.includes("--accent:#9b7bff!important") && adminSource.includes("--accent-2:#38bdf8!important")
+  ? ok("Owner dashboard uses the same violet/blue identity")
+  : fail("Owner dashboard brand tokens do not match the Mini App");
+
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
