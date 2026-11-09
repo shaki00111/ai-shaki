@@ -166,6 +166,35 @@ button.act.danger{color:#ff7882!important;border-color:rgba(255,95,109,.35)!impo
 input,textarea,select{background:rgba(12,13,18,.82)!important;border-color:rgba(255,255,255,.12)!important}
 </style>
 
+<style id="shaki-neon-universe">
+:root{
+ --shaki-violet:#a78bfa;--shaki-blue:#38bdf8;--shaki-cyan:#22d3ee;--shaki-bg:#050611;
+ --shaki-panel:rgba(13,17,39,.84);--shaki-border:rgba(167,139,250,.18);
+ --accent:#9b7bff;--primary:#8b5cf6;
+}
+html,body{background-color:#050611!important;color:#f4f2ff!important}
+body{background-image:radial-gradient(ellipse at 8% 2%,rgba(124,58,237,.23),transparent 38%),radial-gradient(ellipse at 95% 12%,rgba(14,165,233,.16),transparent 34%),linear-gradient(180deg,#050611,#080b1b 55%,#050611)!important;background-attachment:fixed}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.16;background-image:linear-gradient(rgba(139,92,246,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.13) 1px,transparent 1px);background-size:48px 48px;mask-image:linear-gradient(to bottom,#000,transparent 85%)}
+#app,.app,.shell,.layout,.main,.page{position:relative;z-index:1}
+header,.topbar,.app-header,.header,.navbar{background:rgba(6,8,22,.78)!important;border-color:var(--shaki-border)!important;backdrop-filter:blur(24px)!important}
+.card,.panel,.sheet,.modal,.dialog,.chat-card,.personaCard,.convItem,.suggest,.capItem,.imgGrid,.bubble{background:linear-gradient(145deg,rgba(18,22,49,.91),rgba(8,12,30,.92))!important;border-color:var(--shaki-border)!important;box-shadow:0 16px 44px rgba(0,0,0,.24)!important;border-radius:20px!important}
+button,.btn,[role=button]{border-radius:14px!important;transition:transform .22s ease,box-shadow .22s ease,filter .22s ease!important}
+button.primary,.primary,.btn-primary,#sendBtn,[type=submit]{background:linear-gradient(115deg,#7c3aed,#315bdb 60%,#0891b2)!important;color:#fff!important;border:1px solid rgba(196,181,253,.2)!important;box-shadow:0 8px 30px rgba(99,102,241,.25)!important}
+button:hover,.btn:hover,[role=button]:hover{transform:translateY(-2px);filter:brightness(1.1)}
+input,textarea,select,.composer,.composerBar,#composerBar{background:rgba(7,11,29,.94)!important;color:#f5f3ff!important;border-color:rgba(139,92,246,.26)!important;border-radius:16px!important}
+a{color:#7dd3fc}
+.heroOrb,.orb,.glowOrb{filter:drop-shadow(0 0 30px rgba(139,92,246,.42));animation:shakiFloat 8s ease-in-out infinite}
+#hero,.hero{background:radial-gradient(ellipse at 50% 0%,rgba(124,58,237,.2),transparent 60%)!important}
+.suggest:hover,.personaCard:hover,.convItem:hover,.capItem:hover,.imgGrid:hover{border-color:rgba(56,189,248,.42)!important;box-shadow:0 12px 34px rgba(76,29,149,.2)!important}
+#sendBtn{position:relative;overflow:hidden}
+#sendBtn:after,button.primary:after,.btn-primary:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(110deg,transparent 15%,rgba(255,255,255,.2),transparent 62%);transform:translateX(-130%);transition:transform .8s ease}
+#sendBtn:hover:after,button.primary:hover:after,.btn-primary:hover:after{transform:translateX(130%)}
+@keyframes shakiFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@keyframes shakiGlow{0%,100%{box-shadow:0 0 18px rgba(139,92,246,.12)}50%{box-shadow:0 0 34px rgba(56,189,248,.22)}}
+.logo,.brandLogo,.avatar-brand{animation:shakiGlow 4s ease-in-out infinite}
+*{scrollbar-color:#51418b transparent}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
 </head>
 <body>
 <div class="wrap">
