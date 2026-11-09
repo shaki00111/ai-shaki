@@ -2487,6 +2487,204 @@
         button,.suggest,.capItem{-webkit-tap-highlight-color:transparent}
         @media(prefers-reduced-motion:no-preference){.suggest{transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}}
 
+
+
+/* ── SHAKI NEON ARENA · visual refresh ───────────────────────────────── */
+:root {
+  --accent:#9b7bff;
+  --accent-2:#35f2d0;
+  --accent-3:#ff4fc8;
+  --accent-glow:rgba(155,123,255,.28);
+  --accent-soft:rgba(155,123,255,.14);
+  --border:rgba(155,123,255,.13);
+  --border-strong:rgba(155,123,255,.25);
+  --shadow-glow:0 0 34px rgba(155,123,255,.18);
+  --transition-smooth:cubic-bezier(.2,.8,.2,1);
+}
+#app {
+  isolation:isolate;
+  background:
+    radial-gradient(ellipse at 12% 4%,rgba(155,123,255,.13),transparent 34%),
+    radial-gradient(ellipse at 92% 88%,rgba(53,242,208,.075),transparent 32%),
+    var(--bg);
+}
+#app::before {
+  content:"";
+  position:absolute; inset:0; z-index:-1; pointer-events:none;
+  opacity:.16;
+  background-image:linear-gradient(rgba(155,123,255,.12) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(155,123,255,.12) 1px,transparent 1px);
+  background-size:34px 34px;
+  mask-image:linear-gradient(to bottom,black,transparent 82%);
+}
+header.topbar {
+  background:linear-gradient(180deg,rgba(17,15,34,.96),rgba(9,11,20,.88));
+  border-bottom-color:rgba(155,123,255,.22);
+  box-shadow:0 8px 28px rgba(0,0,0,.22);
+}
+.orb,.heroOrb {
+  box-shadow:0 0 22px rgba(155,123,255,.28),inset 0 0 18px rgba(53,242,208,.08);
+}
+.brand b {
+  letter-spacing:.45px;
+  text-shadow:0 0 18px rgba(155,123,255,.24);
+}
+.menuBtn,.iconBtn,.sbCloseX,.closeX,.sbFoot .gearBtn {
+  border-color:rgba(155,123,255,.2);
+  background:linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.018));
+  transition:transform .22s var(--transition-bounce),border-color .2s,box-shadow .2s,background .2s;
+}
+.menuBtn:hover,.iconBtn:hover,.sbCloseX:hover,.closeX:hover,.sbFoot .gearBtn:hover {
+  transform:translateY(-2px);
+  border-color:rgba(53,242,208,.48);
+  box-shadow:0 0 20px rgba(53,242,208,.12);
+}
+#statusPill {
+  border:1px solid rgba(53,242,208,.22);
+  box-shadow:inset 0 0 16px rgba(53,242,208,.045),0 0 16px rgba(53,242,208,.055);
+}
+#hero {
+  position:relative;
+  overflow:hidden;
+}
+#hero::before {
+  content:"";
+  position:absolute;
+  width:260px;height:260px;border-radius:50%;
+  inset-block-start:4%;inset-inline-start:50%;
+  transform:translateX(50%);
+  background:radial-gradient(circle,rgba(155,123,255,.16),rgba(53,242,208,.045) 42%,transparent 70%);
+  filter:blur(10px);pointer-events:none;
+  animation:shakiAura 7s ease-in-out infinite alternate;
+}
+#hero .heroOrb {
+  filter:drop-shadow(0 0 24px rgba(155,123,255,.25));
+  animation:shakiFloat 5s ease-in-out infinite;
+}
+#hero h1 {
+  letter-spacing:-.45px;
+  text-shadow:0 0 26px rgba(155,123,255,.18);
+}
+#hero p {line-height:1.95;max-width:34em}
+#suggestGrid {gap:10px}
+.suggest,.capItem {
+  position:relative;overflow:hidden;
+  border:1px solid rgba(155,123,255,.2);
+  background:linear-gradient(145deg,rgba(31,27,55,.88),rgba(14,18,31,.9));
+  box-shadow:inset 0 1px rgba(255,255,255,.055),0 8px 20px rgba(0,0,0,.12);
+  transition:transform .24s var(--transition-bounce),border-color .2s,box-shadow .2s;
+}
+.suggest::after,.capItem::after,.newChatBtn::after,#sendBtn::after {
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(115deg,transparent 25%,rgba(255,255,255,.1) 48%,transparent 70%);
+  transform:translateX(-130%);transition:transform .65s ease;
+}
+.suggest:hover::after,.capItem:hover::after,.newChatBtn:hover::after,#sendBtn:hover::after {transform:translateX(130%)}
+.suggest:hover,.capItem:hover {
+  transform:translateY(-3px) scale(1.012);
+  border-color:rgba(53,242,208,.48);
+  box-shadow:0 10px 26px rgba(0,0,0,.24),0 0 22px rgba(53,242,208,.09);
+}
+.suggest svg,.capItem svg {filter:drop-shadow(0 0 7px rgba(53,242,208,.3))}
+.row {animation:shakiMessageIn .28s var(--transition-smooth) both}
+.bubble {
+  border:1px solid rgba(155,123,255,.12);
+  box-shadow:0 8px 24px rgba(0,0,0,.14);
+}
+.bubble.bot {
+  background:linear-gradient(145deg,rgba(24,25,43,.96),rgba(13,17,29,.98));
+  border-color:rgba(155,123,255,.18);
+}
+.bubble.user {
+  box-shadow:0 8px 24px rgba(124,95,255,.2),inset 0 1px rgba(255,255,255,.16);
+}
+.bubble pre {
+  border:1px solid rgba(53,242,208,.2);
+  box-shadow:inset 0 0 22px rgba(53,242,208,.035);
+}
+.copyBtn,.retryBtn,.appCard button {
+  border:1px solid rgba(53,242,208,.28);
+  transition:transform .2s var(--transition-bounce),box-shadow .2s,background .2s;
+}
+.copyBtn:hover,.retryBtn:hover,.appCard button:hover {
+  transform:translateY(-2px);
+  box-shadow:0 0 18px rgba(53,242,208,.14);
+}
+.imgCell {
+  overflow:hidden;border:1px solid rgba(155,123,255,.24);
+  box-shadow:0 8px 24px rgba(0,0,0,.24);
+}
+.imgGrid img {transition:transform .45s var(--transition-smooth),filter .3s}
+.imgCell:hover img {transform:scale(1.045);filter:saturate(1.12)}
+#composerWrap {
+  background:linear-gradient(180deg,transparent,rgba(5,7,15,.94) 18%);
+}
+#composerBar {
+  border:1px solid rgba(155,123,255,.27);
+  background:linear-gradient(145deg,rgba(24,22,43,.97),rgba(10,14,25,.98));
+  box-shadow:0 0 0 1px rgba(255,255,255,.025),0 12px 34px rgba(0,0,0,.34),0 0 26px rgba(155,123,255,.08);
+  transition:border-color .2s,box-shadow .2s,transform .2s;
+}
+#composerBar:focus-within {
+  border-color:rgba(53,242,208,.52);
+  box-shadow:0 0 0 3px rgba(53,242,208,.07),0 12px 34px rgba(0,0,0,.34),0 0 28px rgba(53,242,208,.1);
+}
+#sendBtn {
+  position:relative;overflow:hidden;
+  background:linear-gradient(135deg,#8064f5,#a16cff 52%,#35d9c2);
+  box-shadow:0 5px 18px rgba(128,100,245,.3),inset 0 1px rgba(255,255,255,.25);
+  transition:transform .22s var(--transition-bounce),filter .2s,box-shadow .2s;
+}
+#sendBtn:hover {transform:translateY(-2px) scale(1.035);filter:brightness(1.12);box-shadow:0 8px 24px rgba(128,100,245,.38)}
+#sendBtn:active {transform:scale(.94)}
+#sendBtn:disabled {filter:grayscale(.35);opacity:.65}
+#sidebar,.sheet {
+  background:linear-gradient(160deg,rgba(17,16,32,.99),rgba(7,11,20,.99));
+  border-color:rgba(155,123,255,.2);
+  box-shadow:0 24px 70px rgba(0,0,0,.55),0 0 35px rgba(155,123,255,.08);
+}
+.convItem,.personaCard {
+  border:1px solid transparent;
+  transition:background .2s,border-color .2s,transform .2s;
+}
+.convItem:hover,.personaCard:hover {
+  border-color:rgba(155,123,255,.24);
+  transform:translateX(-2px);
+}
+.convItem.active,.personaCard.active {
+  border-color:rgba(53,242,208,.32);
+  box-shadow:inset 0 0 18px rgba(53,242,208,.045);
+}
+.newChatBtn {
+  position:relative;overflow:hidden;
+  background:linear-gradient(120deg,#7159df,#9864ec 58%,#2acbb5);
+  box-shadow:0 8px 22px rgba(113,89,223,.22);
+}
+.sheetHead,.sbHead {border-bottom-color:rgba(155,123,255,.18)}
+.quotaTrack {background:rgba(255,255,255,.07)}
+.quotaFill {box-shadow:0 0 12px currentColor}
+.thinkProgress {background:rgba(155,123,255,.12)}
+.thinkProgressFill {
+  background:linear-gradient(90deg,#8b6bff,#35f2d0,#ff4fc8);
+  box-shadow:0 0 14px rgba(53,242,208,.3);
+}
+#toast {
+  border:1px solid rgba(155,123,255,.24);
+  box-shadow:0 12px 36px rgba(0,0,0,.4),0 0 22px rgba(155,123,255,.12);
+}
+@keyframes shakiAura {from{opacity:.55;transform:translateX(50%) scale(.92)}to{opacity:1;transform:translateX(50%) scale(1.12)}}
+@keyframes shakiFloat {0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes shakiMessageIn {from{opacity:0;transform:translateY(9px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:380px) {
+  #hero h1 {font-size:clamp(19px,5.5vw,25px)}
+  .suggest {padding-inline:8px}
+  #composerBar {border-radius:18px}
+}
+@media(prefers-reduced-motion:reduce) {
+  #hero .heroOrb,#hero::before,.row {animation:none!important}
+  .suggest,.capItem,.menuBtn,#sendBtn,.imgGrid img {transition:none!important}
+}
+
 </style>
 
     <meta name="theme-color" content="#090a0e">
