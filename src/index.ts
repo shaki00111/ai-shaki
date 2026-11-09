@@ -11167,9 +11167,9 @@ async function handleGeminiRequest(
       const target=/\baab\b/i.test(nativeText)?"android-aab":/\b(windows|exe)\b|ویندوز/i.test(nativeText)?"windows":/\b(apk|android)\b|اندروید/i.test(nativeText)?"android-apk":null;
       if(!availability.available||(target&&!availability.targets.some(candidate=>candidate===target)))return {text:nativeUnavailableMessage(session.language),functionCalls:[]};
     }
-    if (!cfg.GEMINI_KEYS.length) {
-        throw new Error("Gemini keys not configured");
-    }
+    // Check provider settings before rejecting an empty Gemini key pool.
+    // Disabled/unconfigured Gemini must route ordinary text chat directly to WusRouter.
+    const providerSettings = await getAIProviderSettings(env);
     const engine = session.engines.gemini;
 
     // The disabled-key refresh is already 15s-cached, but it is also the only
@@ -11271,7 +11271,33 @@ async function handleGeminiRequest(
         cfg.GEMINI_FALLBACK_MODEL && cfg.GEMINI_FALLBACK_MODEL !== primaryModel
             ? cfg.GEMINI_FALLBACK_MODEL : null;
     const modelsToTry = fallbackModel ? [primaryModel, fallbackModel] : [primaryModel];
-    const providerSettings = await getAIProviderSettings(env);
+    const plainTextTurn = parts.length > 0 && parts.every(part =>
+        typeof part.text === "string" && !part.inline_data && !part.functionCall && !part.functionResponse
+    );
+    const plainTextHistory = history.every(item =>
+        item.parts.every(part => typeof part.text === "string" && !part.inline_data && !part.functionCall && !part.functionResponse)
+    );
+    const fallbackIntentAllowed = !routing || ["conversation", "general_knowledge", "activation"].includes(routing.category);
+
+    if (!providerSettings.gemini || cfg.GEMINI_KEYS.length === 0) {
+        if (!providerSettings.wusrouter || !env.WUSROUTER_API_KEY?.trim()) {
+            throw new Error("No enabled AI provider is configured. Enable WusRouter or configure its API key.");
+        }
+        if (!plainTextTurn || !plainTextHistory || !fallbackIntentAllowed || toolPolicy?.force) {
+            throw new Error("WusRouter text fallback only supports ordinary text chat. Enable Gemini for image, file, and tool-based requests.");
+        }
+        const fallbackText = await callWusRouterText(
+            systemPromptText,
+            parts.map(part => part.text ?? "").join("\n"),
+            history,
+            WUSROUTER_CHAT_MODEL,
+            Math.max(5_000, Math.min(25_000, OVERALL_BUDGET_MS - (Date.now() - overallStart))),
+            4096,
+        );
+        engine.consecutiveErrors = 0;
+        logger.info("[AI provider] Gemini disabled/unconfigured; WusRouter direct fallback succeeded");
+        return { text:fallbackText, functionCalls:[], modelParts:[{text:fallbackText}], finishReason:"STOP" };
+    }
 
     let lastError = new Error("No Gemini attempt succeeded");
 
@@ -11330,10 +11356,9 @@ for (let offset = 0; offset < cfg.GEMINI_KEYS.length; offset++) {
     const textOnlyFallback =
       providerSettings.wusrouter &&
       Boolean(env.WUSROUTER_API_KEY?.trim()) &&
-      Boolean(routing && ["conversation", "general_knowledge", "activation"].includes(routing.category)) &&
-      parts.length > 0 &&
-      parts.every(part => typeof part.text === "string" && !part.inline_data && !part.functionCall && !part.functionResponse) &&
-      history.every(item => item.parts.every(part => typeof part.text === "string" && !part.inline_data && !part.functionCall && !part.functionResponse)) &&
+      fallbackIntentAllowed &&
+      plainTextTurn &&
+      plainTextHistory &&
       !toolPolicy?.force &&
       Date.now() - overallStart < OVERALL_BUDGET_MS;
 
