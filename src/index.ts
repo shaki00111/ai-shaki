@@ -6254,9 +6254,9 @@ async function executeToolForWebApp(call: GeminiFunctionCall, user: TgUser, env:
         if (!audio) return { response: { success: false } };
         if(turnToken?.cancelled)return {response:{success:false,error:"CANCELLED_BY_USER"}};
         const id = `voice_${generateId()}`;
-        const put = await putMediaBlob(env, id, bytesToArrayBuffer(audio), "audio/ogg");
+        const put = await putMediaBlob(env, id, bytesToArrayBuffer(audio), "audio/mpeg");
         if (!put.ok) return { response: { success: false, error: "storage_failed" } };
-        const url = `${requestOrigin}/app/${id}.ogg`;
+        const url = `${requestOrigin}/app/${id}.mp3`;
         await incrementUsageWithUser(session, user, "voice_sent", env);
         return { response: { success: true, url }, audioUrl: url };
       }
