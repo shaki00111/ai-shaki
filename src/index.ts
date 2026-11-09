@@ -1187,6 +1187,26 @@ interface Env {
   APP_BUILD_RUNNER_TOKEN?: string;
 }
 
+
+const AI_PROVIDER_SETTINGS_KEY = "ai:provider-settings:v1";
+type AIProviderName = "gemini" | "wusrouter";
+interface AIProviderSettings { gemini: boolean; wusrouter: boolean; }
+async function getAIProviderSettings(env: Env): Promise<AIProviderSettings> {
+  try {
+    const raw = await env.SESSIONS.get(AI_PROVIDER_SETTINGS_KEY);
+    if (!raw) return { gemini:true, wusrouter:true };
+    const parsed = JSON.parse(raw) as Partial<AIProviderSettings>;
+    return { gemini:parsed.gemini !== false, wusrouter:parsed.wusrouter !== false };
+  } catch { return { gemini:true, wusrouter:true }; }
+}
+async function setAIProviderEnabled(env: Env, provider: AIProviderName, enabled: boolean): Promise<AIProviderSettings> {
+  const current = await getAIProviderSettings(env);
+  const next = { ...current, [provider]:enabled };
+  if (!next.gemini && !next.wusrouter) throw new Error("حداقل یک موتور هوش مصنوعی باید روشن بماند.");
+  await env.SESSIONS.put(AI_PROVIDER_SETTINGS_KEY, JSON.stringify(next));
+  return next;
+}
+
 interface BotConfig {
   image_limit: number;
   message_limit: number;
@@ -5237,6 +5257,20 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     const report = await probeAllCredentials(env, { deep: body.deep === true });
     return json({ ok: true, ...report });
   }
+  if (request.method === "GET" && path === "providers") {
+    const providers = await getAIProviderSettings(env);
+    return json({ ok:true, providers, configured:{gemini:cfg.GEMINI_KEYS.length>0,wusrouter:Boolean(env.WUSROUTER_API_KEY?.trim())} });
+  }
+  if (request.method === "POST" && path === "providers") {
+    let body: Record<string, unknown> = {};
+    try { body = await request.json() as Record<string, unknown>; } catch { return json({ok:false,error:"invalid_json"},400); }
+    const provider = body.provider;
+    if ((provider !== "gemini" && provider !== "wusrouter") || typeof body.enabled !== "boolean") return json({ok:false,error:"invalid_provider_setting"},400);
+    try {
+      const providers = await setAIProviderEnabled(env, provider, body.enabled);
+      return json({ok:true,providers,configured:{gemini:cfg.GEMINI_KEYS.length>0,wusrouter:Boolean(env.WUSROUTER_API_KEY?.trim())}});
+    } catch (e) { return json({ok:false,error:e instanceof Error?e.message:"provider_update_failed"},400); }
+  }
   if (request.method === "GET" && path === "business") {
     return json({ ok: true, enabled: await getBusinessModeEnabled(env) });
   }
@@ -5926,6 +5960,13 @@ async function callGeminiForWebApp(
   run?: AgentRun,
   ct?: CancellationToken,
 ): Promise<GeminiResponse> {
+  const providerSettings = await getAIProviderSettings(env);
+  if (!providerSettings.gemini || !cfg.GEMINI_KEYS.length) {
+    if (!providerSettings.wusrouter || !env.WUSROUTER_API_KEY?.trim()) throw new Error("No enabled AI provider is configured.");
+    if (!parts.every(p => typeof p.text === "string" && !p.inline_data && !p.functionCall && !p.functionResponse)) throw new Error("WusRouter fallback supports text-only turns.");
+    const answer = await callWusRouterText(systemPromptText, parts.map(p=>p.text??"").join("\n"), history, WUSROUTER_CHAT_MODEL, 25000, 4096);
+    return { text:answer, functionCalls:[], modelParts:[{text:answer}], finishReason:"STOP" };
+  }
   if (!cfg.GEMINI_KEYS.length) throw new Error("Gemini keys not configured");
   await refreshDisabledKeysFromKV(env); // همان هم‌گام‌سازی وضعیت کلیدها بین ایزوله‌ها
   const engine = session.engines.gemini;
@@ -10650,6 +10691,7 @@ async function runHeavyGeneration(
       );
     }
 
+    const providerSettings = await getAIProviderSettings(env);
     await refreshDisabledKeysFromKV(env);
 
     const primaryModel = cfg.GEMINI_CODE_MODEL;
@@ -10700,7 +10742,7 @@ async function runHeavyGeneration(
     let repairScore = -1;
     let repairAttempted = false;
 
-    for (const step of plan) {
+    if (providerSettings.gemini) for (const step of plan) {
       if (await ct.shouldAbort()) {
         throw new Error(/deadline|timeout/.test(ct.reason)?"generation timeout":"CANCELLED_BY_USER");
       }
@@ -10957,6 +10999,27 @@ async function runHeavyGeneration(
       }
     }
 
+    if (providerSettings.wusrouter && env.WUSROUTER_API_KEY?.trim()) {
+      try {
+        if (await ct.shouldAbort()) throw new Error("CANCELLED_BY_USER");
+        const raw = await callWusRouterText(spec.systemInstruction, attemptPrompt, [],
+          WUSROUTER_CODE_MODEL, Math.max(5000,Math.min(45000,generationDeadline-Date.now())), 24576);
+        const code = stripCodeFences(raw);
+        const normalized = spec.normalize ? spec.normalize(code) : (spec.isComplete(code) ? code : spec.salvage(code));
+        if (normalized && spec.isComplete(normalized)) {
+          const quality = spec.assessQuality?.(normalized);
+          const verdict = scoreDeliverable({request:spec.request??spec.prompt??"",structurallyComplete:true,
+            quality,sizeBytes:normalized.length,deliverableText:normalized.slice(0,200000)});
+          if (verdict.verdict === "shippable") {
+            logger.info(`[${spec.engineName}] WusRouter code fallback succeeded`);
+            return normalized;
+          }
+          if (repairCandidate) return repairCandidate;
+        }
+      } catch (e) {
+        logger.warn(`[${spec.engineName}] WusRouter code fallback failed: ${e instanceof Error?e.message:String(e)}`);
+      }
+    }
     throw lastError;
   } finally {
     clearTimeout(generationTimer);
@@ -11208,10 +11271,11 @@ async function handleGeminiRequest(
         cfg.GEMINI_FALLBACK_MODEL && cfg.GEMINI_FALLBACK_MODEL !== primaryModel
             ? cfg.GEMINI_FALLBACK_MODEL : null;
     const modelsToTry = fallbackModel ? [primaryModel, fallbackModel] : [primaryModel];
+    const providerSettings = await getAIProviderSettings(env);
 
     let lastError = new Error("No Gemini attempt succeeded");
 
-    for (const targetModel of modelsToTry) {
+    if (providerSettings.gemini) for (const targetModel of modelsToTry) {
         if (Date.now() - overallStart >= OVERALL_BUDGET_MS) break;
 
 for (let offset = 0; offset < cfg.GEMINI_KEYS.length; offset++) {
@@ -11264,6 +11328,7 @@ for (let offset = 0; offset < cfg.GEMINI_KEYS.length; offset++) {
     }
 
     const textOnlyFallback =
+      providerSettings.wusrouter &&
       Boolean(env.WUSROUTER_API_KEY?.trim()) &&
       Boolean(routing && ["conversation", "general_knowledge", "activation"].includes(routing.category)) &&
       parts.length > 0 &&
@@ -24072,6 +24137,7 @@ type ProbeStatus =
 type ProbeService =
   | "telegram"
   | "gemini"
+  | "wusrouter"
   | "cloudflare"
   | "elevenlabs"
   | "google_search"
@@ -24186,6 +24252,24 @@ async function probeGeminiKey(key: string, index: number): Promise<CredentialPro
         : res.status === 429 ? "rate_limited"
         : "unreachable";
       return { status, detail: reason };
+    },
+  );
+}
+
+
+async function probeWusRouter(key: string): Promise<CredentialProbe> {
+  return await runProbe(
+    { id:"wusrouter:1", service:"wusrouter", label:"WUSROUTER_API_KEY", masked:maskSecret(key) },
+    async (): Promise<ProbeOutcome> => {
+      const res = await fetchWithTimeout("https://wusrouter.com/v1/models",
+        { headers:{ authorization:"Bearer "+key, accept:"application/json" } }, PROBE_TIMEOUT_MS);
+      if (res.ok) {
+        const body = await probeJson<{data?:unknown[];models?:unknown[]}>(res);
+        return { status:"ok", info:{check:"GET /v1/models",modelsVisible:Array.isArray(body?.data)?body!.data!.length:Array.isArray(body?.models)?body!.models!.length:0} };
+      }
+      const body=await probeJson<{error?:{message?:string};message?:string}>(res);
+      const detail=redactSecrets(body?.error?.message||body?.message||"HTTP "+res.status,key).slice(0,160);
+      return { status:res.status===401?"invalid":res.status===403?"forbidden":res.status===429?"rate_limited":"unreachable", detail };
     },
   );
 }
@@ -24447,7 +24531,7 @@ function collectElevenLabsKeys(env: Env): { key: string; index: number }[] {
  * exactly these names.
  */
 const PROBE_SERVICES: readonly ProbeService[] = [
-  "telegram", "database", "media", "gemini", "cloudflare", "elevenlabs", "google_search",
+  "telegram", "database", "media", "gemini", "wusrouter", "cloudflare", "elevenlabs", "google_search",
 ] as const;
 
 interface CredentialInventoryEntry {
@@ -24503,6 +24587,15 @@ function buildCredentialInventory(env: Env): CredentialInventoryEntry[] {
           benchedUntil: until && until > now ? until : null,
         };
       }),
+    },
+    {
+      service: "wusrouter",
+      label: "WusRouter · Qwen",
+      configured: Boolean(env.WUSROUTER_API_KEY?.trim()),
+      credentials: env.WUSROUTER_API_KEY?.trim()
+        ? [{ id:"wusrouter:1", label:"WUSROUTER_API_KEY", masked:maskSecret(env.WUSROUTER_API_KEY) }]
+        : [],
+      note:"Fallback model for text and code generation.",
     },
     {
       service: "cloudflare",
@@ -24565,6 +24658,8 @@ async function probeAllCredentials(env: Env, opts: { deep?: boolean } = {}): Pro
 
   if (cfg.GEMINI_KEYS.length) cfg.GEMINI_KEYS.forEach((k, i) => jobs.push(probeGeminiKey(k, i + 1)));
   else missing.push("gemini");
+  if (env.WUSROUTER_API_KEY?.trim()) jobs.push(probeWusRouter(env.WUSROUTER_API_KEY));
+  else missing.push("wusrouter");
 
   if (cfg.CF_ACCOUNTS.length) cfg.CF_ACCOUNTS.forEach((a, i) => jobs.push(probeCloudflareAccount(a, i + 1)));
   else missing.push("cloudflare");
