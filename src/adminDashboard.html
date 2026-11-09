@@ -685,6 +685,21 @@ button.primary:hover,.btn-primary:hover,.primary-btn:hover{transform:translateY(
 input,textarea,select{background:#090d20!important;color:#f5f3ff!important;border-color:rgba(139,92,246,.22)!important;border-radius:13px!important}
 a{color:#7dd3fc}
 *{scrollbar-color:#51418b transparent}
+
+/* AI SHAKI control center — consistent violet/blue identity */
+:root{
+ --accent:#9b7bff!important;
+ --accent-soft:rgba(155,123,255,.16)!important;
+ --accent-2:#38bdf8!important;
+ --border-focus:#9b7bff!important;
+}
+body{background:
+ radial-gradient(1100px 560px at 18% -12%,rgba(139,92,246,.15),transparent 60%),
+ radial-gradient(760px 460px at 100% 0%,rgba(56,189,248,.09),transparent 56%),
+ #070910!important}
+button,[role="button"],.nav-item,.tab-btn{transition:background .18s ease,border-color .18s ease,transform .18s ease,box-shadow .18s ease}
+button:active,[role="button"]:active{transform:scale(.985)}
+@media(prefers-reduced-motion:reduce){button,[role="button"],.nav-item,.tab-btn{transition:none!important}}
 </style>
 <style id="shaki-motion-skin">
 body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.22;background-image:linear-gradient(rgba(139,92,246,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.08) 1px,transparent 1px);background-size:44px 44px;mask-image:linear-gradient(to bottom,black,transparent 78%)}
