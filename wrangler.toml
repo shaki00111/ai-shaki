@@ -73,6 +73,7 @@ LOADING_GIF_URL = ""
 #
 #   TOKEN                    Telegram bot token
 #   WEBHOOK_SECRET           Value expected in X-Telegram-Bot-Api-Secret-Token
+#   KEYRING_MASTER_KEY       32+ character secret for AES-GCM encrypted owner-managed Gemini keys
 #
 #   GEMINI_KEY_1 .. GEMINI_KEY_5          Google Gemini API key pool
 #
