@@ -20548,11 +20548,7 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
   // If an administrator explicitly disables replies, /start only opens the
   // settings surface; it never silently re-enables a disabled group.
   if (isGroup) {
-    const gc = await getGroupConfig(chat.id, env);
-    if (!gc.enabled) {
-      // /start opens settings for admins; it never silently undoes a disable.
-      if(!await isUserAdmin(from.id,chat.id))return;
-    }
+    // /start opens a personal panel for every member, even if group replies are disabled.
     const isGroupAdmin = await isUserAdmin(from.id, chat.id);
     const glang = session.language;
     const currentPersonaId = getEffectivePersonaId(session, from.id, true);
@@ -22806,22 +22802,13 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
     ]);
     if (mc.blocked) { await sendMessage(chat.id, mc.message!, { reply_to_message_id: msg.message_id }); return; }
 
-    // معرفی یک‌باره در پی‌وی خود ربات؛ پس از آن گفتگو مستقیم ادامه پیدا می‌کند.
-    if (chat.type === "private") {
-      const introKey = `private_intro:${from.id}`;
-      const introduced = await env.SESSIONS.get(introKey, "text");
-      if (!introduced) {
-        await sendMessage(chat.id, "سلام! من شاکی‌ام؛ AI SHAKI 🤖\nهرچی خواستی بپرس، مستقیم جواب می‌دم.", {
-          reply_to_message_id: msg.message_id
-        });
-        await env.SESSIONS.put(introKey, "1").catch(() => {});
-      }
-    }
-
-    // ── Group activation gate: disabled groups are completely silent. /start is the only exception.
+     // A disabled group may still show every member their own personal controls.
+    // Only /settings remains restricted to administrators of that group.
     if (chat.type !== "private" && !await isGroupEnabled(chat.id, chat.type, env)) {
       const commandProbe = (text.trim().split(/\s+/)[0] ?? "").toLowerCase().split("@")[0];
-      if (!["/start","/settings"].includes(commandProbe)||!await isUserAdmin(from.id,chat.id)) return;
+      const personalStart = commandProbe === "/start";
+      const adminSettings = commandProbe === "/settings" && await isUserAdmin(from.id, chat.id);
+      if (!personalStart && !adminSettings) return;
     }
 
     const isGroup = chat.type !== "private";
@@ -23290,11 +23277,9 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
       return;
     }
 
-    const limitCheck = await checkDailyLimitWithUser(session, from, "message", env);
-      if (!limitCheck.allowed) {
-        await sendMessage(chat.id, limitCheck.message!, { reply_to_message_id: msg.message_id, reply_markup: JSON.stringify(getVIPKeyboard()) });
-        return;
-      }
+    // Free users can continue ordinary text conversations after the dashboard
+    // counter reaches its display cap. Expensive tools retain their own limits;
+    // the token bucket above still protects against message bursts.
 
     if (!canProcessRequest(chat.id, reqId)) {
       bumpMetric("rateLimits");
@@ -25485,6 +25470,10 @@ if (data === "open_language") {
 
   // ── Group settings ──
   if (data === "group_settings") {
+    if (chat.type === "private" || !await isUserAdmin(from.id, chat.id)) {
+      await answerCb(cb.id, session.language === "fa" ? "🚫 فقط مدیران همین گروه به تنظیمات گروه دسترسی دارند." : "🚫 Only this group's administrators can access group settings.", true);
+      return;
+    }
     await answerCb(cb.id);
     await showGroupSettings(chat.id, message.message_id, session, env);
     return;
