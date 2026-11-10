@@ -1154,6 +1154,8 @@ interface Env {
   GEMINI_KEY_4?: string;
   GEMINI_KEY_5?: string;
   WUSROUTER_API_KEY?: string; // Optional OpenAI-compatible fallback; store only as a Cloudflare Secret.
+  /** 32+ character secret used to encrypt API keys managed from the owner panel. */
+  KEYRING_MASTER_KEY?: string;
   GOOGLE_SEARCH_API_KEY?: string;
   GOOGLE_SEARCH_ENGINE_ID?: string;
   MAINTENANCE_MODE?: string;
@@ -1205,6 +1207,108 @@ async function setAIProviderEnabled(env: Env, provider: AIProviderName, enabled:
   if (!next.gemini && !next.wusrouter) throw new Error("حداقل یک موتور هوش مصنوعی باید روشن بماند.");
   await env.SESSIONS.put(AI_PROVIDER_SETTINGS_KEY, JSON.stringify(next));
   return next;
+}
+
+
+// ── ENCRYPTED OWNER-MANAGED GEMINI KEYRING ───────────────────────────────────
+// Keys added in the owner panel are encrypted with AES-GCM before they enter
+// D1-backed KV. KEYRING_MASTER_KEY must be configured as a Cloudflare Secret;
+// without it, the existing ENV-based key pool continues to work unchanged.
+const MANAGED_GEMINI_KEYRING = "ai:keyring:gemini:v1";
+interface ManagedGeminiKey { id: string; key: string; label: string; enabled: boolean; createdAt: number; }
+interface EncryptedKeyring { v: 1; iv: string; data: string; }
+function bytesToB64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+}
+function b64ToBytes(value: string): Uint8Array {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+async function keyringCryptoKey(env: Env): Promise<CryptoKey> {
+  const master = env.KEYRING_MASTER_KEY?.trim() ?? "";
+  if (master.length < 32) throw new Error("KEYRING_MASTER_KEY باید حداقل ۳۲ کاراکتر باشد.");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(master));
+  return crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+async function readManagedGeminiKeys(env: Env): Promise<ManagedGeminiKey[]> {
+  const raw = await env.SESSIONS.get(MANAGED_GEMINI_KEYRING);
+  if (!raw) return [];
+  const envelope = JSON.parse(raw) as EncryptedKeyring;
+  if (envelope.v !== 1 || !envelope.iv || !envelope.data) throw new Error("ساختار Keyring معتبر نیست.");
+  const key = await keyringCryptoKey(env);
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: b64ToBytes(envelope.iv) },
+    key,
+    b64ToBytes(envelope.data),
+  );
+  const parsed = JSON.parse(new TextDecoder().decode(plain));
+  if (!Array.isArray(parsed)) throw new Error("محتوای Keyring معتبر نیست.");
+  return parsed.filter((item): item is ManagedGeminiKey =>
+    item && typeof item.id === "string" && typeof item.key === "string" &&
+    typeof item.enabled === "boolean" && typeof item.createdAt === "number"
+  ).slice(0, 20);
+}
+async function writeManagedGeminiKeys(env: Env, items: ManagedGeminiKey[]): Promise<void> {
+  const key = await keyringCryptoKey(env);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const plain = new TextEncoder().encode(JSON.stringify(items.slice(0, 20)));
+  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plain);
+  const envelope: EncryptedKeyring = { v: 1, iv: bytesToB64(iv), data: bytesToB64(new Uint8Array(encrypted)) };
+  await env.SESSIONS.put(MANAGED_GEMINI_KEYRING, JSON.stringify(envelope));
+}
+function describeManagedGeminiKey(item: ManagedGeminiKey) {
+  return {
+    id: item.id, label: item.label,
+    masked: item.key.length > 9 ? `${item.key.slice(0, 5)}…${item.key.slice(-4)}` : "••••••",
+    enabled: item.enabled, createdAt: item.createdAt,
+  };
+}
+async function managedGeminiKeyInventory(env: Env) {
+  const items = await readManagedGeminiKeys(env);
+  return items.map(describeManagedGeminiKey);
+}
+async function syncManagedGeminiKeysIntoConfig(env: Env): Promise<void> {
+  try {
+    const managed = await readManagedGeminiKeys(env);
+    const merged = [...cfg.GEMINI_KEYS, ...managed.filter(item => item.enabled).map(item => item.key)];
+    cfg.GEMINI_KEYS = [...new Set(merged)];
+  } catch (error) {
+    // A missing keyring secret must not take down a previously working bot.
+    logger.error("[keyring] could not load managed Gemini keys; ENV keys remain active", error);
+  }
+}
+async function manageGeminiKeyring(env: Env, body: Record<string, unknown>) {
+  const action = String(body.action ?? "");
+  const items = await readManagedGeminiKeys(env);
+  if (action === "add") {
+    const key = typeof body.key === "string" ? body.key.trim() : "";
+    const label = typeof body.label === "string" ? body.label.trim().slice(0, 40) : "";
+    if (key.length < 20 || key.length > 512 || /\s/.test(key)) throw new Error("کلید Gemini معتبر نیست.");
+    if (items.some(item => item.key === key) || cfg.GEMINI_KEYS.includes(key)) throw new Error("این کلید قبلاً ثبت شده است.");
+    if (items.length >= 20) throw new Error("حداکثر ۲۰ کلید مدیریتی قابل ثبت است.");
+    items.push({ id: crypto.randomUUID(), key, label: label || `Gemini ${items.length + 1}`, enabled: true, createdAt: Date.now() });
+  } else if (action === "toggle") {
+    const id = String(body.id ?? "");
+    if (typeof body.enabled !== "boolean") throw new Error("وضعیت کلید نامعتبر است.");
+    const item = items.find(entry => entry.id === id);
+    if (!item) throw new Error("کلید پیدا نشد.");
+    item.enabled = body.enabled;
+    if (!items.some(entry => entry.enabled) && !cfg.GEMINI_KEYS.length) throw new Error("حداقل یک کلید فعال باید باقی بماند.");
+  } else if (action === "delete") {
+    const id = String(body.id ?? "");
+    const next = items.filter(entry => entry.id !== id);
+    if (next.length === items.length) throw new Error("کلید پیدا نشد.");
+    if (!next.some(entry => entry.enabled) && !cfg.GEMINI_KEYS.length) throw new Error("نمی‌توان آخرین کلید فعال را حذف کرد.");
+    items.splice(0, items.length, ...next);
+  } else {
+    throw new Error("عملیات Keyring نامعتبر است.");
+  }
+  await writeManagedGeminiKeys(env, items);
+  return items.map(describeManagedGeminiKey);
 }
 
 interface BotConfig {
@@ -5251,6 +5355,36 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
       codeModel: cfg.GEMINI_CODE_MODEL,
       services: buildCredentialInventory(env),
     });
+  }
+  if (request.method === "GET" && path === "keys/manage") {
+    const ready = (env.KEYRING_MASTER_KEY?.trim().length ?? 0) >= 32;
+    if (!ready) return json({ ok: true, ready: false, max: 20, items: [] });
+    try {
+      return json({ ok: true, ready: true, max: 20, items: await managedGeminiKeyInventory(env) });
+    } catch (error) {
+      logger.error("[keyring] inventory read failed", error);
+      return json({ ok: false, ready: true, error: "keyring_unavailable" }, 503);
+    }
+  }
+  if (request.method === "POST" && path === "keys/manage") {
+    if ((env.KEYRING_MASTER_KEY?.trim().length ?? 0) < 32) {
+      return json({ ok: false, error: "KEYRING_MASTER_KEY در Cloudflare تنظیم نشده یا کوتاه است." }, 503);
+    }
+    let body: Record<string, unknown> = {};
+    try { body = await request.json() as Record<string, unknown>; }
+    catch { return json({ ok: false, error: "invalid_json" }, 400); }
+    try {
+      const items = await manageGeminiKeyring(env, body);
+      // Rebuild this isolate's active pool immediately; future isolates load it on request.
+      const managed = await readManagedGeminiKeys(env);
+      cfg.GEMINI_KEYS = [...new Set([
+        ...cfg.GEMINI_KEYS.filter((key: string) => !managed.some(item => item.key === key)),
+        ...managed.filter(item => item.enabled).map(item => item.key),
+      ])];
+      return json({ ok: true, items });
+    } catch (error) {
+      return json({ ok: false, error: error instanceof Error ? error.message : "keyring_update_failed" }, 400);
+    }
   }
   if (request.method === "POST" && path === "keys/test") {
     // POST, not GET: this performs real upstream calls and one of them bills a
@@ -26360,6 +26494,7 @@ export default {
 
     const botConfig = await getBotConfigCached(env);
     cfg = createConfig(env, botConfig);
+    await syncManagedGeminiKeysIntoConfig(env);
     env_ref = env;
     API_URL = `https://api.telegram.org/bot${cfg.TOKEN}`;
 
