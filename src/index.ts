@@ -25484,8 +25484,12 @@ if (data === "open_language") {
     return;
   }
 
-  // ── Group settings ──
+  // ── Group settings: opening and changing settings are both admin-only ──
   if (data === "group_settings") {
+    if (chat.type === "private" || !await isUserAdmin(from.id, chat.id)) {
+      await answerCb(cb.id, session.language === "fa" ? "🚫 فقط مدیران همین گروه مجاز هستند." : "🚫 Only administrators of this group can open these settings.", true);
+      return;
+    }
     await answerCb(cb.id);
     await showGroupSettings(chat.id, message.message_id, session, env);
     return;
