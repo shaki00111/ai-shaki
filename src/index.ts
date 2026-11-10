@@ -20689,9 +20689,9 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
         (lang === "ar"
           ? `💡 يمكنك استخدام \`@${BOT_INFO?.username ?? "SHAKI"} search: …\` دون إضافة البوت.`
           : `💡 Without adding SHAKI, type \`@${BOT_INFO?.username ?? "SHAKI"} search: topic\` right here to use inline mode.`);
-    const kb: InlineKeyboard = { inline_keyboard: [
-      [btn(lang === "fa" ? "👥 تنظیمات گروه" : "👥 Group Settings", "group_settings")]
-    ]};
+    const kb: InlineKeyboard = { inline_keyboard: await isUserAdmin(from.id, chat.id)
+      ? [[btn(lang === "fa" ? "👥 تنظیمات گروه" : "👥 Group Settings", "group_settings")]]
+      : [] };
     await sendMessage(chat.id, groupHelp, { reply_to_message_id: msg.message_id, reply_markup: JSON.stringify(kb) });
     return;
   }
@@ -24973,8 +24973,9 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
     const welcomeText = isGroup
       ? t(newLang, welcomeKey, { name: from.first_name })
       : "سلام! من شاکی‌ام؛ AI SHAKI 🤖\nهرچی خواستی بپرس، مستقیم جواب می‌دم.";
+    const canManageGroup = isGroup && await isUserAdmin(from.id, chat.id);
     const kb: InlineKeyboard = isGroup
-      ? { inline_keyboard: [[btn(t(newLang, "btn_settings"), "group_settings")]] }
+      ? { inline_keyboard: canManageGroup ? [[btn(t(newLang, "btn_settings"), "group_settings")]] : [] }
       : { inline_keyboard: [[btn(t(newLang, "btn_select_model"), "model_settings")], [btn(t(newLang, "btn_help"), "open_help")], [userDashboardButton(newLang, true)]] };
 
     await editMessageText(chat.id, message.message_id, welcomeText, { reply_markup: JSON.stringify(validateKeyboard(kb)) });
@@ -25787,7 +25788,7 @@ async function showHomePanel(
            `💡 <i>Select an option from below:</i>`;
   }
   
-  const kb = buildHomeKeyboard(session, user.id);
+  const kb = await buildHomeKeyboard(session, user.id, env);
   const opts = { 
     reply_markup: JSON.stringify(validateKeyboard(kb)),
     parse_mode: "HTML" as const
@@ -25800,7 +25801,7 @@ async function showHomePanel(
   }
 }
 
-function buildHomeKeyboard(session: ChatSession, userId: number): InlineKeyboard {
+async function buildHomeKeyboard(session: ChatSession, userId: number, env: Env): Promise<InlineKeyboard> {
   const lang = session.language;
   const isOwner = userId === cfg.BOT_OWNER_ID;
   const isFa = lang === "fa";
@@ -25840,7 +25841,7 @@ function buildHomeKeyboard(session: ChatSession, userId: number): InlineKeyboard
     rows.push([userDashboardButton(lang, session.type === "private")]);
   }
 
-  if (session.type !== "private") {
+  if (session.type !== "private" && await isUserAdmin(userId, session.id)) {
     rows.push([btn(isFa ? "👥 تنظیمات گروه" : isAr ? "👥 إعدادات المجموعة" : "👥 Group Settings", "group_settings")]);
   }
   rows.push([btn(isFa ? "✖️ بستن منو" : isAr ? "✖️ إغلاق" : "✖️ Close", "home:close")]);
