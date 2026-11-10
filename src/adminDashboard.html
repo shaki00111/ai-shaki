@@ -998,6 +998,19 @@ button:focus-visible,[role=button]:focus-visible,input:focus-visible{outline:2px
             <div id="providerToggles" class="provider-toggles"><div class="skel"><i></i><i></i></div></div>
           </div>
         </div>
+        <div class="card">
+          <div class="section-head"><h2>مدیریت کلیدهای Gemini</h2><span class="tag">رمزنگاری‌شده</span></div>
+          <div class="section-body">
+            <p class="hint">کلیدهای اضافه‌شده در این بخش قبل از ذخیره با AES-GCM رمزنگاری می‌شوند. برای فعال‌شدن، Secret با نام <code>KEYRING_MASTER_KEY</code> و حداقل ۳۲ کاراکتر را در Cloudflare تنظیم کن. کلید اصلی فقط یک‌بار هنگام افزودن ارسال می‌شود و دوباره نمایش داده نمی‌شود.</p>
+            <label class="lbl" for="managedKeyLabel">نام دلخواه</label>
+            <input id="managedKeyLabel" maxlength="40" placeholder="مثلاً Gemini Backup 1">
+            <label class="lbl" for="managedKeyValue" style="margin-top:10px">کلید API جدید</label>
+            <input id="managedKeyValue" type="password" autocomplete="off" spellcheck="false" placeholder="AIza..." dir="ltr">
+            <button class="primary" id="managedKeyAdd" style="width:100%;margin-top:10px">＋ افزودن کلید امن</button>
+            <div class="status" id="managedKeyStatus" aria-live="polite">در حال بررسی Keyring…</div>
+            <div class="list" id="managedKeysList"></div>
+          </div>
+        </div>
         <div class="card"><div class="section-head"><h2>سرویس‌ها</h2></div><div class="list" id="keysList"></div></div>
       </section>
       <section class="panel" id="panel-business" role="tabpanel" aria-labelledby="tab-business">
@@ -2648,6 +2661,55 @@ async function toggleAIProvider(provider){
   }catch(e){if(button)button.disabled=false;toast(e.message||"تغییر وضعیت ناموفق بود","err");}
 }
 
+async function loadManagedKeys(){
+  const host=$("managedKeysList"), status=$("managedKeyStatus");
+  if(!host||!status) return;
+  status.textContent="در حال بارگذاری Keyring…";
+  try{
+    const d=await api("/api/admin/keys/manage");
+    if(!d.ready){
+      status.textContent="برای فعال‌سازی مدیریت کلیدها، ابتدا Secret با نام KEYRING_MASTER_KEY و حداقل ۳۲ کاراکتر را در Cloudflare اضافه کن.";
+      host.innerHTML="";
+      $("managedKeyAdd").disabled=true;
+      return;
+    }
+    $("managedKeyAdd").disabled=false;
+    const items=Array.isArray(d.items)?d.items:[];
+    status.textContent=items.length+" کلید مدیریتی از حداکثر "+(d.max||20)+" کلید";
+    host.innerHTML=items.length?items.map(k=>
+      '<div class="item"><div class="item-row"><div><b>'+esc(k.label||"Gemini key")+'</b><small dir="ltr">'+esc(k.masked||"••••")+'</small><small>'+(k.enabled?"فعال در چرخش کلیدها":"غیرفعال")+'</small></div><div class="item-actions">'+
+      '<button class="sm" data-managed-toggle="'+esc(k.id)+'" data-enabled="'+(!k.enabled)+'">'+(k.enabled?"خاموش‌کردن":"فعال‌کردن")+'</button>'+
+      '<button class="sm danger" data-managed-delete="'+esc(k.id)+'">حذف</button></div></div></div>'
+    ).join(""):'<div class="state">هنوز کلید مدیریتی اضافه نشده است.</div>';
+  }catch(e){status.textContent="خطا در خواندن Keyring: "+(e.message||"نامشخص");host.innerHTML="";}
+}
+async function addManagedGeminiKey(){
+  const key=$("managedKeyValue").value.trim(), label=$("managedKeyLabel").value.trim();
+  if(!key) return toast("کلید API را وارد کن","err");
+  const btn=$("managedKeyAdd"); btn.disabled=true;
+  try{
+    await api("/api/admin/keys/manage",{method:"POST",body:{action:"add",key,label},timeoutMs:15000});
+    $("managedKeyValue").value=""; $("managedKeyLabel").value="";
+    toast("کلید به‌صورت رمزنگاری‌شده ذخیره شد","ok");
+    await loadManagedKeys(); await loadKeys();
+  }catch(e){toast(e.message||"افزودن کلید ناموفق بود","err");}
+  finally{btn.disabled=false;}
+}
+async function manageGeminiKeyClick(event){
+  const toggle=event.target.closest("[data-managed-toggle]");
+  const remove=event.target.closest("[data-managed-delete]");
+  if(!toggle&&!remove) return;
+  const id=toggle?toggle.dataset.managedToggle:remove.dataset.managedDelete;
+  if(remove&&!await confirmAction("حذف کلید","این کلید از Keyring حذف شود؟")) return;
+  const button=toggle||remove; button.disabled=true;
+  try{
+    if(toggle) await api("/api/admin/keys/manage",{method:"POST",body:{action:"toggle",id,enabled:toggle.dataset.enabled==="true"}});
+    else await api("/api/admin/keys/manage",{method:"POST",body:{action:"delete",id}});
+    toast(toggle?"وضعیت کلید تغییر کرد":"کلید حذف شد","ok");
+    await loadManagedKeys(); await loadKeys();
+  }catch(e){toast(e.message||"عملیات ناموفق بود","err");button.disabled=false;}
+}
+
 async function loadKeys(){
   const list = $("keysList");
   return await section(list, async ()=>{
@@ -2662,6 +2724,7 @@ async function loadKeys(){
     $("keysHint").textContent = "مدل چت: "+(d.model||"—")+" · مدل کد: "+(d.codeModel||"—")+
       " — فهرست زیر فقط می‌گوید چه تنظیم شده؛ برای وضعیت واقعی، آزمایش را اجرا کن.";
     renderKeyServices(services);
+    await loadManagedKeys();
     await loadProviderSettings();
   }, { rows:2 });
 }
@@ -2913,6 +2976,9 @@ function bindStatic(){
   $("logLevel").onchange  = ()=> loadLogs();
   $("keysLoad").onclick   = ()=>{ invalidateTab("keys"); loadKeys(); };
   $("keysTest").onclick   = runKeyTests;
+  $("managedKeyAdd").onclick = addManagedGeminiKey;
+  $("managedKeysList").addEventListener("click",manageGeminiKeyClick);
+  $("managedKeyValue").addEventListener("keydown",e=>{if(e.key==="Enter")addManagedGeminiKey();});
   $("providerToggles").addEventListener("click", e=>{
     const button=e.target.closest("[data-provider-toggle]");
     if(button) toggleAIProvider(button.dataset.providerToggle);
