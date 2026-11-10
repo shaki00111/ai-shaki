@@ -20543,7 +20543,6 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
   // If an administrator explicitly disables replies, /start only opens the
   // settings surface; it never silently re-enables a disabled group.
   if (isGroup) {
-    const gc = await getGroupConfig(chat.id, env);
      const isGroupAdmin = await isUserAdmin(from.id, chat.id);
     const glang = session.language;
     const currentPersonaId = getEffectivePersonaId(session, from.id, true);
