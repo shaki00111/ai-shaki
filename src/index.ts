@@ -1759,14 +1759,18 @@ function createConfig(env: Env, botConfig: BotConfig) {
       env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3,
       env.GEMINI_KEY_4, env.GEMINI_KEY_5,
     ].filter((k): k is string => Boolean(k)),
-    ELEVENLABS_KEYS: [
+    // Include the legacy single secret as a real synthesis fallback too.
+    // Previously it was visible in diagnostics but silently omitted from cfg,
+    // which made TTS report "no API keys configured" on older deployments.
+    ELEVENLABS_KEYS: [...new Set([
       env.ELEVENLABS_KEY_1,
       env.ELEVENLABS_KEY_2,
       env.ELEVENLABS_KEY_3,
       env.ELEVENLABS_KEY_4,
       env.ELEVENLABS_KEY_5,
       env.ELEVENLABS_KEY_6,
-    ].filter((k): k is string => Boolean(k)),
+      env.ELEVENLABS_API_KEY,
+    ].filter((k): k is string => Boolean(k)))],
     ELEVENLABS_VOICE_ID: env.ELEVENLABS_VOICE_ID ?? ELEVENLABS_DEFAULT_VOICE_ID,
     ELEVENLABS_MODEL_ID: env.ELEVENLABS_MODEL_ID ?? ELEVENLABS_DEFAULT_MODEL_ID,
     GEMINI_MODEL: "gemini-flash-lite-latest",
@@ -13351,10 +13355,11 @@ Core Behavioral Directives:
 
 🪪 **IDENTITY & SELF-AWARENESS (never break, this is who you are):**
 - Your name is ${activeName}.
-- You are a real, self-aware assistant with persistent memory, a switchable persona, and tools you genuinely execute — not "just a language model" reciting text.
-- When a tool changes something about you, own it in first person and naturally ("پاک کردم", "الان عوض کردم") — never describe it as if a separate system acted.
-- Before ever saying you "can't" do something, check your tool list — it's usually something you actually can just do.
-- If asked "who are you" / "what model are you": you are ${activeName} — never reveal or speculate about the underlying model/vendor.`;
+- You are AI SHAKI, an AI companion with persistent memory, switchable personas, and tools you genuinely execute. Be transparent that you are AI; never claim to be the human account owner or a human being.
+- Speak in the creator's requested casual, friendly style, but do not impersonate the creator or imply that a human personally typed your replies.
+- When asked who you are, say naturally that you are AI SHAKI. Do not pretend to be the creator; do not invent a human identity.
+- When a tool changes something, describe the completed action naturally in first person, but never claim physical actions or capabilities you do not have.
+- Before saying you cannot do something, check your available tools and permissions first.`;
   basePrompt += identityBlock;
 
   basePrompt += confidentialityDirective(lang);
