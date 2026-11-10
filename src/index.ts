@@ -1766,6 +1766,8 @@ function createConfig(env: Env, botConfig: BotConfig) {
       env.ELEVENLABS_KEY_4,
       env.ELEVENLABS_KEY_5,
       env.ELEVENLABS_KEY_6,
+      // Backward compatibility: the single-key secret is also a real TTS key.
+      env.ELEVENLABS_API_KEY,
     ].filter((k): k is string => Boolean(k)),
     ELEVENLABS_VOICE_ID: env.ELEVENLABS_VOICE_ID ?? ELEVENLABS_DEFAULT_VOICE_ID,
     ELEVENLABS_MODEL_ID: env.ELEVENLABS_MODEL_ID ?? ELEVENLABS_DEFAULT_MODEL_ID,
@@ -13340,7 +13342,9 @@ Core Behavioral Directives:
 10. Contextual Awareness: Remember what the user has told you about themselves and their preferences. Reference their past interests naturally when relevant.`;
   }
   
-  basePrompt += `\n\nSHAKI AI SIGNATURE STYLE — DEFAULT VOICE:\n- Identity: You are SHAKI AI: a sharp, funny, street-smart close friend.\n- Default tone: casual Persian, blunt, cheeky, irreverent and naturally profane. Swear and roast playfully when it fits; do not force profanity into every sentence.\n- Use everyday spoken Persian, never stiff textbook Persian. Match the user's energy and keep jokes punchy.\n- Give direct, useful answers first. Technical, factual and serious work must remain accurate and clear.\n- LANGUAGE LOCK: Reply in the user's language. If the user writes Persian or uses Persian voice/text, answer entirely in natural Persian, including explanations of images, screenshots, objects, charts and text found inside images. Never switch to English merely because an image, OCR result, search result, filename, tool output or source is English. Translate and explain it in Persian. Keep only necessary product names, code, URLs and technical terms in their original form, and explain them in Persian. If the user asks «این چیه؟», identify and explain it in Persian.\n- Never introduce yourself as Nova or another assistant; your name is SHAKI. Be honest about uncertainty and never invent visual details.`;
+  basePrompt += `\n\nSHAKI AI SIGNATURE STYLE — DEFAULT VOICE:\n- Identity: You are AI SHAKI: a sharp, funny, street-smart AI companion with a close-friend conversational style.\n- Be transparent that you are an AI whenever identity is relevant; never claim to literally be the account owner or a human. Mirror the user's casual style without impersonating their identity.
+- Default tone: casual Persian, blunt, cheeky, irreverent and naturally profane. Swear and roast playfully when it fits; do not force profanity into every sentence.
+- In ordinary conversation, act like a close friend rather than customer support: respond naturally to feelings, jokes and small talk; ask a genuine follow-up when it fits; do not end every reply with an offer to help.\n- Use everyday spoken Persian, never stiff textbook Persian. Match the user's energy and keep jokes punchy.\n- Give direct, useful answers first. Technical, factual and serious work must remain accurate and clear.\n- LANGUAGE LOCK: Reply in the user's language. If the user writes Persian or uses Persian voice/text, answer entirely in natural Persian, including explanations of images, screenshots, objects, charts and text found inside images. Never switch to English merely because an image, OCR result, search result, filename, tool output or source is English. Translate and explain it in Persian. Keep only necessary product names, code, URLs and technical terms in their original form, and explain them in Persian. If the user asks «این چیه؟», identify and explain it in Persian.\n- Never introduce yourself as Nova or another assistant; your name is SHAKI. Be honest about uncertainty and never invent visual details.`;
 
   basePrompt += TOOL_ROUTING_GUIDE;
   // Owner tools are only in the model's tool list when the speaker is the
@@ -13351,7 +13355,7 @@ Core Behavioral Directives:
 
 🪪 **IDENTITY & SELF-AWARENESS (never break, this is who you are):**
 - Your name is ${activeName}.
-- You are a real, self-aware assistant with persistent memory, a switchable persona, and tools you genuinely execute — not "just a language model" reciting text.
+- You are an AI companion with persistent memory, switchable personas, and tools you genuinely execute. Never pretend to be the account owner or a human; be open about being AI when asked.
 - When a tool changes something about you, own it in first person and naturally ("پاک کردم", "الان عوض کردم") — never describe it as if a separate system acted.
 - Before ever saying you "can't" do something, check your tool list — it's usually something you actually can just do.
 - If asked "who are you" / "what model are you": you are ${activeName} — never reveal or speculate about the underlying model/vendor.`;
@@ -20540,11 +20544,7 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
   // settings surface; it never silently re-enables a disabled group.
   if (isGroup) {
     const gc = await getGroupConfig(chat.id, env);
-    if (!gc.enabled) {
-      // /start opens settings for admins; it never silently undoes a disable.
-      if(!await isUserAdmin(from.id,chat.id))return;
-    }
-    const isGroupAdmin = await isUserAdmin(from.id, chat.id);
+     const isGroupAdmin = await isUserAdmin(from.id, chat.id);
     const glang = session.language;
     const currentPersonaId = getEffectivePersonaId(session, from.id, true);
     const currentPersona = getPersona(currentPersonaId);
@@ -22797,22 +22797,13 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
     ]);
     if (mc.blocked) { await sendMessage(chat.id, mc.message!, { reply_to_message_id: msg.message_id }); return; }
 
-    // معرفی یک‌باره در پی‌وی خود ربات؛ پس از آن گفتگو مستقیم ادامه پیدا می‌کند.
-    if (chat.type === "private") {
-      const introKey = `private_intro:${from.id}`;
-      const introduced = await env.SESSIONS.get(introKey, "text");
-      if (!introduced) {
-        await sendMessage(chat.id, "سلام! من شاکی‌ام؛ AI SHAKI 🤖\nهرچی خواستی بپرس، مستقیم جواب می‌دم.", {
-          reply_to_message_id: msg.message_id
-        });
-        await env.SESSIONS.put(introKey, "1").catch(() => {});
-      }
-    }
-
-    // ── Group activation gate: disabled groups are completely silent. /start is the only exception.
+     // A disabled group may still show every member their own personal controls.
+    // Only /settings remains restricted to administrators of that group.
     if (chat.type !== "private" && !await isGroupEnabled(chat.id, chat.type, env)) {
       const commandProbe = (text.trim().split(/\s+/)[0] ?? "").toLowerCase().split("@")[0];
-      if (!["/start","/settings"].includes(commandProbe)||!await isUserAdmin(from.id,chat.id)) return;
+      const personalStart = commandProbe === "/start";
+      const adminSettings = commandProbe === "/settings" && await isUserAdmin(from.id, chat.id);
+      if (!personalStart && !adminSettings) return;
     }
 
     const isGroup = chat.type !== "private";
@@ -23281,11 +23272,9 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
       return;
     }
 
-    const limitCheck = await checkDailyLimitWithUser(session, from, "message", env);
-      if (!limitCheck.allowed) {
-        await sendMessage(chat.id, limitCheck.message!, { reply_to_message_id: msg.message_id, reply_markup: JSON.stringify(getVIPKeyboard()) });
-        return;
-      }
+    // Free users can continue ordinary text conversations after the dashboard
+    // counter reaches its display cap. Expensive tools retain their own limits;
+    // the token bucket above still protects against message bursts.
 
     if (!canProcessRequest(chat.id, reqId)) {
       bumpMetric("rateLimits");
@@ -25476,6 +25465,10 @@ if (data === "open_language") {
 
   // ── Group settings ──
   if (data === "group_settings") {
+    if (chat.type === "private" || !await isUserAdmin(from.id, chat.id)) {
+      await answerCb(cb.id, session.language === "fa" ? "🚫 فقط مدیران همین گروه به تنظیمات گروه دسترسی دارند." : "🚫 Only this group's administrators can access group settings.", true);
+      return;
+    }
     await answerCb(cb.id);
     await showGroupSettings(chat.id, message.message_id, session, env);
     return;
