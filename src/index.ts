@@ -6371,9 +6371,9 @@ async function executeToolForWebApp(call: GeminiFunctionCall, user: TgUser, env:
 
         let prompt = String(call.args.prompt ?? "").trim();
         prompt = await enhanceImagePrompt(prompt, env);
-        for (const model of cfg.AI_IMAGE_MODELS) {
+        for (const model of [GEMINI_IMAGE_MODEL]) {
           if(turnToken?.cancelled)break;
-          const img = await withTimeout(generateImageCF(prompt, model, env), 45_000, "timeout").catch(() => null);
+          const img = await withTimeout(generateImageGemini(prompt, env), 95_000, "timeout").catch((error) => { logger.warn(`Gemini image generation failed: ${error instanceof Error ? error.message : String(error)}`); return null; });
           if (img) {
             if(turnToken?.cancelled)return {response:{success:false,error:"CANCELLED_BY_USER"}};
             const url = await registerAndSaveMedia(`img_${generateId()}`, bytesToArrayBuffer(img), user.id, user.first_name, env, prompt);
@@ -11090,7 +11090,7 @@ async function runHeavyGeneration(
     // Quota / provider-outage fallback for complete code and web-app generation.
     // It uses the same downstream structural and quality gates as Gemini.
     const fallbackEligible =
-      Boolean(env.WUSROUTER_API_KEY?.trim()) &&
+      false && Boolean(env.WUSROUTER_API_KEY?.trim()) &&
       (!cfg.GEMINI_KEYS.length ||
         /quota|rate.?limit|429|resource_exhausted|overloaded|503|502|timeout|no usable gemini key/i.test(lastError.message)) &&
       !await ct.shouldAbort() &&
@@ -11137,7 +11137,7 @@ async function runHeavyGeneration(
       }
     }
 
-    if (providerSettings.wusrouter && env.WUSROUTER_API_KEY?.trim()) {
+    if (false && providerSettings.wusrouter && env.WUSROUTER_API_KEY?.trim()) {
       try {
         if (await ct.shouldAbort()) throw new Error("CANCELLED_BY_USER");
         const raw = await callWusRouterText(spec.systemInstruction, attemptPrompt, [],
@@ -11663,6 +11663,67 @@ function releaseCfSlot(idx: number): void {
 }
 function getCfSlotCount(idx: number): number {
   return _cfAccountActiveCount.get(idx) ?? 0;
+}
+
+// ── Gemini native image generation (Nano Banana) ────────────────────────────
+// Image generation is intentionally Gemini-only. WusRouter is a plain-text
+// fallback and Cloudflare AI is not used for new image generations.
+const GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image";
+async function generateImageGemini(prompt: string, env: Env): Promise<Uint8Array> {
+  if (!cfg.GEMINI_KEYS.length) throw new Error("GEMINI_IMAGE_NO_KEYS");
+  await refreshDisabledKeysFromKV(env);
+  const errors: string[] = [];
+  for (let offset = 0; offset < cfg.GEMINI_KEYS.length; offset++) {
+    const keyInfo = getGeminiKey(offset);
+    if (!keyInfo) continue;
+    const { key } = keyInfo;
+    try {
+      const response = await fetchWithTimeout(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGE_MODEL}:generateContent`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt.slice(0, 12000) }] }],
+            generationConfig: {
+              responseModalities: ["TEXT", "IMAGE"],
+              responseFormat: { image: { aspectRatio: "1:1", imageSize: "1K" } },
+            },
+          }),
+        },
+        90_000,
+      );
+      const raw = await response.text().catch(() => "");
+      let data: any = null;
+      try { data = raw ? JSON.parse(raw) : null; } catch {}
+      if (!response.ok || data?.error) {
+        const message = String(data?.error?.message ?? raw ?? `HTTP ${response.status}`).slice(0, 500);
+        const err = new Error(`GEMINI_IMAGE_HTTP_${response.status}: ${message}`);
+        const action = classifyGeminiKeyError(err, key, env);
+        errors.push(err.message);
+        if (action === "fatal") throw err;
+        continue;
+      }
+      const parts = data?.candidates?.flatMap((candidate: any) => candidate?.content?.parts ?? []) ?? [];
+      const imagePart = parts.find((part: any) => part?.inlineData?.data || part?.inline_data?.data);
+      const imageData = imagePart?.inlineData?.data ?? imagePart?.inline_data?.data;
+      if (typeof imageData === "string" && imageData.length > 100) {
+        const binary = atob(imageData);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        if (bytes.length > 100) return bytes;
+      }
+      const blockReason = data?.promptFeedback?.blockReason ?? data?.candidates?.[0]?.finishReason ?? "no image data";
+      errors.push(String(blockReason));
+      logger.warn(`Gemini image model returned no image: ${String(blockReason).slice(0,160)}`);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      if (/safety|blocked|invalid argument|unsupported/i.test(err.message)) throw err;
+      errors.push(err.message.slice(0, 240));
+      logger.warn(`Gemini image key attempt failed: ${err.message.slice(0,180)}`);
+    }
+  }
+  throw new Error(`GEMINI_IMAGE_ALL_KEYS_FAILED: ${errors.slice(-4).join(" | ") || "No usable Gemini key"}`);
 }
 
 async function generateImageCF(
@@ -12592,7 +12653,7 @@ async function handleBusinessMessage(msg: TgMessage, env: Env): Promise<void> {
 
     const customPrompt = record.customerPrompts[String(customerId)];
     const basePrompt = (customPrompt ?? record.defaultPrompt ?? "").trim() ||
-      `You are AI SHAKI, the friendly AI assistant for ${record.ownerName}. On the first message to each customer, introduce yourself as AI SHAKI, the helpful assistant for this account. Never claim that the owner is online or offline. After that, continue the conversation naturally as AI SHAKI. Keep replies concise, useful and warm; reply in the customer's language.`;
+      `You are SHAKI: a natural, friendly, relaxed chat companion representing ${record.ownerName}. Never sound like a customer-service script or say phrases such as “How may I assist you?”, “Do you have a request?”, “your order/custom request”, or repeatedly introduce yourself. Start casually only when natural, then respond directly to what the person actually said. Keep most replies to 1–3 short sentences, use everyday language and light humor when it fits, ask at most one natural follow-up question, and never invent services or promises. Match the customer's language and tone. If a spoken reply would genuinely be more useful and voice synthesis is available, prefer a short voice note; otherwise reply in text.`;
 
     const identityGuard =
       `\n\n🔒 CRITICAL IDENTITY RULES (never break these):\n` +
@@ -14616,7 +14677,7 @@ case "generate_image": {
     let imageError = "";
     let hostedImageUrl = "";
     let imgRef = "";
-    const randomizedModels = [...cfg.AI_IMAGE_MODELS].sort(() => Math.random() - 0.5);
+    const randomizedModels = [GEMINI_IMAGE_MODEL];
     for (const model of randomizedModels) {
         if (await isCancelledNow()) {
             await taskMgr?.failTask(taskKey, lang === "fa" ? "لغو شد توسط کاربر" : "Cancelled by user");
@@ -14625,7 +14686,7 @@ case "generate_image": {
         const genStart = Date.now();
         try {
             const img = await raceCancellable(
-                withTimeout(generateImageCF(finalPrompt, model, env, undefined, imgIndex), 105_000, "Timeout"),
+                withTimeout(generateImageGemini(finalPrompt, env), 105_000, "Timeout"),
                 isCancelledNow
             );
             if (img) {
@@ -21045,7 +21106,7 @@ async function handleImg(msg: TgMessage, args: string[], env: Env): Promise<void
     ).catch(() => {});
 
     try {
-      const img = await withTimeout(generateImageCF(prompt, model, env), 45_000, "Timeout");
+      const img = await withTimeout(generateImageGemini(prompt, env), 95_000, "Timeout");
       if (!img) { errors.push(`• **${getShortModelName(model)}**: ❌ internal error`); continue; }
   
       const modelName = getShortModelName(model);
