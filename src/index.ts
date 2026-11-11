@@ -1568,7 +1568,7 @@ const NOVA_TOOL_DECLARATIONS = [
     parameters: {
       type: "OBJECT",
       properties: {
-        persona_id: { type: "STRING", enum: ["nova", "lilith", "cypher", "victoria", "aria", "jax"], description: "Target persona id. Map informal/Persian names directly: 'لیلیت'->lilith, 'زورگ' or 'سایفر'->cypher, 'ویکتوریا'->victoria, 'آریا'->aria, 'جکس'->jax, 'شاکی' or 'پیش‌فرض' or 'عادی' or default->nova." },
+        persona_id: { type: "STRING", enum: ["nova", "lilith", "cypher", "victoria", "aria", "jax"], description: "Target persona id. Map informal/Persian names directly: حشری''->lilith, 'زورگ' or 'سایفر'->cypher, 'ویکتوریا'->victoria, 'آریا'->aria, 'جکس'->jax, 'شاکی' or 'پیش‌فرض' or 'عادی' or default->nova." },
       },
       required: ["persona_id"],
     },
@@ -2293,7 +2293,7 @@ const PERSONAS: Record<string, Persona> = {
   lilith: {
     id: "lilith",
     emoji: "🖤",
-    nameFA: "لیلیت",
+    ameFA: "حشری",
     nameEN: "Lilith",
     tagFA: "اغواگرِ بی‌پروا",
     tagEN: "My Lady",
@@ -2474,7 +2474,7 @@ function isKnownPersonaId(personaId: unknown): personaId is string {
  */
 const PERSONA_ALIASES: readonly PersonaAlias[] = [
   { id: "nova", aliases: ["شاکی", "shaki", "شاکی ai", "پیش‌فرض", "پیش فرض", "پیشفرض", "default persona"] },
-  { id: "lilith", aliases: ["لیلیت", "لیلیث", "lilith"] },
+  { id: "lilith", aliases: ["حشری", "لیلیث", "lilith"] },
   { id: "cypher", aliases: ["سایفر", "زورگ", "بیگانه", "cypher", "zorg"] },
   { id: "victoria", aliases: ["ویکتوریا", "victoria"] },
   { id: "aria", aliases: ["آریا", "اریا", "aria"] },
