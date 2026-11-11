@@ -11137,27 +11137,6 @@ async function runHeavyGeneration(
       }
     }
 
-    if (false && providerSettings.wusrouter && env.WUSROUTER_API_KEY?.trim()) {
-      try {
-        if (await ct.shouldAbort()) throw new Error("CANCELLED_BY_USER");
-        const raw = await callWusRouterText(spec.systemInstruction, attemptPrompt, [],
-          WUSROUTER_CODE_MODEL, Math.max(5000,Math.min(45000,generationDeadline-Date.now())), 24576);
-        const code = stripCodeFences(raw);
-        const normalized = spec.normalize ? spec.normalize(code) : (spec.isComplete(code) ? code : spec.salvage(code));
-        if (normalized && spec.isComplete(normalized)) {
-          const quality = spec.assessQuality?.(normalized);
-          const verdict = scoreDeliverable({request:spec.request??spec.prompt??"",structurallyComplete:true,
-            quality,sizeBytes:normalized.length,deliverableText:normalized.slice(0,200000)});
-          if (verdict.verdict === "shippable") {
-            logger.info(`[${spec.engineName}] WusRouter code fallback succeeded`);
-            return normalized;
-          }
-          if (repairCandidate) return repairCandidate;
-        }
-      } catch (e) {
-        logger.warn(`[${spec.engineName}] WusRouter code fallback failed: ${e instanceof Error?e.message:String(e)}`);
-      }
-    }
     throw lastError;
   } finally {
     clearTimeout(generationTimer);
