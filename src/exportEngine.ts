@@ -1735,7 +1735,7 @@ class PdfBuilder {
       const lines = this.wrapRtl(title, titleSize, CONTENT_W);
       const blockH = lines.length * lineH + 60;
       this.cursorY = (PAGE_H - blockH) / 2;
-      const kicker = (this.opts.author || "NOVA");
+      const kicker = (this.opts.author || "AI SHAKI");
       this.emitRtlText(kicker, 11, this.theme.accent, { xRight: PAGE_W - MARGIN_X });
       this.cursorY += 22;
       for (const ln of lines) { this.emitRtlText(ln, titleSize, this.theme.heading, { xRight: PAGE_W - MARGIN_X }); this.cursorY += lineH; }
@@ -1755,7 +1755,7 @@ class PdfBuilder {
     this.cursorY = (PAGE_H - blockH) / 2;
     // small kicker
     this.emitLine(
-      [{ text: (this.opts.author || "NOVA").toUpperCase(), style: "bold", w: this.measure((this.opts.author || "NOVA").toUpperCase(), "bold", 11) }],
+      [{ text: (this.opts.author || "AI SHAKI").toUpperCase(), style: "bold", w: this.measure((this.opts.author || "AI SHAKI").toUpperCase(), "bold", 11) }],
       MARGIN_X, 11, this.theme.accent, 22,
     );
     this.cursorY += 8;
@@ -1916,7 +1916,7 @@ class PdfBuilder {
     // metadata (info dict)
     const esc = (s: string) => s.replace(/[()\\]/g, "\\$&");
     const infoNum = addObj(
-      `<< /Title ${pdfUnicodeString(meta.title || "Document")} /Author ${pdfUnicodeString(meta.author || "Nova")} /Producer (${NOVA_OFFICE_NAME}) /Creator (Nova) >>`,
+      `<< /Title ${pdfUnicodeString(meta.title || "Document")} /Author ${pdfUnicodeString(meta.author || "AI SHAKI")} /Producer (${NOVA_OFFICE_NAME}) /Creator (AI SHAKI) >>`,
     );
 
     // assemble byte stream with xref
@@ -2289,7 +2289,7 @@ class DocxRenderer {
       `<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" ` +
       `xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
       `<dc:title>${xmlEsc(doc.title || this.opts.title || "Document")}</dc:title>` +
-      `<dc:creator>${xmlEsc(this.opts.author || "Nova")}</dc:creator>` +
+      `<dc:creator>${xmlEsc(this.opts.author || "AI SHAKI")}</dc:creator>` +
       `<cp:lastModifiedBy>Nova</cp:lastModifiedBy>` +
       `<dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>` +
       `<dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified>` +
@@ -2766,16 +2766,16 @@ class PptxRenderer {
     const clr = (v: string) => `<a:srgbClr val="${v}"/>`;
     return (
       `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-      `<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Nova">` +
-      `<a:themeElements><a:clrScheme name="Nova">` +
+      `<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="AI SHAKI">` +
+      `<a:themeElements><a:clrScheme name="AI SHAKI">` +
       `<a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>` +
       `<a:dk2>${clr(head)}</a:dk2><a:lt2>${clr("EEEEEE")}</a:lt2>` +
       `<a:accent1>${clr(accent)}</a:accent1><a:accent2>${clr(accent)}</a:accent2><a:accent3>${clr(accent)}</a:accent3>` +
       `<a:accent4>${clr(accent)}</a:accent4><a:accent5>${clr(accent)}</a:accent5><a:accent6>${clr(accent)}</a:accent6>` +
       `<a:hlink>${clr("0563C1")}</a:hlink><a:folHlink>${clr("954F72")}</a:folHlink></a:clrScheme>` +
-      `<a:fontScheme name="Nova"><a:majorFont><a:latin typeface="Calibri Light"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont>` +
+      `<a:fontScheme name="AI SHAKI"><a:majorFont><a:latin typeface="Calibri Light"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont>` +
       `<a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme>` +
-      `<a:fmtScheme name="Nova"><a:fillStyleLst><a:solidFill>${clr(accent)}</a:solidFill><a:solidFill>${clr(accent)}</a:solidFill><a:solidFill>${clr(accent)}</a:solidFill></a:fillStyleLst>` +
+      `<a:fmtScheme name="AI SHAKI"><a:fillStyleLst><a:solidFill>${clr(accent)}</a:solidFill><a:solidFill>${clr(accent)}</a:solidFill><a:solidFill>${clr(accent)}</a:solidFill></a:fillStyleLst>` +
       `<a:lnStyleLst><a:ln><a:solidFill>${clr(accent)}</a:solidFill></a:ln><a:ln><a:solidFill>${clr(accent)}</a:solidFill></a:ln><a:ln><a:solidFill>${clr(accent)}</a:solidFill></a:ln></a:lnStyleLst>` +
       `<a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst>` +
       `<a:bgFillStyleLst><a:solidFill>${clr("FFFFFF")}</a:solidFill><a:solidFill>${clr("FFFFFF")}</a:solidFill><a:solidFill>${clr("FFFFFF")}</a:solidFill></a:bgFillStyleLst></a:fmtScheme>` +
@@ -2832,7 +2832,7 @@ function renderHtml(doc: ParsedDoc, opts: ExportOptions): Uint8Array {
   const body: string[] = [];
   if (wantCover && doc.title) {
     const sub = opts.author ? `${opts.author} · ${nowStamp(opts.lang)}` : nowStamp(opts.lang);
-    body.push(`<header class="cover"><div class="kicker">${htmlEsc((opts.author || "NOVA").toUpperCase())}</div><h1 class="cover-title">${htmlEsc(doc.title)}</h1><p class="cover-sub">${htmlEsc(sub)}</p></header>`);
+    body.push(`<header class="cover"><div class="kicker">${htmlEsc((opts.author || "AI SHAKI").toUpperCase())}</div><h1 class="cover-title">${htmlEsc(doc.title)}</h1><p class="cover-sub">${htmlEsc(sub)}</p></header>`);
   }
   if (wantToc) {
     const items = headings.map(h => `<li class="lvl${h.level}"><a href="#${h.anchor}">${inlineToHtml(h.inlines)}</a></li>`).join("");
