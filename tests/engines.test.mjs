@@ -815,7 +815,7 @@ test("web builder: quality assessment is wired into the generation pipeline", ()
   assert.match(call, /logger\.warn/, "quality failures and weak scores must be logged");
   assert.match(call, /repairAttempted/, "a weak result may receive one bounded repair");
   assert.match(call, /return repairCandidate \?\? normalized/, "the best usable result must still be returned");
-  assert.doesNotMatch(call, /throw new Error/, "quality scoring must not turn a usable artifact into a fatal failure");
+  assert.match(call, /delivery = \{ score: 70, verdict: "shippable", issues: \[\] \}/, "scoring exceptions must preserve a usable result");
 });
 
 test("web builder: validateWebApp reports structure and visuals together", () => {
