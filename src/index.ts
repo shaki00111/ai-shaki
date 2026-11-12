@@ -11708,11 +11708,24 @@ async function generateImageCF(
       }
 
       const callStart = Date.now();
-      const res = await fetchWithTimeout(url, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${account.token}` },
-        body: formData,
-      }, timeoutMs);
+      let res: Response;
+      for (let transientAttempt = 0; ; transientAttempt++) {
+        res = await fetchWithTimeout(url, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${account.token}` },
+          body: formData,
+        }, timeoutMs);
+        // Cloudflare Workers AI occasionally returns transient 5xx errors
+        // (including internal AiError 3043). Retry the same account twice
+        // with a short backoff before moving to configured fallback accounts.
+        if ([500, 502, 503, 504].includes(res.status) && transientAttempt < 2) {
+          const retryBody = await res.clone().text().catch(() => "");
+          logger.warn(`[generateImageCF] transient HTTP ${res.status} on account[${idx}] attempt=${transientAttempt + 1}/3: ${retryBody.slice(0, 220)}`);
+          await sleep(700 * (transientAttempt + 1));
+          continue;
+        }
+        break;
+      }
       logger.info(`[generateImageCF] account[${idx}] model=${model} responded in ${Date.now() - callStart}ms status=${res.status} activeOnAccount=${getCfSlotCount(idx)} hasInputImages=${Boolean(inputImages?.length)}`);
 
       if (!res.ok) {
@@ -22627,16 +22640,30 @@ User message:
     // ------------------------------------------------------------
     } else {
 
-      // Even for an unknown document, attach the actual binary instead
-      // of sending only the filename to Gemini.
-      parts.push({
-        inline_data: {
-          mime_type:
-            mime ||
-            "application/octet-stream",
-          data: b64,
-        },
-      });
+      // Gemini rejects the generic application/octet-stream MIME type.
+      // Attach only MIME types supported by its inline-data endpoint; for an
+      // unknown binary file, preserve the reply context without sending invalid
+      // bytes that would fail the entire conversation.
+      const normalizedMime = mime.trim().toLowerCase();
+      const supportedDocumentMime =
+        /^(image|text|video|audio)\//.test(normalizedMime) ||
+        normalizedMime === "application/pdf" ||
+        normalizedMime === "application/rtf" ||
+        normalizedMime === "application/msword" ||
+        normalizedMime === "application/epub+zip" ||
+        normalizedMime === "application/vnd.ms-excel" ||
+        normalizedMime === "application/vnd.ms-powerpoint" ||
+        normalizedMime.startsWith("application/vnd.openxmlformats-officedocument.");
+      if (supportedDocumentMime) {
+        parts.push({
+          inline_data: {
+            mime_type: normalizedMime,
+            data: b64,
+          },
+        });
+      } else {
+        logger.warn(`[reply-media] skipped unsupported Gemini MIME "${normalizedMime || "missing"}" filename="${String(doc.file_name ?? "").slice(0, 100)}"`);
+      }
 
       parts.push({
         text:
@@ -22644,8 +22671,9 @@ User message:
             ? `[REPLY_MEDIA_CONTEXT — DOCUMENT]
 کاربر ${senderName} روی یک فایل از ${replierName} ریپلای کرده است.
 
-فایل واقعی پیوست شده است.
-اگر این نوع فایل قابل خواندن/تحلیل است، محتوای واقعی آن را بررسی کن.
+${supportedDocumentMime
+  ? "فایل واقعی پیوست شده است؛ محتوای آن را بررسی کن."
+  : "نوع فایل برای ارسال مستقیم به Gemini پشتیبانی نمی‌شود؛ صادقانه بگو محتوای باینری آن در دسترس تحلیل نیست و از نام فایل محتوا حدس نزن."}
 هرگز از نام فایل به‌تنهایی برای حدس زدن محتوا استفاده نکن.
 
 نام فایل:
@@ -22656,8 +22684,9 @@ User message:
             : `[REPLY_MEDIA_CONTEXT — DOCUMENT]
 User ${senderName} replied to a file from ${replierName}.
 
-The actual file is attached.
-Analyze its real contents if supported.
+${supportedDocumentMime
+  ? "The actual file is attached; analyze its contents."
+  : "This file type is not supported for direct Gemini upload; say its binary contents are unavailable for analysis and never infer contents from the filename."}
 Never infer its contents from the filename alone.
 
 Filename:
