@@ -1891,6 +1891,7 @@ function createConfig(env: Env, botConfig: BotConfig) {
       //"@cf/black-forest-labs/flux-2-klein-4b",
       //"@cf/black-forest-labs/flux-2-dev",
       "@cf/black-forest-labs/flux-2-klein-9b",
+      "@cf/black-forest-labs/flux-1-schnell",
       //"@cf/leonardo/lucid-origin",
       //"@cf/leonardo/phoenix-1.0",
       //"@cf/stabilityai/stable-diffusion-xl-base-1.0"
@@ -11695,16 +11696,24 @@ async function generateImageCF(
       const account = accounts[idx];
       const url = `https://api.cloudflare.com/client/v4/accounts/${account.id}/ai/run/${model}`;
 
-      const formData = new FormData();
-      formData.append("prompt", prompt);
-      if (inputImages && inputImages.length > 0) {
-        inputImages.forEach((imgBytes, imgIdx) => {
-          formData.append(
-            `input_image_${imgIdx}`,
-            new Blob([bytesToArrayBuffer(imgBytes)], { type: "image/jpeg" }),
-            `input_${imgIdx}.jpg`
-          );
-        });
+      // FLUX.1 Schnell expects JSON; FLUX.2 Klein expects multipart/form-data.
+      const useJsonInput = model === "@cf/black-forest-labs/flux-1-schnell";
+      let requestBody: FormData | string;
+      if (useJsonInput) {
+        requestBody = JSON.stringify({ prompt });
+      } else {
+        const formData = new FormData();
+        formData.append("prompt", prompt);
+        if (inputImages && inputImages.length > 0) {
+          inputImages.forEach((imgBytes, imgIdx) => {
+            formData.append(
+              `input_image_${imgIdx}`,
+              new Blob([bytesToArrayBuffer(imgBytes)], { type: "image/jpeg" }),
+              `input_${imgIdx}.jpg`
+            );
+          });
+        }
+        requestBody = formData;
       }
 
       const callStart = Date.now();
@@ -11712,8 +11721,10 @@ async function generateImageCF(
       for (let transientAttempt = 0; ; transientAttempt++) {
         res = await fetchWithTimeout(url, {
           method: "POST",
-          headers: { "Authorization": `Bearer ${account.token}` },
-          body: formData,
+          headers: useJsonInput
+            ? { "Authorization": `Bearer ${account.token}`, "Content-Type": "application/json" }
+            : { "Authorization": `Bearer ${account.token}` },
+          body: requestBody,
         }, timeoutMs);
         // Cloudflare Workers AI occasionally returns transient 5xx errors
         // (including internal AiError 3043). Retry the same account twice
