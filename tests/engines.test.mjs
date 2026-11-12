@@ -803,16 +803,19 @@ test("web builder: extraction and salvage handle model wrapper noise", () => {
 });
 
 test("web builder: quality assessment is wired into the generation pipeline", () => {
-  // validateWebApp / assessVisualQuality were dead code; ensure the heavy-gen
-  // pipeline actually consults them (advisory: logged, never fatal).
+  // The shared heavy-generation pipeline uses the codegen quality scorer and
+  // may perform one bounded repair; it must still preserve the best candidate.
   const src = readFileSync(join(ROOT, "src/index.ts"), "utf8");
   assert.match(src, /assessQuality\?:/, "HeavyGenSpec must declare an assessQuality hook");
   assert.match(src, /assessQuality: \(code: string\) => assessArtifactQuality\(code, direction\)/, "generation spec must supply its quality assessment");
   assert.match(src, /spec\.assessQuality\?\.\(normalized\)/, "pipeline must call it");
-  // It must NOT reject output: a low score only warns.
-  const call = src.slice(src.indexOf("if (spec.assessQuality)"), src.indexOf("return normalized;", src.indexOf("if (spec.assessQuality)")));
-  assert.match(call, /logger\.warn/, "low quality must be logged");
-  assert.doesNotMatch(call, /continue;/, "quality must never reject a usable generation");
+  const qualityStart = src.indexOf("const report = spec.assessQuality?.(normalized)");
+  const qualityEnd = src.indexOf("return normalized;", qualityStart);
+  const call = src.slice(qualityStart, qualityEnd);
+  assert.match(call, /logger\.warn/, "quality failures and weak scores must be logged");
+  assert.match(call, /repairAttempted/, "a weak result may receive one bounded repair");
+  assert.match(call, /return repairCandidate \?\? normalized/, "the best usable result must still be returned");
+  assert.doesNotMatch(call, /throw new Error/, "quality scoring must not turn a usable artifact into a fatal failure");
 });
 
 test("web builder: validateWebApp reports structure and visuals together", () => {
