@@ -501,15 +501,12 @@ test("prompt: a persona cannot outrank the system rules or refuse system request
 });
 
 test("tools: tool execution is lazy so batching actually serializes it", () => {
-  // The batches built by orderedToolBatches only isolate stateful/heavy tools if
-  // the work has not already started. It used to be kicked off eagerly with
-  // `promise: (async () => …)()` during the .map, which made the isolation
-  // comment false: two stateful tools in one response raced on the same session.
+  // Stateful/heavy tools must begin only when their batch is harvested.
   const code = stripComments(SRC);
   assert.doesNotMatch(code, /promise: \(async \(\): Promise<ToolResult> => \{/);
   assert.match(code, /let started: Promise<ToolResult> \| null = null;/);
   assert.match(code, /start: \(\): Promise<ToolResult> => \(started \?\?= run\(\)\.then\(result => \(\{/);
-  assert.match(code, /result: await task\.start\(\)/);
+  assert.match(code, /task\.start\(\)\.then\(/, "harvesting must await the lazy task start promise");
 });
 
 test("tools: read-only fast tools have no side effects", () => {
