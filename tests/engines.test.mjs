@@ -807,8 +807,8 @@ test("web builder: quality assessment is wired into the generation pipeline", ()
   // pipeline actually consults them (advisory: logged, never fatal).
   const src = readFileSync(join(ROOT, "src/index.ts"), "utf8");
   assert.match(src, /assessQuality\?:/, "HeavyGenSpec must declare an assessQuality hook");
-  assert.match(src, /assessQuality: \(code: string\) => validateWebApp\(code\)/, "web-app spec must supply it");
-  assert.match(src, /spec\.assessQuality\(normalized\)/, "pipeline must call it");
+  assert.match(src, /assessQuality: \(code: string\) => assessArtifactQuality\(code, direction\)/, "generation spec must supply its quality assessment");
+  assert.match(src, /spec\.assessQuality\?\.\(normalized\)/, "pipeline must call it");
   // It must NOT reject output: a low score only warns.
   const call = src.slice(src.indexOf("if (spec.assessQuality)"), src.indexOf("return normalized;", src.indexOf("if (spec.assessQuality)")));
   assert.match(call, /logger\.warn/, "low quality must be logged");
@@ -830,7 +830,7 @@ test("source hygiene: no stray control characters in any source file", () => {
   // invisible in most editors, so assert their absence directly.
   const files = [
     "src/core.ts", "src/index.ts", "src/exportEngine.ts", "src/gameEngine.ts",
-    "src/webBuilder.ts", "src/designSkills.ts", "src/novaFont.ts", "src/gameDesign.ts",
+    "src/webBuilder.ts", "src/designSkills.ts", "src/shakiFont.ts", "src/gameDesign.ts",
     "tests/engines.test.mjs", "tests/regression.test.mjs",
   ];
   for (const rel of files) {
