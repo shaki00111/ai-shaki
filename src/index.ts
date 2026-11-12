@@ -11769,6 +11769,7 @@ async function generateImageCF(
   };
 
   // ── مرحله ۱: تلاش روی حساب اصلی اختصاص‌یافته به این تصویر ──
+  let primaryError = "";
   try {
     const result = await attemptAccount(order[0], PRIMARY_TIMEOUT_MS);
     cfAccountIndex = order[0];
@@ -11776,7 +11777,8 @@ async function generateImageCF(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes("FLAGGED_PROMPT")) throw e;
-    logger.warn(`[generateImageCF] Primary account[${order[0]}] failed (${msg.slice(0, 80)}), trying fallback sequentially...`);
+    primaryError = msg;
+    logger.warn(`[generateImageCF] Primary account[${order[0]}] failed (${msg.slice(0, 300)}), trying fallback sequentially...`);
   }
 
   // ── مرحله ۲: fallback ترتیبی، همیشه از کم‌بارترین حساب شروع می‌شود ──
@@ -11784,7 +11786,8 @@ async function generateImageCF(
   // برابر می‌کرد و باعث تایم‌اوت زنجیره‌ای می‌شد.)
   const remaining = order.slice(1).sort((a, b) => getCfSlotCount(a) - getCfSlotCount(b));
   if (!remaining.length) {
-    throw new Error("All CF accounts failed for image generation (only 1 account configured)");
+    logger.error(`[generateImageCF] The only configured Cloudflare account failed for model=${model}: ${primaryError.slice(0, 500)}`);
+    throw new Error(`Cloudflare AI request failed on the only configured account: ${primaryError.slice(0, 500)}`);
   }
 
   const errors: string[] = [];
