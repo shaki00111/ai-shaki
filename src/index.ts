@@ -14672,10 +14672,7 @@ case "generate_image": {
                 if (!(await putMediaBlob(env, imgRef, bytesToArrayBuffer(img), "image/png")).ok) imgRef = "";
                 else await env.SESSIONS.put(`media_prompt:${imgRef}`, finalPrompt, { expirationTtl: 7200 });
 
-                const modelName = getShortModelName(model);
-                const caption = hostedImageUrl
-                    ? `<blockquote expandable>${finalPrompt}</blockquote>\n<b>Model:</b> <code>${modelName}</code>\n🌐 <a href="${hostedImageUrl}">Public Link</a>`
-                    : `<blockquote expandable>${finalPrompt}</blockquote>\n<b>Model:</b> <code>${modelName}</code>`;
+                const caption = lang === "fa" ? "بفرما، اینم عکسی که خواستی 🖤" : "Here’s the image you asked for 🖤";
 
                 // ✅ ارسال بصورت عکس فشرده (sendPhoto) + دکمه‌ها
                 const resendKb: InlineKeyboard = {
@@ -15142,8 +15139,7 @@ return { name: call.name, response: {
                   const elapsedMs = Date.now() - editStartTs;
                   logger.info(`[edit_image] Success in ${elapsedMs}ms, output bytes=${edited.byteLength}`);
 
-                  const modelName = getShortModelName(cfg.IMAGE_EDIT_MODEL);
-                  const caption = `<blockquote expandable>${editPrompt}</blockquote>\n\n<b>Model:</b> <code>${modelName}</code>`;
+                  const caption = lang === "fa" ? "بفرما، اینم تصویر ویرایش‌شده 🖤" : "Here’s your edited image 🖤";
                   await sendImageFile(chatId, edited, caption, { reply_to_message_id: originalMsg.message_id, parse_mode: "HTML" }, `nova_edit_${generateId()}.png`);
 
                   await incrementUsageWithUser(limitSession, sender, "edit", env);
@@ -21085,7 +21081,7 @@ async function handleImg(msg: TgMessage, args: string[], env: Env): Promise<void
         promptContent = prompt;
       }
 
-      const caption = `<blockquote expandable>${promptContent}</blockquote>\n\n<b>Model:</b> <code>${modelName}</code>`;
+      const caption = lang === "fa" ? "بفرما، اینم عکسی که خواستی 🖤" : "Here’s the image you asked for 🖤";
   
       await sendImageFile(chat.id, img, caption, { 
         reply_to_message_id: msg.message_id,
@@ -25418,8 +25414,7 @@ if (data.startsWith("img_regen_")) {
             if ((await putMediaBlob(env, newRef, bytesToArrayBuffer(img), "image/png")).ok) {
               await env.SESSIONS.put(`media_prompt:${newRef}`, savedPrompt, { expirationTtl: 7200 });
             }
-            const modelName = getShortModelName(cfg.AI_IMAGE_MODELS[0]);
-            const caption = `<blockquote expandable>${savedPrompt}</blockquote>\n<b>Model:</b> <code>${modelName}</code>`;
+            const caption = session.language === "fa" ? "بفرما، اینم عکسی که خواستی 🖤" : "Here’s the image you asked for 🖤";
             const resendKb: InlineKeyboard = {
                 inline_keyboard: [[
                     btn(session.language === "fa" ? "🔄 ساخت دوباره" : "🔄 Regenerate", `img_regen_${newRef}`),
