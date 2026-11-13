@@ -262,7 +262,7 @@ indexSource.includes('!await isUserAdmin(from.id, chat.id)')
   ? ok("group panel callbacks enforce group-admin permissions")
   : fail("group panel callback authorization is missing");
 const dispatchStart = indexSource.indexOf("async function dispatchUpdate");
-const dispatchEnd = indexSource.indexOf("\\n    }\\n  }\\n}", dispatchStart);
+const dispatchEnd = indexSource.indexOf("\n    }\n  }\n}", dispatchStart);
 const dispatchSource = dispatchStart >= 0 ? indexSource.slice(dispatchStart, dispatchEnd > dispatchStart ? dispatchEnd : undefined) : "";
 dispatchSource.includes("Enforce channel membership for every private input type") &&
 dispatchSource.includes("sendForceJoinPrompt")
@@ -273,7 +273,7 @@ indexSource.includes('getChatMember", { chat_id: forceJoin.channelId, user_id: f
   ? ok("force-join confirmation verifies Telegram membership server-side")
   : fail("force-join confirmation must verify membership using Telegram getChatMember");
 const forceJoinCommandStart = indexSource.indexOf("async function handleForceJoinCommand");
-const forceJoinCommandEnd = indexSource.indexOf("\\n// SECTION: MESSAGE HANDLERS", forceJoinCommandStart);
+const forceJoinCommandEnd = indexSource.indexOf("\n// SECTION: MESSAGE HANDLERS", forceJoinCommandStart);
 const forceJoinCommandSource = forceJoinCommandStart >= 0 && forceJoinCommandEnd > forceJoinCommandStart
   ? indexSource.slice(forceJoinCommandStart, forceJoinCommandEnd) : "";
 forceJoinCommandSource.includes('tg("getChat"') &&
