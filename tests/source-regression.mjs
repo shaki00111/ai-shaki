@@ -282,6 +282,28 @@ forceJoinCommandSource.includes('await env.SESSIONS.put("force_join_config"')
   ? ok("owner can configure force-join only after bot-admin verification")
   : fail("force-join setup must verify the channel and bot-admin status before saving");
 
+const confirmCardStart = indexSource.indexOf("async function sendPersonaConfirmCard");
+const confirmCardEnd = indexSource.indexOf("\\n/**", confirmCardStart);
+const confirmCardSource = confirmCardStart >= 0
+  ? indexSource.slice(confirmCardStart, confirmCardEnd > confirmCardStart ? confirmCardEnd : confirmCardStart + 3000) : "";
+confirmCardSource.includes("env: Env") && confirmCardSource.includes("personalizePersonaKeyboard(card.keyboard, env)")
+  ? ok("persona confirmation keyboards use owner-customized labels")
+  : fail("persona confirmation keyboards must use owner-customized labels");
+const personaQuestionStart = indexSource.indexOf('if (intent.kind === "question")');
+const personaQuestionEnd = indexSource.indexOf("// kind === \\"switch\\"", personaQuestionStart);
+const personaQuestionSource = personaQuestionStart >= 0
+  ? indexSource.slice(personaQuestionStart, personaQuestionEnd > personaQuestionStart ? personaQuestionEnd : personaQuestionStart + 1200) : "";
+personaQuestionSource.includes("personalizePersonaKeyboard(card.keyboard, env)")
+  ? ok("persona information cards use owner-customized labels")
+  : fail("persona information cards must use owner-customized labels");
+const forceJoinCallbackStart = indexSource.indexOf('if (data === "forcejoin_check")');
+const forceJoinCallbackEnd = indexSource.indexOf("// Existing private-menu callbacks", forceJoinCallbackStart);
+const forceJoinCallbackSource = forceJoinCallbackStart >= 0
+  ? indexSource.slice(forceJoinCallbackStart, forceJoinCallbackEnd > forceJoinCallbackStart ? forceJoinCallbackEnd : forceJoinCallbackStart + 1800) : "";
+forceJoinCallbackSource.includes('if (chat.type !== "private")')
+  ? ok("force-join confirmation is private-chat only")
+  : fail("force-join confirmation must reject group callbacks");
+
 // ── Image and Mini App quota reservations ──────────────────────────────────
 console.log("\n[10] Image and Mini App quota reservations");
 const imgCommandStart = indexSource.indexOf("async function handleImg(");
