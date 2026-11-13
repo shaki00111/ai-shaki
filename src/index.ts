@@ -12341,8 +12341,24 @@ async function sendVoiceResponse(
 
     if (!json.ok) {
       logger.error(
-        `Telegram sendVoice failed: ${json.description ?? "unknown error"}`
+        `Telegram ${isWav ? "sendAudio" : "sendVoice"} failed: ${json.description ?? "unknown error"}`
       );
+      // WAV is not a supported Telegram voice-note codec. If Telegram also
+      // rejects it as audio, preserve the generated speech as a downloadable
+      // audio file instead of dropping the successful synthesis result.
+      if (isWav) {
+        const documentForm = new FormData();
+        documentForm.append("chat_id", String(chatId));
+        documentForm.append("document", new Blob([bytesToArrayBuffer(audio)], { type: "audio/wav" }), "voice.wav");
+        documentForm.append("reply_to_message_id", String(replyTo));
+        const documentRes = await fetchWithTimeout(`${API_URL}/sendDocument`, {
+          method: "POST",
+          body: documentForm,
+        }, 8_000);
+        const documentJson = await documentRes.json() as { ok: boolean; description?: string };
+        if (!documentJson.ok) logger.error(`Telegram WAV document fallback failed: ${documentJson.description ?? "unknown error"}`);
+        return documentJson.ok;
+      }
     }
 
     return json.ok;
