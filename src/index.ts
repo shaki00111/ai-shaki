@@ -21088,7 +21088,7 @@ async function claimReferralReward(referred: TgUser, inviterId: number, session:
       "INSERT OR IGNORE INTO shaki_referral_claims (referred_user_id, inviter_user_id, created_at) VALUES (?, ?, ?)"
     ).bind(referred.id, inviterId, Date.now()).run();
     if (Number(inserted.meta?.changes ?? 0) !== 1) return "duplicate";
-    await updateMutex.run(\`referral-reward:\${inviterId}\`, async () => {
+    await updateMutex.run(`referral-reward:${inviterId}`, async () => {
       const inviter = await getOrCreateSession(
         { id: inviterId, type: "private" },
         { id: inviterId, is_bot: false, first_name: "عضو" },
@@ -21102,7 +21102,7 @@ async function claimReferralReward(referred: TgUser, inviterId: number, session:
     });
     return "credited";
   } catch (error) {
-    logger.warn(\`[referral] reward failed inviter=\${inviterId} referred=\${referred.id}\`, error);
+    logger.warn(`[referral] reward failed inviter=${inviterId} referred=${referred.id}`, error);
     return "unavailable";
   }
 }
@@ -21122,10 +21122,10 @@ async function handleReferralCommand(msg: TgMessage, env: Env): Promise<void> {
     const row = await env.DB.prepare("SELECT COUNT(*) AS total FROM shaki_referral_claims WHERE inviter_user_id = ?")
       .bind(user.id).first<{ total: number }>();
     const total = Math.max(0, Number(row?.total) || 0);
-    const link = \`https://t.me/\${BOT_INFO.username}?start=r\${user.id}\`;
+    const link = `https://t.me/${BOT_INFO.username}?start=r${user.id}`;
     await sendMessage(msg.chat.id,
-      \`🚀 <b>باشگاه دعوت AI SHAKI</b>\n━━━━━━━━━━━━━━━━━━\n\n🔗 لینک اختصاصی تو:\n<code>\${escapeHTML(link)}</code>\n\n🎁 به‌ازای هر عضو جدید و واقعی:\n• ۱۰ پیام اضافه\n• ۲ ویس اضافه\n\n👥 دعوت‌های تأییدشده: <b>\${total}</b>\n📌 پاداش‌ها به سهمیه رایگان امروز اضافه می‌شوند.\n\nلینکت رو برای دوستات بفرست؛ فقط شروع واقعی ربات با لینک تو حساب می‌شه.\`,
-      { reply_to_message_id: msg.message_id, parse_mode: "HTML", reply_markup: JSON.stringify({ inline_keyboard: [[urlBtn("📤 اشتراک‌گذاری لینک", \`https://t.me/share/url?url=\${encodeURIComponent(link)}&text=\${encodeURIComponent("به AI SHAKI سر بزن و دستیار هوشمندتو داشته باش!")}\`)]] }) }
+      `🚀 <b>باشگاه دعوت AI SHAKI</b>\n━━━━━━━━━━━━━━━━━━\n\n🔗 لینک اختصاصی تو:\n<code>${escapeHTML(link)}</code>\n\n🎁 به‌ازای هر عضو جدید و واقعی:\n• ۱۰ پیام اضافه\n• ۲ ویس اضافه\n\n👥 دعوت‌های تأییدشده: <b>${total}</b>\n📌 پاداش‌ها به سهمیه رایگان امروز اضافه می‌شوند.\n\nلینکت رو برای دوستات بفرست؛ فقط شروع واقعی ربات با لینک تو حساب می‌شه.`,
+      { reply_to_message_id: msg.message_id, parse_mode: "HTML", reply_markup: JSON.stringify({ inline_keyboard: [[urlBtn("📤 اشتراک‌گذاری لینک", `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("به AI SHAKI سر بزن و دستیار هوشمندتو داشته باش!")}`)]] }) }
     );
   } catch (error) {
     logger.error("[referral] stats failed", error);
