@@ -3644,9 +3644,12 @@ async function checkPrivateForceJoin(userId: number, env: Env): Promise<{ allowe
 }
 async function sendForceJoinPrompt(chatId: number, config: ForceJoinConfig, replyToMessageId?: number): Promise<void> {
   await sendMessage(chatId,
-    `🔒 برای استفاده از AI SHAKI ابتدا باید عضو کانال زیر بشی. بعد از عضویت دوباره پیام بده.\n\n📢 ${config.title}`,
+    `🔒 برای استفاده از AI SHAKI ابتدا باید عضو کانال زیر بشی. بعد از عضویت روی «بررسی عضویت» بزن.\n\n📢 ${config.title}`,
     { ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
-      reply_markup: JSON.stringify({ inline_keyboard: [[urlBtn("📢 عضویت در کانال", config.inviteLink)]] }) });
+      reply_markup: JSON.stringify({ inline_keyboard: [
+        [urlBtn("📢 عضویت در کانال", config.inviteLink)],
+        [btn("✅ بررسی عضویت", "forcejoin:check")],
+      ] }) });
 }
 async function handleForceJoinCommand(msg: TgMessage, args: string[], env: Env): Promise<void> {
   if (msg.from?.id !== cfg.BOT_OWNER_ID) {
@@ -3700,10 +3703,9 @@ async function handlePanelCommand(msg: TgMessage, env: Env): Promise<void> {
   const canManage = await isUserAdmin(from.id, chat.id);
   const rows: InlineBtn[][] = [[btn("👤 پنل شخصی", "home:open")]];
   if (canManage) rows.push([btn("🛡 مدیریت گروه", "group_settings")]);
-  const sent = await sendMessage(chat.id,
+  await sendMessage(chat.id,
     canManage ? "╭━━━ ⚡ AI SHAKI ━━━╮\nپنل موردنظرت رو انتخاب کن:" : "⚡ پنل شخصی AI SHAKI",
     { reply_to_message_id: msg.message_id, reply_markup: JSON.stringify({ inline_keyboard: rows }) });
-  if (sent?.message_id) panelOwners.set(`${chat.id}:${sent.message_id}`, { u: from.id, ts: Date.now() });
 }
 
 
@@ -25415,6 +25417,22 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
   const { from, message, data } = cb;
   const chat = message.chat;
 
+  // Reachable before the normal membership gate so users can confirm joining.
+  if (data === "forcejoin:check") {
+    if (chat.type !== "private") {
+      await answerCb(cb.id, "🔒 این بررسی فقط در گفتگوی خصوصی ربات انجام می‌شود.", true);
+      return;
+    }
+    const membership = await checkPrivateForceJoin(from.id, env);
+    if (membership.allowed) {
+      await answerCb(cb.id, "✅ عضویت تأیید شد؛ حالا می‌تونی پیام بدی.");
+      await editMessageText(chat.id, message.message_id, "✅ عضویت کانال تأیید شد. حالا می‌تونی از AI SHAKI استفاده کنی.").catch(() => {});
+    } else {
+      await answerCb(cb.id, membership.unavailable ? "⚠️ بررسی عضویت موقتاً در دسترس نیست." : "❌ هنوز عضویتت تأیید نشده.", true);
+    }
+    return;
+  }
+
   if (chat.type === "private" && from.id !== cfg.BOT_OWNER_ID) {
     const membership = await checkPrivateForceJoin(from.id, env);
     if (!membership.allowed) {
@@ -25512,7 +25530,7 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
 
   if (chat.type !== "private") {
     const _pk = `${chat.id}:${message.message_id}`;
-    const _excluded = data.startsWith("admin_") || data.startsWith("broadcast_") ||
+    const _excluded = data === "home:open" || data.startsWith("admin_") || data.startsWith("broadcast_") ||
       data.startsWith("log_") || data.startsWith("db_") || data.startsWith("group_settings") ||
        data.startsWith("gset_");
     if (!_excluded) {
