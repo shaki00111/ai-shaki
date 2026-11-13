@@ -327,7 +327,7 @@ indexSource.includes('const groupConfig = await getGroupConfig(msg.chat.id, env)
   ? ok("anti-link storage failures do not crash update dispatch")
   : fail("anti-link checks must fail safely when group settings storage is unavailable");
 const moderationStart = indexSource.indexOf("async function handleGroupModerationCommand");
-const moderationEnd = indexSource.indexOf("\\n// SECTION: MESSAGE HANDLERS", moderationStart);
+const moderationEnd = indexSource.indexOf("\n// SECTION: MESSAGE HANDLERS", moderationStart);
 const moderationSource = moderationStart >= 0 && moderationEnd > moderationStart
   ? indexSource.slice(moderationStart, moderationEnd) : "";
 for (const action of ["banChatMember", "unbanChatMember", "restrictChatMember"]) {
