@@ -3970,6 +3970,11 @@ function buildPersonaKeyboard(currentId: string, lang: Language, autoAdapt = fal
   return { inline_keyboard: rows };
 }
 
+async function personalizePersonaKeyboard(keyboard: InlineKeyboard, env: Env): Promise<InlineKeyboard> {
+  const ownerUi = normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null));
+  return applyOwnerMenuPersonalization(keyboard, ownerUi) as InlineKeyboard;
+}
+
 /**
  * Detail-then-confirm card for one persona.
  *
@@ -4023,7 +4028,8 @@ async function showPersonaCard(
   personaId: string,
   session: ChatSession,
   userId: number,
-  isGroup: boolean
+  isGroup: boolean,
+  env: Env
 ): Promise<void> {
   const card = buildPersonaCard(
     personaId,
@@ -4031,7 +4037,8 @@ async function showPersonaCard(
     getEffectivePersonaId(session, userId, isGroup) === personaId
   );
   if (!card) return;
-  await editMessageText(chatId, msgId, card.text, { reply_markup: JSON.stringify(card.keyboard) });
+  const keyboard = await personalizePersonaKeyboard(card.keyboard, env);
+  await editMessageText(chatId, msgId, card.text, { reply_markup: JSON.stringify(keyboard) });
 }
 
 /**
@@ -4271,7 +4278,7 @@ async function handlePersonaIntentMessage(
     await sendPersonaPanel(
       chatId,
       buildPersonaText(session, user.id, isGroup),
-      buildPersonaKeyboard(activeId, session.language, personaAutoAdaptEnabled(session)),
+      await personalizePersonaKeyboard(buildPersonaKeyboard(activeId, session.language, personaAutoAdaptEnabled(session)), env),
       user.id, isGroup, replyToMessageId,
     );
     return true;
@@ -25605,7 +25612,7 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
       await answerCb(cb.id);
       const isGrp = chat.type !== "private";
       await editMessageText(chat.id, message.message_id, buildPersonaText(session, from.id, isGrp), {
-        reply_markup: JSON.stringify(buildPersonaKeyboard(getEffectivePersonaId(session, from.id, isGrp), session.language, personaAutoAdaptEnabled(session)))
+        reply_markup: JSON.stringify(await personalizePersonaKeyboard(buildPersonaKeyboard(getEffectivePersonaId(session, from.id, isGrp), session.language, personaAutoAdaptEnabled(session)), env))
       });
       return;
     }
@@ -25949,7 +25956,7 @@ if (data === "open_language") {
     if (!applied) { await answerCb(cb.id, "⚠️ این شخصیت فعال نشد", true); return; }
     await answerCb(cb.id, session.language === "fa" ? "✅ شخصیت انتخاب شد" : "✅ Persona selected");
     await editMessageText(chat.id, message.message_id, buildPersonaText(session, from.id, isGroup), {
-      reply_markup: JSON.stringify(buildPersonaKeyboard(personaId, session.language, personaAutoAdaptEnabled(session)))
+      reply_markup: JSON.stringify(await personalizePersonaKeyboard(buildPersonaKeyboard(personaId, session.language, personaAutoAdaptEnabled(session)), env))
     });
     return;
   }
@@ -25957,7 +25964,7 @@ if (data === "open_language") {
     const personaId = data.replace("persona_info_", "");
     if (!PERSONAS[personaId]) { await answerCb(cb.id, "❌", true); return; }
     await answerCb(cb.id);
-    await showPersonaCard(chat.id, message.message_id, personaId, session, from.id, chat.type !== "private");
+    await showPersonaCard(chat.id, message.message_id, personaId, session, from.id, chat.type !== "private", env);
     return;
   }
 
@@ -25983,7 +25990,7 @@ if (data === "open_language") {
     await editMessageText(
       chat.id, message.message_id,
       buildPersonaText(session, from.id, isGroup),
-      { reply_markup: JSON.stringify(buildPersonaKeyboard(personaId, session.language, personaAutoAdaptEnabled(session))) }
+      { reply_markup: JSON.stringify(await personalizePersonaKeyboard(buildPersonaKeyboard(personaId, session.language, personaAutoAdaptEnabled(session)), env)) }
     );
     return;
   }
@@ -25994,7 +26001,7 @@ if (data === "open_language") {
     await editMessageText(
       chat.id, message.message_id,
       buildPersonaText(session, from.id, isGrp3),
-      { reply_markup: JSON.stringify(buildPersonaKeyboard(getEffectivePersonaId(session, from.id, isGrp3), session.language, personaAutoAdaptEnabled(session))) }
+      { reply_markup: JSON.stringify(await personalizePersonaKeyboard(buildPersonaKeyboard(getEffectivePersonaId(session, from.id, isGrp3), session.language, personaAutoAdaptEnabled(session)), env)) }
     );
     return;
   }
@@ -26029,7 +26036,7 @@ if (data === "open_language") {
     await editMessageText(
       chat.id, message.message_id,
       buildPersonaText(session, from.id, isGrpT),
-      { reply_markup: JSON.stringify(buildPersonaKeyboard(getEffectivePersonaId(session, from.id, isGrpT), session.language, next)) }
+      { reply_markup: JSON.stringify(await personalizePersonaKeyboard(buildPersonaKeyboard(getEffectivePersonaId(session, from.id, isGrpT), session.language, next), env)) }
     );
     return;
   }
