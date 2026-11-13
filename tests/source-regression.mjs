@@ -137,6 +137,23 @@ adminSource.includes("--accent:#9b7bff!important") && adminSource.includes("--ac
   ? ok("Owner dashboard uses the same violet/blue identity")
   : fail("Owner dashboard brand tokens do not match the Mini App");
 
+console.log("\\n[7] VIP and voice quota regressions");
+indexSource.includes('checkDailyLimitPrivate(limitSession, "voice_sent", isVip)') &&
+  indexSource.includes('limitSession.vipLimits?.voice_sent') &&
+  indexSource.includes('limitSession.dailyLimits.voicesSent += allowedVoiceCount')
+  ? ok("structured voice tools enforce and reserve personal/group VIP quotas")
+  : fail("structured voice tools must enforce VIP permissions and reserve the correct quota");
+indexSource.includes('checkDailyLimitPrivate(limitSession, "image", isVip)') &&
+  indexSource.includes('limitSession.vipLimits?.image')
+  ? ok("structured image tools enforce personal VIP image limits")
+  : fail("structured image tools must enforce personal VIP image limits");
+indexSource.includes('incrementUsagePrivate(session, type);\\n      await saveSession(session, env);')
+  ? ok("private voice usage is persisted after successful synthesis")
+  : fail("private usage increments must be persisted to the session store");
+indexSource.includes('return { users: [], nextCursor: null, hasNext: false, error: true };') &&
+  indexSource.includes('json({ ok: false, error: "users_query_failed" }, 500)')
+  ? ok("VIP/user list database errors are surfaced instead of appearing as an empty list")
+  : fail("user list query failures must be returned as visible server errors");
 
 console.log("");
 if (failures > 0) {
