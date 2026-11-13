@@ -4075,6 +4075,7 @@ async function sendPersonaConfirmCard(
   isGroup: boolean,
   personaId: string,
   permanent: boolean,
+  env: Env,
   replyToMessageId?: number
 ): Promise<boolean> {
   const card = buildPersonaCard(personaId, session.language, false);
@@ -4091,7 +4092,8 @@ async function sendPersonaConfirmCard(
         ? `🎭 Switch to ${name} from now on? Take a look first:`
         : `🎭 Switch to ${name}? Take a look first:`);
 
-  await sendPersonaPanel(chatId, `${lead}\n\n${card.text}`, card.keyboard, user.id, isGroup, replyToMessageId);
+  const keyboard = await personalizePersonaKeyboard(card.keyboard, env);
+  await sendPersonaPanel(chatId, `${lead}\n\n${card.text}`, keyboard, user.id, isGroup, replyToMessageId);
   return true;
 }
 
@@ -4159,7 +4161,7 @@ async function resolveModelPersonaSwitch(
   const scope = getPersonaScopeState(session, user.id, isGroup);
 
   if (personaSwitchNeedsConfirmation(session, user.id, isGroup)) {
-    const sent = await sendPersonaConfirmCard(chatId, session, user, isGroup, personaId, false, replyToMessageId);
+    const sent = await sendPersonaConfirmCard(chatId, session, user, isGroup, personaId, false, env, replyToMessageId);
     return sent ? { outcome: "needs-confirmation" } : { outcome: "invalid" };
   }
 
@@ -4293,7 +4295,8 @@ async function handlePersonaIntentMessage(
   if (intent.kind === "question") {
     const card = buildPersonaCard(targetId, session.language, targetId === activeId);
     if (!card) return false;
-    await sendPersonaPanel(chatId, card.text, card.keyboard, user.id, isGroup, replyToMessageId);
+    const keyboard = await personalizePersonaKeyboard(card.keyboard, env);
+    await sendPersonaPanel(chatId, card.text, keyboard, user.id, isGroup, replyToMessageId);
     return true;
   }
 
@@ -4307,7 +4310,7 @@ async function handlePersonaIntentMessage(
     return true;
   }
 
-  return sendPersonaConfirmCard(chatId, session, user, isGroup, targetId, intent.permanent, replyToMessageId);
+  return sendPersonaConfirmCard(chatId, session, user, isGroup, targetId, intent.permanent, env, replyToMessageId);
 }
 
 function buildPersonaText(session: ChatSession, userId: number, isGroup: boolean): string {
@@ -17795,7 +17798,7 @@ break;
                   // حالت دستی (یا شخصیتی که کاربر خودش پین کرده): مدل فقط
                   // می‌تواند پیشنهاد بدهد. هیچ چیزی اینجا عوض نمی‌شود.
                   const sent = await sendPersonaConfirmCard(
-                    originalMsg.chat.id, session, user, isGroup, personaId, false, originalMsg.message_id,
+                    originalMsg.chat.id, session, user, isGroup, personaId, false, env, originalMsg.message_id,
                   );
                   if (sent) {
                     // کارت تأیید همین حالا فرستاده شد؛ این خط فقط پیام «در حال
@@ -25446,6 +25449,10 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
     return;
   }
   if (data === "forcejoin_check") {
+    if (chat.type !== "private") {
+      await answerCb(cb.id, "🔒 این بررسی فقط در گفتگوی خصوصی ربات انجام می‌شود.", true);
+      return;
+    }
     const forceJoin = await readForceJoinConfig(env);
     if (!forceJoin?.enabled) {
       await answerCb(cb.id, "عضویت اجباری غیرفعال است.");
