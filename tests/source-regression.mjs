@@ -290,7 +290,7 @@ indexSource.includes('btn("👤 پنل شخصی", "home:open")') &&
 indexSource.includes('btn("🛡 مدیریت گروه", "group_settings")')
   ? ok("/panel exposes personal access and admin-only group management")
   : fail("/panel must expose personal and permission-checked group controls");
-const panelMessageHandler = indexSource.slice(indexSource.indexOf("async function handleTextMessage"), indexSource.indexOf("\\nasync function handleMediaMessage", indexSource.indexOf("async function handleTextMessage")));
+const panelMessageHandler = indexSource.slice(indexSource.indexOf("async function handleTextMessage"), indexSource.indexOf("\nasync function handleMediaMessage", indexSource.indexOf("async function handleTextMessage")));
 panelMessageHandler.includes('commandProbe === "پنل"') &&
 panelMessageHandler.includes('/^(?:پنل|panel)$/i.test(text.trim())') &&
 panelMessageHandler.includes('await handlePanelCommand(msg, env)')
