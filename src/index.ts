@@ -5453,8 +5453,9 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
       }
       const target = await getOrCreateSession({ id: userId, type: "private" }, { id: userId, is_bot: false, first_name: row.first_name || "User" }, env);
       const now = Date.now(), expiry = Number(target.vipExpiresAt) || 0;
+      const wasActive = target.vipStatus && (!expiry || expiry > now);
       target.vipStatus = true;
-      target.vipExpiresAt = days === 0 ? undefined : (target.vipStatus && expiry > now ? expiry : now) + days * 86400000;
+      target.vipExpiresAt = days === 0 ? undefined : (wasActive && expiry > now ? expiry : now) + days * 86400000;
       target.vipPermissions = permissions;
       target.limitOverrides = { ...(target.limitOverrides ?? {}), ...limits };
       ok = await saveSession(target, env, { force: true }).then(() => true).catch(() => false);
@@ -16746,7 +16747,9 @@ async function checkDailyLimitWithUser(
     // در گروه: مصرف روی سشن خصوصی کاربر ثبت می‌شود، اما اگر خود گروه VIP
     // باشد (/setvip)، سقف VIP به همه اعضای همان گروه اعمال می‌شود.
     const userSession = await getOrCreateSession({ id: user.id, type: "private" }, user, env);
-    const effectiveVip = session.vipStatus || userSession.vipStatus;
+    const userExpiry = Number(userSession.vipExpiresAt) || 0;
+    const userVipActive = userSession.vipStatus && (!userExpiry || userExpiry > Date.now());
+    const effectiveVip = session.vipStatus || userVipActive;
     return checkDailyLimitPrivate(userSession, type, effectiveVip);
   }
   return checkDailyLimitPrivate(session, type);
@@ -16755,7 +16758,7 @@ async function checkDailyLimitWithUser(
 function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverride?: boolean): { allowed: boolean; message?: string } {
   const expiry = Number(session.vipExpiresAt) || 0;
   const ownVipActive = Boolean(session.vipStatus && (!expiry || expiry > Date.now()));
-  const isVip = vipOverride === undefined ? ownVipActive : (vipOverride && (session.vipStatus ? ownVipActive : true));
+  const isVip = vipOverride ?? ownVipActive;
   if (isVip && ownVipActive && session.vipPermissions?.[type] === false) {
     const labels: Record<LimitType, string> = { message: "پیام متنی", voice_sent: "ساخت ویس", image: "ساخت تصویر", edit: "ویرایش تصویر", webapp: "وب‌اپ", search: "جستجو" };
     return { allowed: false, message: `⛔ دسترسی «${labels[type]}» در اشتراک VIP شما فعال نیست.` };
