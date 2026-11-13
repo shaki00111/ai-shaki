@@ -12209,8 +12209,8 @@ async function synthesizeVoiceGemini(
   for (let i = 0; i < maxKeys; i++) {
     const idx = (geminiTtsKeyIndex + i) % cfg.GEMINI_KEYS.length;
     const key = cfg.GEMINI_KEYS[idx];
-    if (await isKeyDisabled(key, env)) {
-      failures.push(`key[${idx}]:disabled`);
+    if (ttsKeyCooldowns.isDisabled(key)) {
+      failures.push(`key[${idx}]:tts_cooldown`);
       continue;
     }
 
@@ -12250,11 +12250,16 @@ async function synthesizeVoiceGemini(
         if (!res.ok || data?.error) {
           failures.push(`${model}/key[${idx}]:HTTP ${res.status} ${apiMessage}`);
           if (res.status === 401 || res.status === 403) {
-            if (env_ref) disableApiKey(key, env_ref, 300_000);
+            // A chat-model quota cooldown must not suppress an independent TTS request.
+            if (res.status === 401 && env_ref) disableApiKey(key, env_ref, 24 * 60 * 60 * 1000);
+            ttsKeyCooldowns.disable(key, res.status === 401 ? 24 * 60 * 60 * 1000 : 300_000);
             rotateKey = true;
             break;
           }
           if (res.status === 429 || /quota|rate.?limit|resource_exhausted/i.test(apiMessage)) {
+            const dailyQuota = /per.?day|per_day|daily/i.test(apiMessage);
+            const minuteQuota = /per.?minute|per_minute/i.test(apiMessage);
+            ttsKeyCooldowns.disable(key, dailyQuota ? 6 * 60 * 60 * 1000 : minuteQuota ? 70_000 : 90_000);
             geminiTtsKeyIndex = (idx + 1) % cfg.GEMINI_KEYS.length;
             rotateKey = true;
             break;
