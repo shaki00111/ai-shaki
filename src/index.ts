@@ -14485,7 +14485,22 @@ async function executeStructuredTools(
     const origin = capturedOrigin ?? "https://t.me";
     const sender = originalMsg.from ?? { id: chatId, is_bot: false, first_name: "User" };
     const isOwner = sender.id === cfg.BOT_OWNER_ID;
-    const isVip = session.vipStatus || isOwner;
+    // Resolve the sender's own private entitlement even when the request is
+    // executed in a group session. Group session.vipStatus only represents a
+    // group-wide VIP grant; it must not hide a member's personal VIP plan.
+    const privateUserSession = session.type === "private"
+      ? session
+      : await getOrCreateSession({ id: sender.id, type: "private" }, sender, env);
+    const userVipExpiry = Number(privateUserSession.vipExpiresAt) || 0;
+    const userVipActive = Boolean(
+      privateUserSession.vipStatus && (!userVipExpiry || userVipExpiry > Date.now())
+    );
+    const groupVipExpiry = Number(session.vipExpiresAt) || 0;
+    const groupVipActive = Boolean(
+      session.type !== "private" && session.vipStatus &&
+      (!groupVipExpiry || groupVipExpiry > Date.now())
+    );
+    const isVip = isOwner || userVipActive || groupVipActive;
     const rejectedResults: ToolResult[] = [];
 
     // GROUP POLICY: web apps & long code files are CPU/time heavy. They are blocked
