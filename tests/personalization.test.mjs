@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   OWNER_MENU_ITEMS, normalizeOwnerPersonalization, applyOwnerMenuPersonalization,
-  ownerPersonalizationPreview,
+  ownerPersonalizationPreview, ownerPersonalizationText,
 } from "../src/ownerPersonalization.ts";
 
 test("normalization only accepts known ids and bounds labels", () => {
@@ -46,4 +46,19 @@ test("welcome text is safely escaped and supports the name placeholder", async (
   const value = ownerPersonalizationWelcome({ welcomeTextFa: "سلام {name} <script>" }, "fa", "fallback", "<مالک>");
   assert.equal(value, "سلام &lt;مالک&gt; &lt;script&gt;");
   assert.equal(ownerPersonalizationWelcome({}, "fa", "fallback", "A"), "fallback");
+});
+
+
+test("custom help and quota text support placeholders and fallbacks", () => {
+  const settings = normalizeOwnerPersonalization({
+    helpTextFa: "سلام {name}؛ راهنمای اختصاصی",
+    quotaTextFa: "سقف {label} شما {limit} است؛ {contact} · {vip}",
+  });
+  assert.equal(ownerPersonalizationText(settings, "fa", "help", "fallback", { name: "آرمان" }),
+    "سلام آرمان؛ راهنمای اختصاصی");
+  assert.equal(ownerPersonalizationText(settings, "fa", "quota", "fallback", {
+    limit: 50, label: "ویس", contact: "@SHAKI0030", vip: "VIP",
+  }), "سقف ویس شما 50 است؛ @SHAKI0030 · VIP");
+  assert.equal(ownerPersonalizationText({}, "fa", "help", "default help"), "default help");
+  assert.equal(ownerPersonalizationText({}, "en", "quota", "default quota"), "default quota");
 });
