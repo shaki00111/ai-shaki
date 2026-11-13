@@ -23,3 +23,13 @@ test("permanent and non-VIP entitlements are handled correctly", () => {
   assert.equal(isVipEntitlementActive(readVipEntitlementSnapshot({ vipStatus: true }), 999), true);
   assert.equal(isVipEntitlementActive(readVipEntitlementSnapshot({ vipStatus: false }), 999), false);
 });
+
+
+test("VIP quota never inherits a stale free-tier override", async () => {
+  const { resolveVipDailyLimit } = await import("../src/vipEntitlement.ts");
+  assert.equal(resolveVipDailyLimit(true, 100, 0, 30), 100);
+  assert.equal(resolveVipDailyLimit(true, undefined, 0, 30), 30);
+  assert.equal(resolveVipDailyLimit(true, 0, 90, 30), 0);
+  assert.equal(resolveVipDailyLimit(false, undefined, 0, 3), 0);
+  assert.equal(resolveVipDailyLimit(false, undefined, undefined, 3), 3);
+});

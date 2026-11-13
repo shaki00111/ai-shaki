@@ -37,3 +37,16 @@ export function readVipEntitlementSnapshot(raw: unknown): VipEntitlementSnapshot
 export function isVipEntitlementActive(snapshot: VipEntitlementSnapshot, now = Date.now()): boolean {
   return snapshot.vipStatus && (!snapshot.vipExpiresAt || snapshot.vipExpiresAt > now);
 }
+
+/** VIP limits are independent of free-tier per-user overrides. */
+export function resolveVipDailyLimit(
+  isVip: boolean,
+  vipLimit: number | undefined,
+  freeTierOverride: number | undefined,
+  defaultLimit: number,
+): number {
+  const override = isVip ? vipLimit : freeTierOverride;
+  return typeof override === "number" && Number.isFinite(override) && override >= 0
+    ? override
+    : defaultLimit;
+}

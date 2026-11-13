@@ -14,7 +14,7 @@ import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from 
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns } from "./ttsReliability";
-import { readVipEntitlementSnapshot, isVipEntitlementActive } from "./vipEntitlement";
+import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
 import { inspectJpeg } from "./documentImages";
 // ── MERGE: cognition layer from SHAKI B, on top of SHAKI A's platform layer ──
@@ -16856,8 +16856,8 @@ function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverri
 
   // پرئوزر limit override (ست‌شده از پنل ادمین) همیشه بر سقف سراسری مقدم است.
   const vipLimit = isVip ? session.vipLimits?.[type] : undefined;
-  const override = typeof vipLimit === "number" ? vipLimit : session.limitOverrides?.[type];
-  const limit = typeof override === "number" && override >= 0 ? override : limits[type];
+  // A VIP plan must not inherit a stale free-tier override (especially a zero voice cap).
+  const limit = resolveVipDailyLimit(isVip, vipLimit, session.limitOverrides?.[type], limits[type]);
   if (usage[type] >= limit) {
     const lang = session.language;
     const contact = cfg.VIP_CONTACT;
