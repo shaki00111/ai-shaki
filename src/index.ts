@@ -12,6 +12,7 @@ import { startRun, finishRun, operationsAPI, recordAdminAudit, cleanupOperations
 import { readJsonObject, RequestBodyError } from "./http";
 import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from "./memory";
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
+import { normalizeOwnerUiCustomization, DEFAULT_OWNER_UI_CUSTOMIZATION, ownerUiButtons, ownerUiWelcome } from "./uiPersonalization";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
 import { inspectJpeg } from "./documentImages";
 // ── MERGE: cognition layer from SHAKI B, on top of SHAKI A's platform layer ──
@@ -42,7 +43,6 @@ import { withinDeadline, fetchDeadlineResponse, classifyDeliveryFailure, nativeU
 import { chatCanReceive, noteDeliveryFailure, clearDeliveryFailure, ensureDeliverySchema, deliveryStatus, noteGroupMessage } from "./delivery";
 import { parseFallbackResults } from "./searchFallback";
 import { reserveBroadcast, settleBroadcast, cancelBroadcast } from "./broadcastState";
-import { applyOwnerMenuPersonalization, normalizeOwnerPersonalization, ownerPersonalizationPreview, DEFAULT_OWNER_PERSONALIZATION } from "./ownerPersonalization";
 
 // ── SHAKI engines & helpers ────────────────────────────────────────────────────
 import {
@@ -4929,6 +4929,46 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     }
   }
   await ensureUserSchemaOnce(env);
+  // Owner-only customization is isolated from ordinary bot settings. This
+  // handler has already verified signed Telegram initData and the exact owner id.
+  if (path === "personalization") {
+    const key = "owner_ui_customization";
+    const backupKey = "owner_ui_customization:backup";
+    const current = normalizeOwnerUiCustomization(await env.SESSIONS.get(key, "json").catch(() => null));
+    if (request.method === "GET") {
+      return json({ ok: true, customization: current, defaults: DEFAULT_OWNER_UI_CUSTOMIZATION });
+    }
+    if (request.method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
+    const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+    const action = String(body.action ?? "save");
+    if (action === "test") {
+      const sample = ownerUiWelcome(current, "fa", "⚡ AI SHAKI\nپیش‌نمایش پیام خوش‌آمدگویی", "مالک");
+      try {
+        await sendMessage(user.id, sample, { parse_mode: "HTML" });
+        return json({ ok: true, sent: true });
+      } catch (e) {
+        logger.warn("[personalization] owner test-send failed", e);
+        return json({ ok: false, error: "test_send_failed" }, 502);
+      }
+    }
+    if (action === "restore") {
+      const backup = await env.SESSIONS.get(backupKey, "json").catch(() => null);
+      if (!backup) return json({ ok: false, error: "no_backup" }, 404);
+      const restored = normalizeOwnerUiCustomization(backup);
+      await env.SESSIONS.put(key, JSON.stringify(restored));
+      return json({ ok: true, customization: restored, restored: true });
+    }
+    if (action === "reset") {
+      await env.SESSIONS.put(backupKey, JSON.stringify(current));
+      await env.SESSIONS.put(key, JSON.stringify(DEFAULT_OWNER_UI_CUSTOMIZATION));
+      return json({ ok: true, customization: DEFAULT_OWNER_UI_CUSTOMIZATION, reset: true });
+    }
+    if (action !== "save") return json({ ok: false, error: "unknown_action" }, 400);
+    const next = normalizeOwnerUiCustomization(body.customization);
+    await env.SESSIONS.put(backupKey, JSON.stringify(current));
+    await env.SESSIONS.put(key, JSON.stringify(next));
+    return json({ ok: true, customization: next, saved: true });
+  }
   if (path === "factory/builds" || path === "factory/projects" || path.startsWith("factory/builds/")) {
     if(!nativeFactoryConfigured(env))return json({ok:true,available:false,availability:{available:false,status:"disabled",targets:[],message:nativeUnavailableMessage()},builds:[],projects:[]});
     const factory = getAppFactory(env,url.origin);
@@ -5608,34 +5648,6 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     const applied = await applyBotConfigChanges(normalized, env);
     (globalThis as any).__novaAdminOverviewCache = undefined;
     return json({ ok: true, applied });
-  }
-
-  // ── Owner-only home-menu personalization (same signed owner boundary as all admin routes) ──
-  if (request.method === "GET" && path === "personalization") {
-    const saved = await env.SESSIONS.get("owner_personalization", "json");
-    return json({ ok: true, settings: normalizeOwnerPersonalization(saved ?? DEFAULT_OWNER_PERSONALIZATION) });
-  }
-  if (request.method === "POST" && path === "personalization") {
-    let body: Record<string, unknown> = {};
-    try { body = await request.json() as Record<string, unknown>; }
-    catch { return json({ ok: false, error: "invalid_json" }, 400); }
-    const settings = normalizeOwnerPersonalization(body.settings);
-    await env.SESSIONS.put("owner_personalization", JSON.stringify(settings));
-    return json({ ok: true, settings });
-  }
-  if (request.method === "POST" && path === "personalization-test") {
-    let body: Record<string, unknown> = {};
-    try { body = await request.json() as Record<string, unknown>; }
-    catch { return json({ ok: false, error: "invalid_json" }, 400); }
-    const settings = normalizeOwnerPersonalization(body.settings);
-    const lines = ownerPersonalizationPreview(settings).map(label => "• " + label);
-    try {
-      await sendMessage(user.id, "👁 پیش‌نمایش منوی SHAKI\n\n" + lines.join("\n"));
-      return json({ ok: true, sent: true });
-    } catch (e) {
-      logger.warn("[admin] personalization test-send failed", e);
-      return json({ ok: false, error: "delivery_failed" }, 502);
-    }
   }
 
   // ── Direct message to a user ─────────────────────────────────────────────
@@ -20791,7 +20803,7 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
     const currentPersona = getPersona(currentPersonaId);
     const personaName = glang === "fa" ? currentPersona.nameFA : currentPersona.nameEN;
 
-    const welcomeText = glang === "fa"
+    const defaultWelcomeText = glang === "fa"
       ? `🟣━━━━━━━━━━━━━━━━━━━━🔵\n` +
         `⚡ <b>AI SHAKI · NEON CORE</b>\n` +
         `<i>PERSONAL CONTROL INTERFACE</i>\n` +
@@ -20811,18 +20823,13 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
         `🔹 Mention SHAKI or reply to one of her messages to start chatting.\n\n` +
         `<i>Select a module below:</i>`;
 
-    const rows: InlineBtn[][] = [
-      [btn(glang === "fa" ? "🎭 انتخاب شخصیت (فقط برای من)" : "🎭 Choose Persona (just for me)", "home:personas")],
-      [btn(glang === "fa" ? "✏️ پرامپت شخصی من" : "✏️ My Custom Prompt", "home:prompt")],
-      [
-        btn(glang === "fa" ? "🆕 پاک کردن حافظه من" : "🆕 Clear My Memory", "home:new_confirm"),
-        btn(glang === "fa" ? "❓ راهنما" : "❓ Help", "home:help"),
-      ],
-    ];
-    if (isGroupAdmin) {
-      rows.push([btn(glang === "fa" ? "👥 تنظیمات گروه (مدیریت)" : "👥 Group Settings (Admin)", "group_settings")]);
+    const ownerUi = normalizeOwnerUiCustomization(await env.SESSIONS.get("owner_ui_customization", "json").catch(() => null));
+    const welcomeText = ownerUiWelcome(ownerUi, glang, defaultWelcomeText, from.first_name);
+    const customButtons = ownerUiButtons(ownerUi, isGroupAdmin);
+    const rows: InlineBtn[][] = [];
+    for (let i = 0; i < customButtons.length; i += 2) {
+      rows.push(customButtons.slice(i, i + 2).map(item => btn(item.text, item.callback)));
     }
-    rows.push([btn(glang === "fa" ? "✖️ بستن" : "✖️ Close", "home:close")]);
 
     const sentMsg = await sendMessage(chat.id, welcomeText, {
       reply_to_message_id: msg.message_id,
@@ -24063,7 +24070,7 @@ const ADMIN_DASHBOARD_TABS = [
   "overview", "runs", "jobs", "audit",
   "users", "groups", "broadcast",
   "deployments", "media", "stickers", "factory",
-  "requests", "logs", "keys", "business", "system",
+  "requests", "logs", "keys", "business", "system", "personalization",
 ] as const;
 type AdminDashboardTab = (typeof ADMIN_DASHBOARD_TABS)[number];
 
@@ -26096,14 +26103,7 @@ async function buildHomeKeyboard(session: ChatSession, userId: number, env: Env)
     rows.push([btn(isFa ? "👥 تنظیمات گروه" : isAr ? "👥 إعدادات المجموعة" : "👥 Group Settings", "group_settings")]);
   }
   rows.push([btn(isFa ? "✖️ بستن منو" : isAr ? "✖️ إغلاق" : "✖️ Close", "home:close")]);
-  const keyboard = { inline_keyboard: rows };
-  if (isFa) {
-    try {
-      const saved = await env.SESSIONS.get("owner_personalization", "json");
-      return applyOwnerMenuPersonalization(keyboard, saved ?? DEFAULT_OWNER_PERSONALIZATION);
-    } catch (e) { logger.warn("[menu] personalization read failed; using defaults", e); }
-  }
-  return keyboard;
+  return { inline_keyboard: rows };
 }
 
 async function showPromptMenu(chatId: number, msgId: number, session: ChatSession, userId: number, isGroup = false): Promise<void> {
