@@ -23928,7 +23928,7 @@ async function handleVoiceMessage(msg: TgMessage, env: Env): Promise<void> {
     if (voice.file_size && voice.file_size > 10 * 1024 * 1024) { await sendMessage(chat.id, "⚠️ File too large (max 10MB).", { reply_to_message_id: msg.message_id }); return; }
     if (voice.duration && voice.duration > 120) { await sendMessage(chat.id, "⚠️ Voice too long (max 2 min).", { reply_to_message_id: msg.message_id }); return; }
 
-    const limitCheck = await checkDailyLimitWithUser(session, from, "voice_sent", env);
+    const limitCheck = await checkDailyLimitWithUser(session, from, "message", env);
     if (!limitCheck.allowed) { await sendMessage(chat.id, limitCheck.message!, { reply_to_message_id: msg.message_id }); return; }
 
     loadingMsg = await sendMessage(chat.id,
@@ -23959,7 +23959,8 @@ async function handleVoiceMessage(msg: TgMessage, env: Env): Promise<void> {
     await editMessageText(chat.id, loadingMsg.message_id,
       lang === "fa" ? `> 🎙️ **شما گفتید:**\n> _${transcript}_\n> ⏳ در حال بررسی...` : `> 🎙️ **You said:**\n> _${transcript}_\n> ⏳ Processing...`);
 
-    await incrementUsageWithUser(session, from, "voice_sent", env);
+    // processAIRequest records the completed AI turn in the message quota.
+    // Do not increment here as well: that would charge one incoming voice twice.
     session.statistics.voicesReceived++;
     recordRequest(session);
     // Transcription is done; free the per-chat slot before the (much longer) AI
