@@ -6436,67 +6436,73 @@ async function executeToolForWebApp(call: GeminiFunctionCall, user: TgUser, env:
         if (!pendingImageBytes) {
           return { response: { success: false, error: "No image was attached in this turn. Ask the user to attach an image first." } };
         }
-        const limitCheck = await checkDailyLimitWithUser(session, user, "edit", env);
-        if (!limitCheck.allowed) return { response: { success: false, error: "limit_reached", message: limitCheck.message } };
-
-        setMiniAppProgress(user.id, lang === "fa" ? "🖌️ در حال ویرایش تصویر..." : "🖌️ Editing image...");
-        let instruction = String(call.args.instruction ?? "").trim();
-        if (!instruction) return { response: { success: false, error: "Empty instruction" } };
-        if (/[\u0600-\u06FF]/.test(instruction)) instruction = await translateToEnglish(instruction, env);
-
+        const reservation = await reserveDailyUsageWithUser(session, user, "edit", env);
+        if (!reservation.allowed) return { response: { success: false, error: "limit_reached", message: reservation.message } };
         try {
+          setMiniAppProgress(user.id, lang === "fa" ? "🖌️ در حال ویرایش تصویر..." : "🖌️ Editing image...");
+          let instruction = String(call.args.instruction ?? "").trim();
+          if (!instruction) { await reservation.release(); return { response: { success: false, error: "Empty instruction" } }; }
+          if (/[\u0600-\u06FF]/.test(instruction)) instruction = await translateToEnglish(instruction, env);
           const edited = await withTimeout(
             generateImageCF(instruction, cfg.IMAGE_EDIT_MODEL, env, [new Uint8Array(pendingImageBytes)]),
-            75_000,
-            "timeout"
+            75_000, "timeout"
           );
-          if (!edited) return { response: { success: false } };
-          if(turnToken?.cancelled)return {response:{success:false,error:"CANCELLED_BY_USER"}};
-          // An edit derives from an image the user supplied; `source: "edit"`
-          // is what distinguishes it from a from-scratch generation.
+          if (!edited || turnToken?.cancelled) {
+            await reservation.release();
+            return { response: { success: false, error: turnToken?.cancelled ? "CANCELLED_BY_USER" : "generation_failed" } };
+          }
           const url = await registerAndSaveMedia(`img_${generateId()}`, bytesToArrayBuffer(edited), user.id, user.first_name, env, instruction, "image", "edit");
-          // The hosted URL is the only way this result reaches the Mini App, so a
-          // failed store is a failed call — and must not be billed to the user.
-          if (!url) return { response: { success: false, error: "storage_failed" } };
-          await incrementUsageWithUser(session, user, "edit", env);
+          if (!url) { await reservation.release(); return { response: { success: false, error: "storage_failed" } }; }
           return { response: { success: true, url, instruction }, imageUrl: url };
         } catch (e) {
+          await reservation.release().catch(() => {});
           return { response: { success: false, error: e instanceof Error ? e.message : String(e) } };
         }
       }
       case "generate_image": {
-        setMiniAppProgress(user.id, lang === "fa" ? "🎨 در حال رندر تصویر..." : "🎨 Rendering image...");
-        const limitCheck = await checkDailyLimitWithUser(session, user, "image", env);
-        if (!limitCheck.allowed) return { response: { success: false, error: "limit_reached", message: limitCheck.message } };
-
-        let prompt = String(call.args.prompt ?? "").trim();
-        prompt = await enhanceImagePrompt(prompt, env);
-        for (const model of cfg.AI_IMAGE_MODELS) {
-          if(turnToken?.cancelled)break;
-          const img = await withTimeout(generateImageCF(prompt, model, env), 45_000, "timeout").catch(() => null);
-          if (img) {
-            if(turnToken?.cancelled)return {response:{success:false,error:"CANCELLED_BY_USER"}};
-            const url = await registerAndSaveMedia(`img_${generateId()}`, bytesToArrayBuffer(img), user.id, user.first_name, env, prompt);
-            if (!url) return { response: { success: false, error: "storage_failed" } };
-            await incrementUsageWithUser(session, user, "image", env);
-            return { response: { success: true, url, prompt, note: "..." }, imageUrl: url };
+        const reservation = await reserveDailyUsageWithUser(session, user, "image", env);
+        if (!reservation.allowed) return { response: { success: false, error: "limit_reached", message: reservation.message } };
+        try {
+          setMiniAppProgress(user.id, lang === "fa" ? "🎨 در حال رندر تصویر..." : "🎨 Rendering image...");
+          let prompt = String(call.args.prompt ?? "").trim();
+          if (!prompt) { await reservation.release(); return { response: { success: false, error: "Empty prompt" } }; }
+          prompt = await enhanceImagePrompt(prompt, env);
+          for (const model of cfg.AI_IMAGE_MODELS) {
+            if (turnToken?.cancelled) break;
+            const img = await withTimeout(generateImageCF(prompt, model, env), 45_000, "timeout").catch(() => null);
+            if (img) {
+              if (turnToken?.cancelled) { await reservation.release(); return { response: { success: false, error: "CANCELLED_BY_USER" } }; }
+              const url = await registerAndSaveMedia(`img_${generateId()}`, bytesToArrayBuffer(img), user.id, user.first_name, env, prompt);
+              if (!url) { await reservation.release(); return { response: { success: false, error: "storage_failed" } }; }
+              return { response: { success: true, url, prompt, note: "..." }, imageUrl: url };
+            }
           }
+          await reservation.release();
+          return { response: { success: false, error: turnToken?.cancelled ? "CANCELLED_BY_USER" : "generation_failed" } };
+        } catch (e) {
+          await reservation.release().catch(() => {});
+          return { response: { success: false, error: e instanceof Error ? e.message : String(e) } };
         }
-        return { response: { success: false } };
       }
       case "voice_response": {
-        setMiniAppProgress(user.id, lang === "fa" ? "🎙️ در حال ساخت صدا..." : "🎙️ Synthesizing voice...");
-        const limitCheck = await checkDailyLimitWithUser(session, user, "voice_sent", env);
-        if (!limitCheck.allowed) return { response: { success: false, error: "limit_reached", message: limitCheck.message } };
-        const audio = await synthesizeVoice(String(call.args.text ?? ""), env);
-        if (!audio) return { response: { success: false } };
-        if(turnToken?.cancelled)return {response:{success:false,error:"CANCELLED_BY_USER"}};
-        const id = `voice_${generateId()}`;
-        const put = await putMediaBlob(env, id, bytesToArrayBuffer(audio), "audio/mpeg");
-        if (!put.ok) return { response: { success: false, error: "storage_failed" } };
-        const url = `${requestOrigin}/app/${id}.mp3`;
-        await incrementUsageWithUser(session, user, "voice_sent", env);
-        return { response: { success: true, url }, audioUrl: url };
+        const reservation = await reserveDailyUsageWithUser(session, user, "voice_sent", env);
+        if (!reservation.allowed) return { response: { success: false, error: "limit_reached", message: reservation.message } };
+        try {
+          setMiniAppProgress(user.id, lang === "fa" ? "🎙️ در حال ساخت صدا..." : "🎙️ Synthesizing voice...");
+          const audio = await synthesizeVoice(String(call.args.text ?? ""), env);
+          if (!audio || turnToken?.cancelled) {
+            await reservation.release();
+            return { response: { success: false, error: turnToken?.cancelled ? "CANCELLED_BY_USER" : "TTS_FAILED" } };
+          }
+          const id = `voice_${generateId()}`;
+          const put = await putMediaBlob(env, id, bytesToArrayBuffer(audio), "audio/mpeg");
+          if (!put.ok) { await reservation.release(); return { response: { success: false, error: "storage_failed" } }; }
+          const url = `${requestOrigin}/app/${id}.mp3`;
+          return { response: { success: true, url }, audioUrl: url };
+        } catch (e) {
+          await reservation.release().catch(() => {});
+          return { response: { success: false, error: e instanceof Error ? e.message : String(e) } };
+        }
       }
         
       case "search_images": {
@@ -17521,16 +17527,17 @@ async function processAIRequestUnlocked(
           String(originalMsg.text ?? originalMsg.caption ?? "")
         );
         if (directVoiceText) {
+          let voiceReservation: Awaited<ReturnType<typeof reserveDailyUsageWithUser>> | null = null;
           try {
-            const limitCheck = await checkDailyLimitWithUser(session, user, "voice_sent", env);
-            if (!limitCheck.allowed) {
+            voiceReservation = await reserveDailyUsageWithUser(session, user, "voice_sent", env);
+            if (!voiceReservation.allowed) {
               if (loadingState.id) {
                 await deleteMessage(originalMsg.chat.id, loadingState.id).catch(() => {});
                 loadingState.id = undefined;
               }
               await sendMessage(
                 originalMsg.chat.id,
-                limitCheck.message ?? (session.language === "fa"
+                voiceReservation.message ?? (session.language === "fa"
                   ? "⚠️ سقف ویس‌های مجاز روزانه تمام شده."
                   : "⚠️ Daily voice limit reached."),
                 { reply_to_message_id: originalMsg.message_id }
@@ -17552,6 +17559,7 @@ async function processAIRequestUnlocked(
             }
 
             if (!ok) {
+              await voiceReservation.release();
               await sendMessage(
                 originalMsg.chat.id,
                 session.language === "fa"
@@ -17563,9 +17571,8 @@ async function processAIRequestUnlocked(
               break;
             }
 
-            // The voice note itself is the user-visible answer for this turn.
+            // The reservation is now the committed usage count; do not increment twice.
             responseDelivered = true;
-            runBackground(() => incrementUsageWithUser(session, user, "voice_sent", env), 6000, "usage");
             session.messageCount++;
             session.statistics.totalMessages++;
             recordRequest(session);
@@ -17591,6 +17598,7 @@ async function processAIRequestUnlocked(
             activeProgressMessages.delete(originalMsg.chat.id);
             break;
           } catch (e) {
+            if (voiceReservation?.allowed) await voiceReservation.release().catch(() => {});
             logger.error("Direct voice fast-path failed", e);
             if (loadingState.id) {
               await deleteMessage(originalMsg.chat.id, loadingState.id).catch(() => {});
