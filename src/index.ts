@@ -4243,6 +4243,7 @@ async function handlePersonaIntentMessage(
   text: string,
   chatId: number,
   isGroup: boolean,
+  env: Env,
   replyToMessageId?: number,
   /**
    * The router's decision for this message, when the caller has one.
@@ -17335,7 +17336,7 @@ async function processAIRequest(
   if (personaText && !personaText.startsWith("/") && personaFastPathAllowed) {
     try {
       const sessionNow = await getOrCreateSession(originalMsg.chat, user, env);
-      if (await handlePersonaIntentMessage(sessionNow, user, personaText, chatId, isGroup, originalMsg.message_id, routing)) {
+      if (await handlePersonaIntentMessage(sessionNow, user, personaText, chatId, isGroup, env, originalMsg.message_id, routing)) {
         return;
       }
     } catch (e) {
@@ -23460,7 +23461,7 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
     // fast path (because "شاکی" is also an alias of the default persona) and
     // burned the whole turn on a persona card instead of answering. Only an
     // actual persona intent gets in.
-    if (await handlePersonaIntentMessage(session, from, text, chat.id, isGroup, msg.message_id, routing)) return;
+    if (await handlePersonaIntentMessage(session, from, text, chat.id, isGroup, env, msg.message_id, routing)) return;
 
     // Handle pending broadcast input from owner
     const broadcastState = broadcastStates.get(chat.id);
