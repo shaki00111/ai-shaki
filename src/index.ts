@@ -2086,6 +2086,7 @@ interface GroupMemberProfile {
   username?: string;
   facts: string[];           // حقایق کوتاه و ماندگاری که درباره این عضو یاد گرفته
   messageCount: number;
+  xp?: number;
   firstSeen: number;
   lastSeen: number;
   lastFactUpdate?: number;
@@ -10493,6 +10494,7 @@ function touchGroupMember(session: ChatSession, user: TgUser): void {
     existing.displayName = user.first_name;
     existing.username = user.username;
     existing.messageCount++;
+    existing.xp ??= 0;
     existing.lastSeen = now;
     return;
   }
@@ -10502,6 +10504,7 @@ function touchGroupMember(session: ChatSession, user: TgUser): void {
     username: user.username,
     facts: [],
     messageCount: 1,
+    xp: 0,
     firstSeen: now,
     lastSeen: now,
   });
@@ -21167,6 +21170,108 @@ async function handleFreeBonusCommand(msg: TgMessage, env: Env): Promise<void> {
   await sendMessage(msg.chat.id, "🎁 <b>۲۰ پیام رایگان به سهمیه امروزت اضافه شد!</b>\nاین هدیه روزانه یک‌بار قابل دریافته.", { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
 }
 
+
+// ── GROUP GAMIFICATION ──────────────────────────────────────────────────────
+function groupLevelFromXp(xpValue: number): number {
+  const xp = Math.max(0, Math.floor(Number(xpValue) || 0));
+  return Math.floor(Math.sqrt(xp / 100)) + 1;
+}
+function awardGroupXp(session: ChatSession, userId: number, points = 5): number {
+  const profile = session.groupMembers?.get(userId);
+  if (!profile) return 0;
+  const current = Math.max(0, Number(profile.xp) || 0);
+  profile.xp = Math.min(1_000_000_000, current + Math.max(0, Math.floor(points)));
+  return profile.xp;
+}
+async function handleGroupLeaderboard(msg: TgMessage, session: ChatSession, env: Env): Promise<void> {
+  if (msg.chat.type === "private") {
+    await sendMessage(msg.chat.id, "🏆 جدول رتبه‌بندی فقط داخل گروه‌ها نمایش داده می‌شه.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  awardGroupXp(session, msg.from!.id, 5);
+  await saveSession(session, env);
+  const ranked = Array.from(session.groupMembers.values())
+    .map(member => ({ ...member, xp: Math.max(0, Number(member.xp) || 0) }))
+    .sort((a, b) => b.xp - a.xp || b.messageCount - a.messageCount || a.userId - b.userId)
+    .slice(0, 10);
+  if (!ranked.length) {
+    await sendMessage(msg.chat.id, "🏆 هنوز امتیازی ثبت نشده؛ با صدا زدن شاکی شروع کن!", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  const rows = ranked.map((member, index) => {
+    const level = groupLevelFromXp(member.xp);
+    const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : String(index + 1) + ".";
+    return medal + " <b>" + escapeHTML(member.displayName) + "</b> · سطح " + level + " · " + member.xp + " XP";
+  });
+  await sendMessage(msg.chat.id,
+    "🏆 <b>تالار افتخار گروه</b>\n━━━━━━━━━━━━━━━━━━\n" + rows.join("\n") + "\n\n✨ با تعامل با SHAKI امتیاز بگیر و رتبه‌ات رو بالا ببر.",
+    { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+}
+async function handleGroupProfile(msg: TgMessage, session: ChatSession, env: Env): Promise<void> {
+  if (!msg.from) return;
+  if (msg.chat.type === "private") {
+    await sendMessage(msg.chat.id, "👤 پروفایل امتیازی رو داخل گروهی که شاکی توش فعاله ببین.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  const profile = session.groupMembers.get(msg.from.id);
+  if (!profile) {
+    await sendMessage(msg.chat.id, "هنوز پروفایلت ثبت نشده؛ یک‌بار شاکی رو صدا بزن.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  awardGroupXp(session, msg.from.id, 5);
+  await saveSession(session, env);
+  const xp = Math.max(0, Number(profile.xp) || 0);
+  const level = groupLevelFromXp(xp);
+  const floor = (level - 1) ** 2 * 100;
+  const next = level ** 2 * 100;
+  const progress = Math.max(0, Math.min(10, Math.round(((xp - floor) / Math.max(1, next - floor)) * 10)));
+  const bar = "▰".repeat(progress) + "▱".repeat(10 - progress);
+  await sendMessage(msg.chat.id,
+    "👤 <b>پروفایل گروهی " + escapeHTML(profile.displayName) + "</b>\n━━━━━━━━━━━━━━━━━━\n⭐ امتیاز: <b>" + xp + " XP</b>\n🎖 سطح: <b>" + level + "</b>\n<code>[" + bar + "]</code>\n💬 پیام‌های ثبت‌شده: " + profile.messageCount + "\n📅 عضویت از: " + new Date(profile.firstSeen).toLocaleDateString("fa-IR"),
+    { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+}
+const GROUP_TRUTH_PROMPTS = [
+  "آخرین باری که از ته دل خندیدی کی بود؟",
+  "چه مهارتی رو دوست داری یاد بگیری ولی هنوز شروع نکردی؟",
+  "عجیب‌ترین عادتی که داری چیه؟",
+  "اگه یک روز نامرئی بودی، اولین کارت چی بود؟",
+  "کدوم آهنگ رو بیشتر از چیزی که اعتراف می‌کنی گوش می‌دی؟",
+  "بزرگ‌ترین سوتی بامزه‌ات چی بوده؟",
+  "اگه می‌تونستی با یک نفر معروف شام بخوری، کی رو انتخاب می‌کردی؟",
+  "کدوم خاطره مدرسه هنوز یادت مونده؟",
+  "چه چیزی سریع حالت رو خوب می‌کنه؟",
+  "اگه یک قانون گروه رو عوض می‌کردی، چی بود؟",
+  "تا حالا شده پیام رو اشتباهی برای آدم اشتباهی بفرستی؟",
+  "کدوم بازی رو هیچ‌وقت خسته نمی‌شی ازش؟",
+];
+const GROUP_DARE_PROMPTS = [
+  "تا نوبت بعدی فقط با ایموجی جواب بده 😄",
+  "برای یکی از اعضای گروه یک تعریف واقعی و محترمانه بنویس.",
+  "یک جمله خنده‌دار درباره امروزت بساز.",
+  "اسم سه آهنگ محبوبت رو پشت سر هم بفرست.",
+  "با سه ایموجی حال الانت رو توصیف کن.",
+  "یک جوک کوتاه تعریف کن.",
+  "یک لقب بامزه و محترمانه برای خودت انتخاب کن.",
+  "تا سه پیام بعدی بدون استفاده از حرف «ا» بنویس.",
+  "یک حقیقت جالب درباره خودت بگو.",
+  "یک جمله انگیزشی خیلی کوتاه برای گروه بفرست.",
+  "با پنج کلمه یک داستان عجیب بساز.",
+  "از یکی از اعضا بابت یک ویژگی خوبش تشکر کن.",
+];
+async function handleTruthDare(msg: TgMessage, session: ChatSession, env: Env, kind: "truth" | "dare"): Promise<void> {
+  if (msg.chat.type === "private") {
+    await sendMessage(msg.chat.id, "🎲 جرئت و حقیقت رو توی گروه بازی کن؛ این دستور رو همون‌جا بزن.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  awardGroupXp(session, msg.from!.id, 5);
+  await saveSession(session, env);
+  const prompts = kind === "truth" ? GROUP_TRUTH_PROMPTS : GROUP_DARE_PROMPTS;
+  const prompt = prompts[Math.floor(Math.random() * prompts.length)];
+  await sendMessage(msg.chat.id,
+    (kind === "truth" ? "🧠 حقیقت" : "🔥 جرئت") + " برای <b>" + escapeHTML(msg.from!.first_name) + "</b>:\n\n" + escapeHTML(prompt) + "\n\n⭐ +۵ XP",
+    { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+}
+
 async function handleStart(msg: TgMessage, env: Env): Promise<void> {
   const { chat, from } = msg;
   if (!from) return;
@@ -23758,6 +23863,11 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
         case "/start": await handleStart(msg, env); break;
         case "/referral": await handleReferralCommand(msg, env); break;
         case "/freebonus": await handleFreeBonusCommand(msg, env); break;
+        case "/leaderboard":
+        case "/rank": await handleGroupLeaderboard(msg, session, env); break;
+        case "/profile": await handleGroupProfile(msg, session, env); break;
+        case "/truth": await handleTruthDare(msg, session, env, "truth"); break;
+        case "/dare": await handleTruthDare(msg, session, env, "dare"); break;
         case "/donate": {
           const donate = buildDonateMessage(session.language);
           await sendMessage(chat.id, donate.text, { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
@@ -24065,6 +24175,8 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
       await sendMessage(chat.id, lang === "fa" ? "🚦 سرور شلوغ است. لطفاً 30 ثانیه صبر کنید." : "🚦 Server busy. Please wait 30s.", { reply_to_message_id: msg.message_id });
       return;
     }
+
+    if (isGroup) awardGroupXp(session, from.id, 5);
 
     // Telegram can disconnect a slow webhook before a code generation finishes.
     // Reuse the existing D1/cron task runner for explicit long builds: persist
