@@ -14,7 +14,7 @@ import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from 
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns } from "./ttsReliability";
-import { readVipEntitlementSnapshot, isVipEntitlementActive } from "./vipEntitlement";
+import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
 import { inspectJpeg } from "./documentImages";
 // ── MERGE: cognition layer from SHAKI B, on top of SHAKI A's platform layer ──
@@ -2210,6 +2210,7 @@ interface UserStatistics {
   lastSeen?: number;
   lastActivityType?: string;
   riskScore?: number;
+  vipExpiresAt?: number;
 }
 
 /** دنormalized row of the D1 `users` table — the fast materialized summary used
@@ -2220,6 +2221,7 @@ interface UserSummaryRow {
   first_name: string;
   language: Language;
   vip: number;
+  vip_expires_at?: number | null;
   blocked: number;
   persona_id: string;
   created_at: number;
@@ -16856,8 +16858,8 @@ function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverri
 
   // پرئوزر limit override (ست‌شده از پنل ادمین) همیشه بر سقف سراسری مقدم است.
   const vipLimit = isVip ? session.vipLimits?.[type] : undefined;
-  const override = typeof vipLimit === "number" ? vipLimit : session.limitOverrides?.[type];
-  const limit = typeof override === "number" && override >= 0 ? override : limits[type];
+  // A VIP plan must not inherit a stale free-tier override (especially a zero voice cap).
+  const limit = resolveVipDailyLimit(isVip, vipLimit, session.limitOverrides?.[type], limits[type]);
   if (usage[type] >= limit) {
     const lang = session.language;
     const contact = cfg.VIP_CONTACT;
@@ -18904,6 +18906,7 @@ function rowToUserStats(row: UserSummaryRow): UserStatistics {
     },
     activeEngine: "gemini",
     vipStatus: row.vip === 1,
+    vipExpiresAt: Number(row.vip_expires_at) > 0 ? Number(row.vip_expires_at) : undefined,
     blocked: row.blocked === 1,
     dailyLimits: {
       messages: row.daily_messages,
@@ -19033,7 +19036,7 @@ async function queryUsersCursor(env: Env, opts: { sortBy?: UserSortKey; search?:
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const order = descending ? "DESC" : "ASC";
-  const sql = `SELECT user_id, username, first_name, language, vip, blocked, persona_id, created_at, last_seen, last_activity_type, message_count, gemini_messages, voices_received, daily_messages, daily_images, daily_edits, daily_searches, daily_voice, risk_score, notes FROM users ${whereSql} ORDER BY ${sortColumn} ${order}, user_id ${order} LIMIT ?`;
+  const sql = `SELECT user_id, username, first_name, language, vip, (SELECT CASE WHEN json_valid(kv.value_text) THEN CAST(json_extract(kv.value_text, '$.vipExpiresAt') AS INTEGER) ELSE NULL END FROM kv_store kv WHERE kv.key = 'session:' || users.user_id LIMIT 1) AS vip_expires_at, blocked, persona_id, created_at, last_seen, last_activity_type, message_count, gemini_messages, voices_received, daily_messages, daily_images, daily_edits, daily_searches, daily_voice, risk_score, notes FROM users ${whereSql} ORDER BY ${sortColumn} ${order}, user_id ${order} LIMIT ?`;
   params.push(limit + 1);
   try {
     const res = await env.DB.prepare(sql).bind(...params).all<UserSummaryRow>();
