@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readVipEntitlementSnapshot, isVipEntitlementActive } from "../src/vipEntitlement.ts";
+import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipExpiry } from "../src/vipEntitlement.ts";
 
 test("persisted VIP entitlement is normalized without touching usage", () => {
   const snapshot = readVipEntitlementSnapshot({
@@ -32,4 +32,14 @@ test("VIP quota never inherits a stale free-tier override", async () => {
   assert.equal(resolveVipDailyLimit(true, 0, 90, 30), 0);
   assert.equal(resolveVipDailyLimit(false, undefined, 0, 3), 0);
   assert.equal(resolveVipDailyLimit(false, undefined, undefined, 3), 3);
+});
+
+
+test("renewing a permanent VIP never downgrades it to a temporary plan", () => {
+  const now = 1_800_000_000_000;
+  assert.equal(resolveVipExpiry(true, undefined, 30, now), undefined);
+  assert.equal(resolveVipExpiry(true, 0, 30, now), undefined);
+  assert.equal(resolveVipExpiry(false, undefined, 30, now), now + 30 * 86_400_000);
+  assert.equal(resolveVipExpiry(true, now + 10 * 86_400_000, 30, now), now + 40 * 86_400_000);
+  assert.equal(resolveVipExpiry(false, undefined, 0, now), undefined);
 });
