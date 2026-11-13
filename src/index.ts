@@ -4945,8 +4945,13 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
       const testSettings = body.customization ? normalizeOwnerPersonalization(body.customization) : current;
       const sample = ownerPersonalizationWelcome(testSettings, "fa", "⚡ AI SHAKI\nپیش‌نمایش پیام خوش‌آمدگویی", "مالک");
       try {
-        await sendMessage(user.id, sample, { parse_mode: "HTML" });
-        return json({ ok: true, sent: true });
+        const ownerSession = await getOrCreateSession({ id: user.id, type: "private" }, user, env);
+        const testKeyboard = await buildHomeKeyboard(ownerSession, user.id, env, testSettings);
+        await sendMessage(user.id, sample, {
+          parse_mode: "HTML",
+          reply_markup: JSON.stringify(validateKeyboard(testKeyboard)),
+        });
+        return json({ ok: true, sent: true, keyboard: true });
       } catch (e) {
         logger.warn("[personalization] owner test-send failed", e);
         return json({ ok: false, error: "test_send_failed" }, 502);
@@ -26104,7 +26109,7 @@ async function showHomePanel(
   }
 }
 
-async function buildHomeKeyboard(session: ChatSession, userId: number, env: Env): Promise<InlineKeyboard> {
+async function buildHomeKeyboard(session: ChatSession, userId: number, env: Env, personalizationOverride?: unknown): Promise<InlineKeyboard> {
   const lang = session.language;
   const isOwner = userId === cfg.BOT_OWNER_ID;
   const isFa = lang === "fa";
@@ -26148,7 +26153,9 @@ async function buildHomeKeyboard(session: ChatSession, userId: number, env: Env)
     rows.push([btn(isFa ? "👥 تنظیمات گروه" : isAr ? "👥 إعدادات المجموعة" : "👥 Group Settings", "group_settings")]);
   }
   rows.push([btn(isFa ? "✖️ بستن منو" : isAr ? "✖️ إغلاق" : "✖️ Close", "home:close")]);
-  const personalization = normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null));
+  const personalization = personalizationOverride === undefined
+    ? normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null))
+    : normalizeOwnerPersonalization(personalizationOverride);
   return applyOwnerMenuPersonalization({ inline_keyboard: rows }, personalization);
 }
 
