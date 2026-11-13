@@ -23331,9 +23331,15 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
     // ── Group activation gate: disabled groups are completely silent. /start is the only exception.
     if (chat.type !== "private" && !await isGroupEnabled(chat.id, chat.type, env)) {
       const commandProbe = (text.trim().split(/\s+/)[0] ?? "").toLowerCase().split("@")[0];
-      const personalStart = commandProbe === "/start" || commandProbe === "/panel";
+      const personalStart = commandProbe === "/start";
+      const panelCommand = commandProbe === "/panel" || commandProbe === "پنل" || commandProbe === "panel";
       const adminSettings = commandProbe === "/settings" && await isUserAdmin(from.id, chat.id);
-      if (!personalStart && !adminSettings) return;
+      if (!personalStart && !panelCommand && !adminSettings) return;
+    }
+
+    if (chat.type !== "private" && /^(?:پنل|panel)$/i.test(text.trim())) {
+      await handlePanelCommand(msg, env);
+      return;
     }
 
     const isGroup = chat.type !== "private";
