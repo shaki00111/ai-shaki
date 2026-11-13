@@ -12,7 +12,7 @@ import { startRun, finishRun, operationsAPI, recordAdminAudit, cleanupOperations
 import { readJsonObject, RequestBodyError } from "./http";
 import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from "./memory";
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
-import { normalizeOwnerUiCustomization, DEFAULT_OWNER_UI_CUSTOMIZATION, ownerUiButtons, ownerUiWelcome } from "./uiPersonalization";
+import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
 import { inspectJpeg } from "./documentImages";
 // ── MERGE: cognition layer from SHAKI B, on top of SHAKI A's platform layer ──
@@ -4932,17 +4932,17 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
   // Owner-only customization is isolated from ordinary bot settings. This
   // handler has already verified signed Telegram initData and the exact owner id.
   if (path === "personalization") {
-    const key = "owner_ui_customization";
-    const backupKey = "owner_ui_customization:backup";
-    const current = normalizeOwnerUiCustomization(await env.SESSIONS.get(key, "json").catch(() => null));
+    const key = "owner_personalization";
+    const backupKey = "owner_personalization:backup";
+    const current = normalizeOwnerPersonalization(await env.SESSIONS.get(key, "json").catch(() => null));
     if (request.method === "GET") {
-      return json({ ok: true, customization: current, defaults: DEFAULT_OWNER_UI_CUSTOMIZATION });
+      return json({ ok: true, customization: current, defaults: DEFAULT_OWNER_PERSONALIZATION });
     }
     if (request.method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const action = String(body.action ?? "save");
     if (action === "test") {
-      const sample = ownerUiWelcome(current, "fa", "⚡ AI SHAKI\nپیش‌نمایش پیام خوش‌آمدگویی", "مالک");
+      const sample = ownerPersonalizationWelcome(current, "fa", "⚡ AI SHAKI\nپیش‌نمایش پیام خوش‌آمدگویی", "مالک");
       try {
         await sendMessage(user.id, sample, { parse_mode: "HTML" });
         return json({ ok: true, sent: true });
@@ -4954,17 +4954,17 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     if (action === "restore") {
       const backup = await env.SESSIONS.get(backupKey, "json").catch(() => null);
       if (!backup) return json({ ok: false, error: "no_backup" }, 404);
-      const restored = normalizeOwnerUiCustomization(backup);
+      const restored = normalizeOwnerPersonalization(backup);
       await env.SESSIONS.put(key, JSON.stringify(restored));
       return json({ ok: true, customization: restored, restored: true });
     }
     if (action === "reset") {
       await env.SESSIONS.put(backupKey, JSON.stringify(current));
-      await env.SESSIONS.put(key, JSON.stringify(DEFAULT_OWNER_UI_CUSTOMIZATION));
-      return json({ ok: true, customization: DEFAULT_OWNER_UI_CUSTOMIZATION, reset: true });
+      await env.SESSIONS.put(key, JSON.stringify(DEFAULT_OWNER_PERSONALIZATION));
+      return json({ ok: true, customization: DEFAULT_OWNER_PERSONALIZATION, reset: true });
     }
     if (action !== "save") return json({ ok: false, error: "unknown_action" }, 400);
-    const next = normalizeOwnerUiCustomization(body.customization);
+    const next = normalizeOwnerPersonalization(body.customization);
     await env.SESSIONS.put(backupKey, JSON.stringify(current));
     await env.SESSIONS.put(key, JSON.stringify(next));
     return json({ ok: true, customization: next, saved: true });
@@ -20823,18 +20823,26 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
         `🔹 Mention SHAKI or reply to one of her messages to start chatting.\n\n` +
         `<i>Select a module below:</i>`;
 
-    const ownerUi = normalizeOwnerUiCustomization(await env.SESSIONS.get("owner_ui_customization", "json").catch(() => null));
-    const welcomeText = ownerUiWelcome(ownerUi, glang, defaultWelcomeText, from.first_name);
-    const customButtons = ownerUiButtons(ownerUi, isGroupAdmin);
-    const rows: InlineBtn[][] = [];
-    for (let i = 0; i < customButtons.length; i += 2) {
-      rows.push(customButtons.slice(i, i + 2).map(item => btn(item.text, item.callback)));
+    const ownerUi = normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null));
+    const welcomeText = ownerPersonalizationWelcome(ownerUi, glang, defaultWelcomeText, from.first_name);
+    const rows: InlineBtn[][] = [
+      [btn(glang === "fa" ? "🎭 انتخاب شخصیت (فقط برای من)" : "🎭 Choose Persona (just for me)", "home:personas")],
+      [btn(glang === "fa" ? "✏️ پرامپت شخصی من" : "✏️ My Custom Prompt", "home:prompt")],
+      [
+        btn(glang === "fa" ? "🆕 پاک کردن حافظه من" : "🆕 Clear My Memory", "home:new_confirm"),
+        btn(glang === "fa" ? "❓ راهنما" : "❓ Help", "home:help"),
+      ],
+    ];
+    if (isGroupAdmin) {
+      rows.push([btn(glang === "fa" ? "👥 تنظیمات گروه (مدیریت)" : "👥 Group Settings (Admin)", "group_settings")]);
     }
+    rows.push([btn(glang === "fa" ? "✖️ بستن" : "✖️ Close", "home:close")]);
+    const personalizedKeyboard = applyOwnerMenuPersonalization({ inline_keyboard: rows }, ownerUi);
 
     const sentMsg = await sendMessage(chat.id, welcomeText, {
       reply_to_message_id: msg.message_id,
       parse_mode: "HTML",
-      reply_markup: JSON.stringify(validateKeyboard({ inline_keyboard: rows })),
+      reply_markup: JSON.stringify(validateKeyboard(personalizedKeyboard)),
     }).catch(() => null);
 
     // 🔒 قفل فوری مالکیت پنل روی همین کاربر — از همون لحظه ارسال، نه از اولین کلیک
