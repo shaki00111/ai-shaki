@@ -176,8 +176,33 @@ reservationSource.includes("await saveSession(target, env);")
   ? ok("private /tts reserves and persists voice usage before synthesis")
   : fail("private /tts must reserve and persist voice usage before synthesis");
 
+// ── Mini App and direct voice quota reservations ───────────────────────────
+console.log("\n[8] Mini App and direct voice quota reservations");
+const webToolStart = indexSource.indexOf("async function executeToolForWebApp");
+const webToolEnd = indexSource.indexOf("\nasync function ", webToolStart + 20);
+const webToolSource = webToolStart >= 0 && webToolEnd > webToolStart
+  ? indexSource.slice(webToolStart, webToolEnd) : "";
+for (const [tool, kind] of [["edit_image", "edit"], ["generate_image", "image"], ["voice_response", "voice_sent"]]) {
+  const start = webToolSource.indexOf(`case "${tool}"`);
+  const end = webToolSource.indexOf("\n      case ", start + 12);
+  const body = start >= 0 ? webToolSource.slice(start, end > start ? end : undefined) : "";
+  body.includes(`reserveDailyUsageWithUser(session, user, "${kind}", env)`) &&
+  body.includes("reservation.release()")
+    ? ok(`Mini App ${tool} reserves quota atomically and releases failed work`)
+    : fail(`Mini App ${tool} must reserve quota atomically and release failed work`);
+}
+const directVoiceStart = indexSource.indexOf("// ⚡ Direct voice fast-path");
+const directVoiceEnd = indexSource.indexOf("sendTyping(originalMsg.chat.id)", directVoiceStart);
+const directVoiceSource = directVoiceStart >= 0 && directVoiceEnd > directVoiceStart
+  ? indexSource.slice(directVoiceStart, directVoiceEnd) : "";
+directVoiceSource.includes('reserveDailyUsageWithUser(session, user, "voice_sent", env)') &&
+directVoiceSource.includes("voiceReservation.release()") &&
+!directVoiceSource.includes('incrementUsageWithUser(session, user, "voice_sent", env)')
+  ? ok("direct voice fast-path reserves atomically and rolls back failed delivery")
+  : fail("direct voice fast-path must reserve atomically and roll back failed delivery");
+
 // ── Incoming voice quota accounting ────────────────────────────────────────
-console.log("\n[8] Incoming voice quota accounting");
+console.log("\n[9] Incoming voice quota accounting");
 const incomingVoiceStart = indexSource.indexOf("async function handleVoiceMessage");
 const incomingVoiceEnd = indexSource.indexOf("\nasync function handleMediaMessage", incomingVoiceStart);
 const incomingVoiceSource = incomingVoiceStart >= 0 && incomingVoiceEnd > incomingVoiceStart
