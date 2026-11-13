@@ -1724,8 +1724,14 @@ function readPersonalizationForm(){
   return {welcomeTextFa:$("personalWelcomeFa").value.slice(0,1200),welcomeTextEn:$("personalWelcomeEn").value.slice(0,1200),labels,hidden,order:order.map(x=>x.id)};
 }
 function updatePersonalPreview(){
-  const text=$("personalWelcomeFa").value.trim()||"متن پیش‌فرض فعلی SHAKI";
-  $("personalPreview").textContent=text.replace(/\{name\}/g,"مالک");
+  const custom=readPersonalizationForm();
+  const welcome=custom.welcomeTextFa.trim()||"متن پیش‌فرض فعلی SHAKI";
+  const labels=custom.labels||{}, hidden=new Set(custom.hidden||[]);
+  const menu=custom.order.filter(id=>!hidden.has(id)).map(id=>{
+    const item=PERSONAL_BUTTONS.find(b=>b.id===id);
+    return item ? "• "+(labels[id]||item.label) : "";
+  }).filter(Boolean);
+  $("personalPreview").textContent=welcome.replace(/\{name\}/g,"مالک")+"\n\n"+menu.join("\n");
 }
 async function savePersonalization(){
   try{
@@ -3397,7 +3403,7 @@ async function init(){
   if($("personalizationSave")) $("personalizationSave").onclick=savePersonalization;
   if($("personalizationReload")) $("personalizationReload").onclick=()=>{invalidateTab("personalization");loadPersonalization();};
   if($("personalPreviewBtn")) $("personalPreviewBtn").onclick=updatePersonalPreview;
-  if($("personalizationTest")) $("personalizationTest").onclick=async()=>{try{await api("/api/admin/personalization",{method:"POST",body:{action:"test"}});toast("پیام آزمایشی برای مالک ارسال شد.","ok");}catch(e){toast(e.message,"err");}};
+  if($("personalizationTest")) $("personalizationTest").onclick=async()=>{try{await api("/api/admin/personalization",{method:"POST",body:{action:"test",customization:readPersonalizationForm()}});toast("پیام آزمایشی برای مالک ارسال شد.","ok");}catch(e){toast(e.message,"err");}};
   if($("personalizationReset")) $("personalizationReset").onclick=async()=>{if(!confirm("همه تنظیمات شخصی‌سازی به پیش‌فرض برگردد؟"))return;try{const d=await api("/api/admin/personalization",{method:"POST",body:{action:"reset"}});personalizationState=d.customization; $("personalWelcomeFa").value="";$("personalWelcomeEn").value="";renderPersonalButtons(personalizationState);updatePersonalPreview();toast("به پیش‌فرض برگشت.","ok");}catch(e){toast(e.message,"err");}};
   if($("personalizationRestore")) $("personalizationRestore").onclick=async()=>{if(!confirm("آخرین نسخه پشتیبان شخصی‌سازی بازیابی شود؟"))return;try{const d=await api("/api/admin/personalization",{method:"POST",body:{action:"restore"}});personalizationState=d.customization;$("personalWelcomeFa").value=personalizationState.welcomeTextFa||"";$("personalWelcomeEn").value=personalizationState.welcomeTextEn||"";renderPersonalButtons(personalizationState);updatePersonalPreview();toast("نسخه قبلی بازیابی شد.","ok");}catch(e){toast(e.message,"err");}};
   if($("vipSearchBtn")) $("vipSearchBtn").onclick=()=>{invalidateTab("vip");loadVipUsers();};
