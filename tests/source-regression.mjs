@@ -191,13 +191,13 @@ for (const [tool, kind] of [["edit_image", "edit"], ["generate_image", "image"],
     ? ok(`Mini App ${tool} reserves quota atomically and releases failed work`)
     : fail(`Mini App ${tool} must reserve quota atomically and release failed work`);
 }
-const directVoiceStart = indexSource.indexOf("// ⚡ Direct voice fast-path");
-const directVoiceEnd = indexSource.indexOf("sendTyping(originalMsg.chat.id)", directVoiceStart);
-const directVoiceSource = directVoiceStart >= 0 && directVoiceEnd > directVoiceStart
-  ? indexSource.slice(directVoiceStart, directVoiceEnd) : "";
-directVoiceSource.includes('reserveDailyUsageWithUser(session, user, "voice_sent", env)') &&
-directVoiceSource.includes("voiceReservation.release()") &&
-!directVoiceSource.includes('incrementUsageWithUser(session, user, "voice_sent", env)')
+const fastPathVoiceStart = indexSource.indexOf("// ⚡ Direct voice fast-path");
+const fastPathVoiceEnd = indexSource.indexOf("sendTyping(originalMsg.chat.id)", fastPathVoiceStart);
+const fastPathVoiceSource = fastPathVoiceStart >= 0 && fastPathVoiceEnd > fastPathVoiceStart
+  ? indexSource.slice(fastPathVoiceStart, fastPathVoiceEnd) : "";
+fastPathVoiceSource.includes('reserveDailyUsageWithUser(session, user, "voice_sent", env)') &&
+fastPathVoiceSource.includes("voiceReservation.release()") &&
+!fastPathVoiceSource.includes('incrementUsageWithUser(session, user, "voice_sent", env)')
   ? ok("direct voice fast-path reserves atomically and rolls back failed delivery")
   : fail("direct voice fast-path must reserve atomically and roll back failed delivery");
 
