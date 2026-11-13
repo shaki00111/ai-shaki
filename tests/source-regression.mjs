@@ -241,9 +241,46 @@ startHandler.includes("personal control panel for every member") &&
   ? ok("group /start opens personal controls even when group replies are disabled")
   : fail("group /start must not be blocked by the group reply toggle");
 messageHandler.includes('const personalStart = commandProbe === "/start"') &&
+messageHandler.includes('const panelCommand = commandProbe === "/panel"') &&
 messageHandler.includes('const adminSettings = commandProbe === "/settings" && await isUserAdmin(from.id, chat.id)')
-  ? ok("disabled groups allow personal /start but keep /settings admin-only")
-  : fail("disabled-group command gate must allow /start to everyone and /settings to admins");
+  ? ok("disabled groups allow personal /start and /panel while keeping settings admin-only")
+  : fail("disabled-group command gate must allow /start and /panel without opening admin settings");
+
+console.log("\\n[12] Group panel and private force-join");
+const panelCommandStart = indexSource.indexOf('case "/panel"');
+const panelCommandEnd = indexSource.indexOf('case "/forcejoin"', panelCommandStart);
+const panelCommandSource = panelCommandStart >= 0 && panelCommandEnd > panelCommandStart
+  ? indexSource.slice(panelCommandStart, panelCommandEnd) : "";
+panelCommandSource.includes('btn("👤 پنل شخصی", "panel_personal")') &&
+panelCommandSource.includes('btn("🛡️ پنل مدیریت گروه", "panel_group")') &&
+panelCommandSource.includes("if (canManage)")
+  ? ok("/panel exposes personal controls to members and group controls only to admins")
+  : fail("/panel must separate personal and admin-only group controls");
+indexSource.includes('if (data === "panel_personal")') &&
+indexSource.includes('if (data === "panel_group")') &&
+indexSource.includes('!await isUserAdmin(from.id, chat.id)')
+  ? ok("group panel callbacks enforce group-admin permissions")
+  : fail("group panel callback authorization is missing");
+const dispatchStart = indexSource.indexOf("async function dispatchUpdate");
+const dispatchEnd = indexSource.indexOf("\\n    }\\n  }\\n}", dispatchStart);
+const dispatchSource = dispatchStart >= 0 ? indexSource.slice(dispatchStart, dispatchEnd > dispatchStart ? dispatchEnd : undefined) : "";
+dispatchSource.includes("Enforce channel membership for every private input type") &&
+dispatchSource.includes("sendForceJoinPrompt")
+  ? ok("private force-join checks text, voice, photos, documents and stickers before dispatch")
+  : fail("private force-join must cover every incoming message type");
+indexSource.includes('if (data === "forcejoin_check")') &&
+indexSource.includes('getChatMember", { chat_id: forceJoin.channelId, user_id: from.id')
+  ? ok("force-join confirmation verifies Telegram membership server-side")
+  : fail("force-join confirmation must verify membership using Telegram getChatMember");
+const forceJoinCommandStart = indexSource.indexOf("async function handleForceJoinCommand");
+const forceJoinCommandEnd = indexSource.indexOf("\\n// SECTION: MESSAGE HANDLERS", forceJoinCommandStart);
+const forceJoinCommandSource = forceJoinCommandStart >= 0 && forceJoinCommandEnd > forceJoinCommandStart
+  ? indexSource.slice(forceJoinCommandStart, forceJoinCommandEnd) : "";
+forceJoinCommandSource.includes('tg("getChat"') &&
+forceJoinCommandSource.includes('tg("getChatMember"') &&
+forceJoinCommandSource.includes('await env.SESSIONS.put("force_join_config"')
+  ? ok("owner can configure force-join only after bot-admin verification")
+  : fail("force-join setup must verify the channel and bot-admin status before saving");
 
 // ── Image and Mini App quota reservations ──────────────────────────────────
 console.log("\n[10] Image and Mini App quota reservations");
