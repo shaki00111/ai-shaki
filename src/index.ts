@@ -17521,18 +17521,16 @@ async function processAIRequestUnlocked(
           String(originalMsg.text ?? originalMsg.caption ?? "")
         );
         if (directVoiceText) {
-          let releaseVoiceReservation: (() => Promise<void>) | null = null;
-          let voiceDelivered = false;
           try {
-            const reservation = await reserveDailyUsageWithUser(session, user, "voice_sent", env);
-            if (!reservation.allowed) {
+            const limitCheck = await checkDailyLimitWithUser(session, user, "voice_sent", env);
+            if (!limitCheck.allowed) {
               if (loadingState.id) {
                 await deleteMessage(originalMsg.chat.id, loadingState.id).catch(() => {});
                 loadingState.id = undefined;
               }
               await sendMessage(
                 originalMsg.chat.id,
-                reservation.message ?? (session.language === "fa"
+                limitCheck.message ?? (session.language === "fa"
                   ? "⚠️ سقف ویس‌های مجاز روزانه تمام شده."
                   : "⚠️ Daily voice limit reached."),
                 { reply_to_message_id: originalMsg.message_id }
@@ -17540,7 +17538,6 @@ async function processAIRequestUnlocked(
               responseDelivered = true;
               break;
             }
-            releaseVoiceReservation = reservation.release;
 
             const ok = await sendVoiceResponse(
               originalMsg.chat.id,
@@ -17548,7 +17545,6 @@ async function processAIRequestUnlocked(
               directVoiceText,
               env
             );
-            voiceDelivered = ok;
 
             if (loadingState.id) {
               await deleteMessage(originalMsg.chat.id, loadingState.id).catch(() => {});
@@ -17556,8 +17552,6 @@ async function processAIRequestUnlocked(
             }
 
             if (!ok) {
-              await releaseVoiceReservation();
-              releaseVoiceReservation = null;
               await sendMessage(
                 originalMsg.chat.id,
                 session.language === "fa"
@@ -17569,8 +17563,9 @@ async function processAIRequestUnlocked(
               break;
             }
 
-            // Reservation already persisted the successful voice usage atomically.
+            // The voice note itself is the user-visible answer for this turn.
             responseDelivered = true;
+            runBackground(() => incrementUsageWithUser(session, user, "voice_sent", env), 6000, "usage");
             session.messageCount++;
             session.statistics.totalMessages++;
             recordRequest(session);
@@ -17596,10 +17591,6 @@ async function processAIRequestUnlocked(
             activeProgressMessages.delete(originalMsg.chat.id);
             break;
           } catch (e) {
-            if (!voiceDelivered && releaseVoiceReservation) {
-              await releaseVoiceReservation().catch(() => {});
-              releaseVoiceReservation = null;
-            }
             logger.error("Direct voice fast-path failed", e);
             if (loadingState.id) {
               await deleteMessage(originalMsg.chat.id, loadingState.id).catch(() => {});
@@ -20952,11 +20943,8 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
   // If an administrator explicitly disables replies, /start only opens the
   // settings surface; it never silently re-enables a disabled group.
   if (isGroup) {
-    const gc = await getGroupConfig(chat.id, env);
-    if (!gc.enabled) {
-      // /start opens settings for admins; it never silently undoes a disable.
-      if(!await isUserAdmin(from.id,chat.id))return;
-    }
+    // /start is a personal control panel for every member, even when group
+    // replies are disabled. It never re-enables group responses.
     const isGroupAdmin = await isUserAdmin(from.id, chat.id);
     const glang = session.language;
     const currentPersonaId = getEffectivePersonaId(session, from.id, true);
@@ -23246,7 +23234,9 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
     // ── Group activation gate: disabled groups are completely silent. /start is the only exception.
     if (chat.type !== "private" && !await isGroupEnabled(chat.id, chat.type, env)) {
       const commandProbe = (text.trim().split(/\s+/)[0] ?? "").toLowerCase().split("@")[0];
-      if (!["/start","/settings"].includes(commandProbe)||!await isUserAdmin(from.id,chat.id)) return;
+      const personalStart = commandProbe === "/start";
+      const adminSettings = commandProbe === "/settings" && await isUserAdmin(from.id, chat.id);
+      if (!personalStart && !adminSettings) return;
     }
 
     const isGroup = chat.type !== "private";
