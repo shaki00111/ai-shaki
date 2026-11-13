@@ -230,6 +230,36 @@ messageHandler.includes('const adminSettings = commandProbe === "/settings" && a
   ? ok("disabled groups allow personal /start but keep /settings admin-only")
   : fail("disabled-group command gate must allow /start to everyone and /settings to admins");
 
+// ── Image and Mini App quota reservations ──────────────────────────────────
+console.log("\n[10] Image and Mini App quota reservations");
+const imgCommandStart = indexSource.indexOf("async function handleImg(");
+const imgCommandEnd = indexSource.indexOf("\nasync function handleSearch", imgCommandStart);
+const imgCommandSource = imgCommandStart >= 0 && imgCommandEnd > imgCommandStart
+  ? indexSource.slice(imgCommandStart, imgCommandEnd) : "";
+imgCommandSource.includes('reserveDailyUsageWithUser(session, from, "image", env)') &&
+imgCommandSource.includes("reservation.release()") &&
+!imgCommandSource.includes('incrementUsageWithUser(session, from, "image", env)')
+  ? ok("/img reserves each generated image and releases failed attempts")
+  : fail("/img must count each successful image with an atomic reservation");
+const miniToolStart = indexSource.indexOf("async function executeToolForWebApp");
+const miniToolEnd = indexSource.indexOf("\nasync function ", miniToolStart + 20);
+const miniToolSource = miniToolStart >= 0 && miniToolEnd > miniToolStart
+  ? indexSource.slice(miniToolStart, miniToolEnd) : "";
+const regenStart = indexSource.indexOf('if (data.startsWith("img_regen_"))');
+const regenEnd = indexSource.indexOf('if (data === "open_language")', regenStart);
+const regenSource = regenStart >= 0 && regenEnd > regenStart ? indexSource.slice(regenStart, regenEnd) : "";
+regenSource.includes('reserveDailyUsageWithUser(session, from, "image", env)') &&
+regenSource.includes("reservation.release()") &&
+!regenSource.includes('incrementUsageWithUser(session, from, "image", env)')
+  ? ok("image regeneration reserves and releases its quota safely")
+  : fail("image regeneration must use an atomic quota reservation");
+miniToolSource.includes('reserveDailyUsageWithUser(session, user, "image", env)') &&
+miniToolSource.includes('reserveDailyUsageWithUser(session, user, "voice_sent", env)') &&
+miniToolSource.includes("reservation.release()")
+  ? ok("Mini App image and voice tools use durable atomic reservations")
+  : fail("Mini App image/voice tools must use durable atomic reservations");
+
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
