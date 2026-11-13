@@ -14684,11 +14684,20 @@ async function executeStructuredTools(
         await saveSession(limitSession, env);
       }
     };
-    if (session.type !== "private" && !isVip && (imageCalls.length > 0 || voiceCalls.length > 0)) {
+    if (!isVip && (imageCalls.length > 0 || voiceCalls.length > 0)) {
+      // Private and group calls share one per-user counter and lock.
       await updateMutex.run(`usage:${sender.id}`, applyUsageQuota);
     } else {
       await applyUsageQuota();
     }
+    const releaseReservedUsage = async (type: "image" | "voice_sent") => {
+      if (isVip || isOwner) return;
+      await updateMutex.run(`usage:${sender.id}`, async () => {
+        if (type === "image") limitSession.dailyLimits.imagesGenerated = Math.max(0, limitSession.dailyLimits.imagesGenerated - 1);
+        else limitSession.dailyLimits.voicesSent = Math.max(0, limitSession.dailyLimits.voicesSent - 1);
+        await saveSession(limitSession, env);
+      });
+    };
   
     // A turn may legitimately build something and then act on it, so a second
     // build is allowed. What must not happen is an unbounded rebuild loop, and
@@ -14728,6 +14737,7 @@ case "generate_image": {
         return { name: call.name, response: { success: false, error: "Empty prompt" } };
     }
     const imgIndex = imageCalls.indexOf(call);
+    const imageQuotaReserved = !isVip && imgIndex < allowedImageCount;
     if (isVip) {
         const vipImageLimit = await checkDailyLimitWithUser(session, sender, "image", env);
         if (!vipImageLimit.allowed) {
@@ -14751,6 +14761,7 @@ case "generate_image": {
     const randomizedModels = [...cfg.AI_IMAGE_MODELS].sort(() => Math.random() - 0.5);
     for (const model of randomizedModels) {
         if (await isCancelledNow()) {
+            if (imageQuotaReserved) await releaseReservedUsage("image");
             await taskMgr?.failTask(taskKey, lang === "fa" ? "لغو شد توسط کاربر" : "Cancelled by user");
             return { name: call.name, response: { success: false, error: "CANCELLED_BY_USER" } };
         }
@@ -14820,6 +14831,7 @@ case "generate_image": {
         }
     }
     if (!imageSuccess) {
+        if (imageQuotaReserved) await releaseReservedUsage("image");
         const reason = imageError.includes("FLAGGED_PROMPT")
             ? (lang === "fa" ? "فیلتر امنیتی مسدود کرد" : "Blocked by safety filter")
             : (lang === "fa" ? "تولید تصویر ناموفق" : "Generation failed");
@@ -15743,6 +15755,7 @@ case "host_web_app": {
                   return { name: call.name, response: { success: false, error: "Empty text — no speech was produced and nothing was sent. Answer in text instead." } };
                 }
                 const voiceIndex = voiceCalls.indexOf(call);
+                const voiceQuotaReserved = !isVip && voiceIndex < allowedVoiceCount;
                 if (isVip) {
                   const vipVoiceLimit = await checkDailyLimitWithUser(session, sender, "voice_sent", env);
                   if (!vipVoiceLimit.allowed) {
@@ -15776,12 +15789,14 @@ case "host_web_app": {
                     };
                   }
 
+                  if (voiceQuotaReserved) await releaseReservedUsage("voice_sent");
                   const userErr = lang === "fa"
                     ? "❌ ساخت یا ارسال ویس ناموفق بود."
                     : "❌ Failed to generate or send the voice message.";
                   await sendToolErrorMessage(chatId, replyTo, isOwner, userErr, "ElevenLabs TTS failed");
                   return { name: call.name, response: { success: false, abort_chain: true, user_notified: true, error: "TTS_FAILED" } };
                 } catch (err) {
+                  if (voiceQuotaReserved) await releaseReservedUsage("voice_sent");
                   logger.error("Voice response error", err);
                   const userErr = lang === "fa"
                     ? "❌ ساخت یا ارسال ویس ناموفق بود."
