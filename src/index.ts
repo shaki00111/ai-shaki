@@ -15568,8 +15568,8 @@ case "host_web_app": {
     : deviceTarget === "mobile" || /موبایل|گوشی|آیفون|اندروید|mobile|phone|android|ios/i.test(originalRequest) ? "mobile"
     : "auto";
 
-  if (!isVip) {
-    const limitCheck = await checkDailyLimitWithUser(limitSession, sender, "webapp", env);
+  {
+    const limitCheck = await checkDailyLimitWithUser(session, sender, "webapp", env);
     if (!limitCheck.allowed) {
       await taskMgr?.failTask(taskKey, lang === "fa" ? "سقف روزانه وب‌اپ تمام شد" : "Daily web app limit reached");
       await sendMessage(chatId, limitCheck.message ?? (lang === "fa" ? "⚠️ سقف ساخت وب‌اپ امروز تمام شده. برای نامحدود VIP شو." : "⚠️ Daily web app limit reached."), { reply_to_message_id: replyTo });
@@ -15660,7 +15660,7 @@ case "host_web_app": {
   const ownerId = originalMsg.from?.id ?? 0;
   const ownerName = originalMsg.from?.first_name ?? "Unknown";
   await saveWebApp(filename, htmlCode, ownerId, ownerName, env, isVip);
-  if (!isVip) await incrementUsageWithUser(limitSession, sender, "webapp", env);
+  await incrementUsageWithUser(session, sender, "webapp", env);
 
   if (deliverSourceZip) {
     await taskMgr?.startTask(taskKey, lang === "fa" ? "در حال بسته‌بندی سورس کامل پروژه..." : "Packaging complete project source...");
