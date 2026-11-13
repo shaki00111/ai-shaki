@@ -12212,17 +12212,23 @@ async function synthesizeVoiceGemini(
         continue;
       }
 
-      if (res.status === 403) {
-        logger.warn(`Gemini TTS key[${idx}] forbidden/invalid (403), disabling key`);
+      if (res.status === 401 || res.status === 403) {
+        logger.warn(`Gemini TTS key[${idx}] rejected (HTTP ${res.status}); disabling key temporarily`);
         if (env_ref) disableApiKey(key, env_ref, 300_000);
+        geminiTtsKeyIndex = (idx + 1) % cfg.GEMINI_KEYS.length;
         continue;
       }
 
       if (res.status === 400) {
         const badBody = await res.text().catch(() => "");
-        logger.warn(`Gemini TTS key[${idx}] bad request (400): ${badBody.slice(0, 180)}`);
-        // 400 is generally request/model/schema related, not a key failure.
-        // Move on to the next provider instead of poisoning the key pool.
+        const keyRejected = /API_KEY_INVALID|invalid api key|api key not valid|unauthorized|permission denied/i.test(badBody);
+        logger.warn(`Gemini TTS key[${idx}] HTTP 400: ${badBody.slice(0, 180)}`);
+        if (keyRejected) {
+          if (env_ref) disableApiKey(key, env_ref, 300_000);
+          geminiTtsKeyIndex = (idx + 1) % cfg.GEMINI_KEYS.length;
+          continue;
+        }
+        // A request/model/schema error is shared by the whole key pool.
         break;
       }
 
