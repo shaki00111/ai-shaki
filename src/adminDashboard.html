@@ -1762,6 +1762,62 @@ async function loadOverview(opts){
 
 /* ── کاربران ─────────────────────────────────────────────────────────── */
 const users = { q:"", sort:"new", cursor:null, nextCursor:null, hasNext:false, history:[], page:1, selected:null, seq:0, abort:null };
+
+const VIP_FEATURES=[["message","پیام متنی"],["voice_sent","ساخت ویس"],["image","ساخت تصویر"],["edit","ویرایش تصویر"],["webapp","وب‌اپ و بازی"],["search","جستجو"]];
+const VIP_DEFAULTS={message:1000,voice_sent:50,image:30,edit:20,webapp:20,search:100};
+async function loadVipUsers(){
+ const list=$("vipList"),q=($("vipSearch")?.value||"").trim();
+ return section(list,async()=>{
+  const p=new URLSearchParams({limit:"20",sort:"new"});if(q)p.set("q",q);
+  const d=await api("/api/admin/users?"+p.toString()),now=Date.now(),found=d.users||[];
+  const matches=found.filter(u=>u.vipStatus);
+  list.innerHTML=matches.map(u=>{
+   const exp=Number(u.vipExpiresAt||0),expired=!!(exp&&exp<=now);
+   return '<div class="item item-row"><div style="min-width:0"><b>'+esc(u.firstName||"کاربر")+' <span class="tag '+(expired?'warn':'vip')+'">'+(expired?'منقضی':'VIP فعال')+'</span></b><small class="mono">'+u.userId+(u.userName?' · @'+esc(u.userName):'')+'</small><small>'+(exp?(expired?'منقضی: ':'پایان: ')+esc(fmt(exp)):'اشتراک دائمی')+'</small></div><button class="sm primary" data-vip-open="'+u.userId+'">مدیریت</button></div>';
+  }).join("")||(q?emptyState("🔎","VIP در نتایج نیست","کاربر را با شناسه یا نام جستجو کن؛ کاربر عادی هم قابل انتخاب است."):emptyState("💎","VIP فعالی در این صفحه نیست","برای پیدا کردن هر کاربر، شناسه یا نامش را جستجو کن."));
+  list.querySelectorAll("[data-vip-open]").forEach(b=>b.onclick=()=>openVipEditor(Number(b.dataset.vipOpen)));
+  return true;
+ },{rows:3});
+}
+async function openVipEditor(id){
+ const card=$("vipEditorCard"),box=$("vipEditor");card.hidden=false;box.innerHTML=skeleton(3);
+ try{
+  const d=await api("/api/admin/users/"+id),u=d.user||{},v=d.details||{},exp=Number(v.vipExpiresAt||0),expired=!!(exp&&exp<=Date.now());
+  box.innerHTML='<div class="dhead"><div class="avatar">'+esc((u.firstName||"U").slice(0,1))+'</div><div><b>'+esc(u.firstName||"کاربر")+'</b><div class="mono">'+id+'</div></div></div>'+
+   '<div class="pill '+(u.vipStatus&&!expired?'ok':expired?'bad':'')+'">'+(u.vipStatus&&!expired?'VIP فعال':expired?'اشتراک منقضی شده':'کاربر عادی')+'</div>'+
+   '<label class="lbl" for="vipPanelDays" style="margin-top:12px">مدت اشتراک / تمدید</label><select id="vipPanelDays"><option value="7">یک هفته</option><option value="14">دو هفته</option><option value="21">سه هفته</option><option value="30" selected>یک ماه</option><option value="60">دو ماه</option><option value="90">سه ماه</option><option value="180">شش ماه</option><option value="365">یک سال</option><option value="0">دائمی</option></select>'+
+   '<h4>دسترسی‌ها</h4><div class="vip-feature-grid">'+VIP_FEATURES.map(([k,l])=>'<label class="item vip-feature"><input type="checkbox" id="vipPanelPerm_'+k+'" '+((v.vipPermissions||{})[k]!==false?'checked':'')+'><span>'+l+'</span></label>').join("")+'</div>'+
+   '<h4>سهمیه روزانه</h4><div class="vip-limit-grid">'+VIP_FEATURES.map(([k,l])=>'<label class="lbl">'+l+'<input type="number" inputmode="numeric" min="0" max="100000" id="vipPanelLimit_'+k+'" value="'+esc((v.vipLimits||{})[k]??VIP_DEFAULTS[k])+'"></label>').join("")+'</div>'+
+   '<div class="toolbar-line" style="margin-top:12px"><button class="primary" id="vipPanelSave">ذخیره و فعال‌سازی</button>'+(u.vipStatus?'<button class="danger" id="vipPanelRemove">حذف VIP</button>':'')+'</div>'+
+   '<small class="dim">تمدید اشتراک فعال به تاریخ پایان فعلی اضافه می‌شود. سهمیه‌ها برای هر قابلیت جدا هستند.</small>';
+  $("vipPanelSave").onclick=()=>saveVipFromPanel(id);
+  const remove=$("vipPanelRemove");if(remove)remove.onclick=()=>removeVipFromPanel(id);
+  card.scrollIntoView({behavior:"smooth",block:"start"});
+ }catch(e){box.innerHTML=errorState(e,true);}
+}
+function vipWelcomeText(days,permissions,limits){
+ const duration=days===0?"دائمی":days===7?"۷ روز":days===14?"۱۴ روز":days===21?"۲۱ روز":days===30?"۳۰ روز":days+" روز";
+ const labels={message:"پیام متنی",voice_sent:"ساخت ویس",image:"ساخت تصویر",edit:"ویرایش تصویر",webapp:"وب‌اپ و بازی",search:"جستجو"};
+ return "💎 تبریک! اشتراک VIP شما در AI SHAKI فعال شد.\nمدت: "+duration+"\n\nسهمیه روزانه شما:\n"+VIP_FEATURES.map(([k])=>"• "+labels[k]+": "+(permissions[k]?"روزانه "+fmtNum(limits[k]):"غیرفعال")).join("\n")+"\n\nاز امکانات فعال‌شده لذت ببر! 🔥";
+}
+async function saveVipFromPanel(id){
+ const days=Number($("vipPanelDays").value),permissions={},limits={};
+ for(const [k] of VIP_FEATURES){permissions[k]=$("vipPanelPerm_"+k).checked;const n=Number($("vipPanelLimit_"+k).value);if(!Number.isInteger(n)||n<0||n>100000){toast("سهمیه نامعتبر است","err");return;}limits[k]=n;}
+ const btn=$("vipPanelSave");btn.disabled=true;
+ try{
+  await api("/api/admin/users/"+id+"/action",{method:"POST",body:{action:"vip_config",config:{days,permissions,limits}}});
+  toast("VIP فعال شد ✓","ok");
+  try{await api("/api/admin/message",{method:"POST",body:{userId:id,message:vipWelcomeText(days,permissions,limits)}});toast("پیام مشخصات VIP ارسال شد ✓","ok");}
+  catch(e){toast("VIP فعال شد، اما پیام به کاربر نرسید: "+e.message,"err");}
+  invalidateTab("vip");await loadVipUsers();await openVipEditor(id);
+ }catch(e){toast("فعال‌سازی ناموفق: "+e.message,"err");btn.disabled=false;}
+}
+async function removeVipFromPanel(id){
+ if(!await confirmAction("حذف VIP","اشتراک این کاربر حذف شود و محدودیت عادی برگردد؟"))return;
+ try{await api("/api/admin/users/"+id+"/action",{method:"POST",body:{action:"vip",value:false}});toast("VIP حذف شد","ok");await loadVipUsers();await openVipEditor(id);}
+ catch(e){toast("حذف VIP ناموفق: "+e.message,"err");}
+}
+
 async function loadUsers(reset){
   if(reset){ users.cursor=null; users.history=[]; users.page=1; }
   if(users.abort) users.abort.abort();
@@ -3180,7 +3236,11 @@ function bindStatic(){
   });
 }
 async function init(){
-  buildNav(); bindStatic(); bindOperations(); updateBcCount();
+  buildNav();
+  if($("vipSearchBtn")) $("vipSearchBtn").onclick=()=>{invalidateTab("vip");loadVipUsers();};
+  if($("vipSearch")) $("vipSearch").addEventListener("keydown",e=>{if(e.key==="Enter"){invalidateTab("vip");loadVipUsers();}});
+  if($("vipRefresh")) $("vipRefresh").onclick=()=>{invalidateTab("vip");loadVipUsers();};
+  if($("vipEditorClose")) $("vipEditorClose").onclick=()=>{$("vipEditorCard").hidden=true;}; bindStatic(); bindOperations(); updateBcCount();
   // The persona list is only needed when the admin opens the persona picker, so
   // routing no longer waits a whole round-trip for it before drawing anything.
   api("/api/admin/personas").then(p=>{ personaCache = p.personas||[]; }).catch(()=>{});
