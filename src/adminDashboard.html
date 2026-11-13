@@ -1458,6 +1458,7 @@ const ICONS = {
   runs:'<path d="M4 6h10M4 12h16M4 18h7"/><circle cx="18" cy="6" r="2"/>',
   jobs:'<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
   audit:'<path d="M5 4h11l3 3v13H5z"/><path d="M9 9h6M9 13h6M9 17h3"/>',
+  vip:'<path d="m12 2 2.4 6.2L21 11l-6.6 2.8L12 20l-2.4-6.2L3 11l6.6-2.8L12 2Z"/><path d="m19 15 1.2 2.8L23 19l-2.8 1.2L19 23l-1.2-2.8L15 19l2.8-1.2L19 15Z"/>',
   users:'<circle cx="9" cy="9" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M16 8a3 3 0 0 1 0 6"/>',
   broadcast:'<path d="M4 11v2l10 4V7z"/><path d="M14 8l4-2v10l-4-2"/>',
   groups:'<circle cx="8" cy="10" r="3"/><circle cx="16" cy="10" r="3"/><path d="M3 19c0-2 2-4 5-4s5 2 5 4M13 19c0-2 2-4 5-4"/>',
@@ -1538,8 +1539,7 @@ function buildNav(){
     {id:"users",label:"کاربران"},
     {id:"vip",label:"VIP"},
     {id:"groups",label:"گروه‌ها"},
-    {id:"keys",label:"کلیدها"},
-    {id:"system",label:"سیستم"},
+    {id:"keys",label:"سرویس‌ها"},
   ];
   quick.innerHTML = quickTabs.map(t =>
     '<button class="navitem" type="button" data-tab="'+t.id+'">'+icon(t.id)+
