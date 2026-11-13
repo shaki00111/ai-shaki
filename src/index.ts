@@ -14649,11 +14649,10 @@ async function executeStructuredTools(
         }
     }
 
-    let limitSession = session;
+    // All usage is per Telegram user, never per group. The private entitlement
+    // was refreshed above, so this is also the authoritative VIP quota session.
+    const limitSession = privateUserSession;
     if(!await chatCanReceive(env.DB,chatId))throw new Error("CHAT_DELIVERY_UNAVAILABLE");
-    if (session.type !== "private" && !isVip) {
-      limitSession = await getOrCreateSession({ id: sender.id, type: "private" }, sender, env);
-    }
 
     const imageCalls = calls.filter(c => c.name === "generate_image");
     // KV CONSERVATION: only host (persist) generated images to KV when they are
@@ -14669,29 +14668,30 @@ async function executeStructuredTools(
     // همان کاربر هم‌زمان در دو گروه درخواست بدهد، افزایش‌ها درهم می‌شوند و سقف دور زده
     // می‌شود. این بخش را با همان مِیوتکسِ per-user حساب‌داری سریال می‌کنیم. در پیوی
     // limit}Session === session است و مِیوتکسِ بیرونیِ chatId کافی‌ست، پس قفل لازم نیست.
+    // Atomically reserve every requested operation against the user's own
+    // daily counters. VIP limits/permissions are checked here too, so parallel
+    // tool calls cannot all pass against the same final remaining slot.
     const applyUsageQuota = async () => {
-      if (imageCalls.length > 0 && !isVip) {
-        const remainingImages = Math.max(0, cfg.IMAGE_LIMIT - limitSession.dailyLimits.imagesGenerated);
-        if (imageCalls.length > remainingImages) allowedImageCount = remainingImages;
-        limitSession.dailyLimits.imagesGenerated += allowedImageCount;
+      if (isOwner) return;
+      allowedImageCount = 0;
+      allowedVoiceCount = 0;
+      for (const _call of imageCalls) {
+        if (!checkDailyLimitPrivate(limitSession, "image", isVip).allowed) break;
+        incrementUsagePrivate(limitSession, "image");
+        allowedImageCount++;
       }
-      if (voiceCalls.length > 0 && !isVip) {
-        const remainingVoices = Math.max(0, cfg.VOICE_LIMIT - limitSession.dailyLimits.voicesSent);
-        if (voiceCalls.length > remainingVoices) allowedVoiceCount = remainingVoices;
-        limitSession.dailyLimits.voicesSent += allowedVoiceCount;
+      for (const _call of voiceCalls) {
+        if (!checkDailyLimitPrivate(limitSession, "voice_sent", isVip).allowed) break;
+        incrementUsagePrivate(limitSession, "voice_sent");
+        allowedVoiceCount++;
       }
-      if ((imageCalls.length > 0 || voiceCalls.length > 0) && !isVip) {
-        await saveSession(limitSession, env);
-      }
+      if (imageCalls.length > 0 || voiceCalls.length > 0) await saveSession(limitSession, env);
     };
-    if (!isVip && (imageCalls.length > 0 || voiceCalls.length > 0)) {
-      // Private and group calls share one per-user counter and lock.
+    if (imageCalls.length > 0 || voiceCalls.length > 0) {
       await updateMutex.run(`usage:${sender.id}`, applyUsageQuota);
-    } else {
-      await applyUsageQuota();
     }
     const releaseReservedUsage = async (type: "image" | "voice_sent") => {
-      if (isVip || isOwner) return;
+      if (isOwner) return;
       await updateMutex.run(`usage:${sender.id}`, async () => {
         if (type === "image") limitSession.dailyLimits.imagesGenerated = Math.max(0, limitSession.dailyLimits.imagesGenerated - 1);
         else limitSession.dailyLimits.voicesSent = Math.max(0, limitSession.dailyLimits.voicesSent - 1);
@@ -14737,7 +14737,7 @@ case "generate_image": {
         return { name: call.name, response: { success: false, error: "Empty prompt" } };
     }
     const imgIndex = imageCalls.indexOf(call);
-    const imageQuotaReserved = !isVip && imgIndex < allowedImageCount;
+    const imageQuotaReserved = imgIndex < allowedImageCount;
     let imageQuotaReleased = false;
     const releaseImageQuota = async () => {
         if (imageQuotaReserved && !imageQuotaReleased) {
@@ -14745,17 +14745,10 @@ case "generate_image": {
             await releaseReservedUsage("image");
         }
     };
-    if (isVip) {
-        const vipImageLimit = await checkDailyLimitWithUser(session, sender, "image", env);
-        if (!vipImageLimit.allowed) {
-            await taskMgr?.failTask(taskKey, lang === "fa" ? "سهمیه تصویر VIP تمام شده" : "VIP image quota reached");
-            await sendMessage(chatId, vipImageLimit.message ?? (lang === "fa" ? "⚠️ سهمیه تصویر VIP شما تمام شده." : "⚠️ Your VIP image quota is exhausted."), { reply_to_message_id: replyTo });
-            return { name: call.name, response: { success: false, error: "VIP_IMAGE_LIMIT_REACHED", abort_chain: true, user_notified: true } };
-        }
-    }
     if (imgIndex >= allowedImageCount) {
         await taskMgr?.failTask(taskKey, lang === "fa" ? "محدودیت روزانه تمام شد" : "Daily limit reached");
-        await sendMessage(chatId, t(lang, "img_limit"), { reply_to_message_id: replyTo });
+        const quota = checkDailyLimitPrivate(limitSession, "image", isVip);
+        await sendMessage(chatId, quota.message ?? t(lang, "img_limit"), { reply_to_message_id: replyTo });
         return { name: call.name, response: { success: false, error: "Limit exceeded" } };
     }
     await taskMgr?.startTask(taskKey, lang === "fa" ? "بهینه‌سازی پرامپت..." : "Enhancing prompt...");
@@ -14821,7 +14814,6 @@ case "generate_image": {
                   { artifact: { kind: "image", label: finalPrompt, ref: hostedImageUrl || imgRef || undefined } },
                 );
                 imageSuccess = true;
-                if (isVip) await incrementUsageWithUser(session, sender, "image", env);
                 markUserActivity(session, "image");
                 break;
             }
@@ -14829,6 +14821,7 @@ case "generate_image": {
             const elapsed = Date.now() - genStart;
             const baseErr = e instanceof Error ? e.message : String(e);
             if (baseErr === "CANCELLED_BY_USER") {
+                await releaseImageQuota();
                 await taskMgr?.failTask(taskKey, lang === "fa" ? "لغو شد توسط کاربر" : "Cancelled by user");
                 return { name: call.name, response: { success: false, error: "CANCELLED_BY_USER" } };
             }
@@ -15762,7 +15755,7 @@ case "host_web_app": {
                   return { name: call.name, response: { success: false, error: "Empty text — no speech was produced and nothing was sent. Answer in text instead." } };
                 }
                 const voiceIndex = voiceCalls.indexOf(call);
-                const voiceQuotaReserved = !isVip && voiceIndex < allowedVoiceCount;
+                const voiceQuotaReserved = voiceIndex < allowedVoiceCount;
                 let voiceQuotaReleased = false;
                 const releaseVoiceQuota = async () => {
                   if (voiceQuotaReserved && !voiceQuotaReleased) {
@@ -15770,19 +15763,11 @@ case "host_web_app": {
                     await releaseReservedUsage("voice_sent");
                   }
                 };
-                if (isVip) {
-                  const vipVoiceLimit = await checkDailyLimitWithUser(session, sender, "voice_sent", env);
-                  if (!vipVoiceLimit.allowed) {
-                    await sendMessage(chatId, vipVoiceLimit.message ?? (lang === "fa" ? "⚠️ سهمیه ویس VIP شما تمام شده." : "⚠️ Your VIP voice quota is exhausted."), { reply_to_message_id: replyTo });
-                    return { name: call.name, response: { success: false, error: "VIP_VOICE_LIMIT_REACHED", abort_chain: true, user_notified: true } };
-                  }
-                }
                 if (voiceIndex >= allowedVoiceCount) {
+                  const quota = checkDailyLimitPrivate(limitSession, "voice_sent", isVip);
                   await sendMessage(
                     chatId,
-                    lang === "fa"
-                      ? "⚠️ سقف ویس‌های مجاز روزانه تمام شده."
-                      : "⚠️ Daily voice limit reached.",
+                    quota.message ?? (lang === "fa" ? "⚠️ سقف ویس‌های مجاز روزانه تمام شده." : "⚠️ Daily voice limit reached."),
                     { reply_to_message_id: replyTo }
                   );
                   return { name: call.name, response: { success: false, error: "Limit exceeded", abort_chain: true, user_notified: true } };
@@ -15792,7 +15777,6 @@ case "host_web_app": {
                   // Shared direct sender: no media KV write, no duplicate synthesis code.
                   const sent = await sendVoiceResponse(chatId, replyTo, text, env);
                   if (sent) {
-                    if (isVip) await incrementUsageWithUser(session, sender, "voice_sent", env);
                     return {
                       name: call.name,
                       response: {
