@@ -73,7 +73,7 @@ export function ownerPersonalizationText(
     ? (language === "fa" ? settings.helpTextFa : settings.helpTextEn)
     : (language === "fa" ? settings.quotaTextFa : settings.quotaTextEn);
   if (!configured.trim()) return fallback;
-  return configured.replace(/\\{([a-zA-Z][a-zA-Z0-9_]*)\\}/g, (match, key: string) =>
+  return configured.replace(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g, (match, key: string) =>
     Object.prototype.hasOwnProperty.call(variables, key) ? String(variables[key]) : match
   );
 }
