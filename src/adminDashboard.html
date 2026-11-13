@@ -1847,7 +1847,7 @@ async function openVipEditor(id){
    '<div class="pill '+(u.vipStatus&&!expired?'ok':expired?'bad':'')+'">'+(u.vipStatus&&!expired?'VIP فعال':expired?'اشتراک منقضی شده':'کاربر عادی')+'</div>'+
    '<label class="lbl" for="vipPanelDays" style="margin-top:12px">مدت اشتراک / تمدید</label><select id="vipPanelDays"><option value="7">یک هفته</option><option value="14">دو هفته</option><option value="21">سه هفته</option><option value="30" selected>یک ماه</option><option value="60">دو ماه</option><option value="90">سه ماه</option><option value="180">شش ماه</option><option value="365">یک سال</option><option value="0">دائمی</option></select>'+
    '<h4>دسترسی‌ها</h4><div class="vip-feature-grid">'+VIP_FEATURES.map(([k,l])=>'<label class="item vip-feature"><input type="checkbox" id="vipPanelPerm_'+k+'" '+((v.vipPermissions||{})[k]!==false?'checked':'')+'><span>'+l+'</span></label>').join("")+'</div>'+
-   '<h4>سهمیه روزانه</h4><div class="vip-limit-grid">'+VIP_FEATURES.map(([k,l])=>'<label class="lbl">'+l+'<input type="number" inputmode="numeric" min="0" max="100000" id="vipPanelLimit_'+k+'" value="'+esc((v.vipLimits||{})[k]??VIP_DEFAULTS[k])+'"></label>').join("")+'</div>'+
+   '<h4>سهمیه روزانه</h4><div class="vip-limit-grid">'+VIP_FEATURES.map(([k,l])=>'<label class="lbl">'+l+'<input type="text" inputmode="numeric" pattern="[0-9۰-۹٠-٩]*" id="vipPanelLimit_'+k+'" value="'+esc((v.vipLimits||{})[k]??VIP_DEFAULTS[k])+'"></label>').join("")+'</div>'+
    '<div class="toolbar-line" style="margin-top:12px"><button class="primary" id="vipPanelSave">ذخیره و فعال‌سازی</button>'+(u.vipStatus?'<button class="danger" id="vipPanelRemove">حذف VIP</button>':'')+'</div>'+
    '<small class="dim">تمدید اشتراک فعال به تاریخ پایان فعلی اضافه می‌شود. سهمیه‌ها برای هر قابلیت جدا هستند.</small>';
   $("vipPanelSave").onclick=()=>saveVipFromPanel(id);
@@ -1855,14 +1855,21 @@ async function openVipEditor(id){
   card.scrollIntoView({behavior:"smooth",block:"start"});
  }catch(e){box.innerHTML=errorState(e,true);}
 }
+function readNumericField(el){
+ const raw=String(el?.value??"").trim()
+  .replace(/[۰-۹]/g,d=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
+  .replace(/[٠-٩]/g,d=>String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+  .replace(/[٬,\s]/g,"");
+ return raw===""?NaN:Number(raw);
+}
 function vipWelcomeText(days,permissions,limits){
  const duration=days===0?"دائمی":days===7?"۷ روز":days===14?"۱۴ روز":days===21?"۲۱ روز":days===30?"۳۰ روز":days+" روز";
  const labels={message:"پیام متنی",voice_sent:"ساخت ویس",image:"ساخت تصویر",edit:"ویرایش تصویر",webapp:"وب‌اپ و بازی",search:"جستجو"};
  return "💎 تبریک! اشتراک VIP شما در AI SHAKI فعال شد.\nمدت: "+duration+"\n\nسهمیه روزانه شما:\n"+VIP_FEATURES.map(([k])=>"• "+labels[k]+": "+(permissions[k]?"روزانه "+fmtNum(limits[k]):"غیرفعال")).join("\n")+"\n\nاز امکانات فعال‌شده لذت ببر! 🔥";
 }
 async function saveVipFromPanel(id){
- const days=Number($("vipPanelDays").value),permissions={},limits={};
- for(const [k] of VIP_FEATURES){permissions[k]=$("vipPanelPerm_"+k).checked;const n=Number($("vipPanelLimit_"+k).value);if(!Number.isInteger(n)||n<0||n>100000){toast("سهمیه نامعتبر است","err");return;}limits[k]=n;}
+ const days=readNumericField($("vipPanelDays")),permissions={},limits={};
+ for(const [k] of VIP_FEATURES){permissions[k]=$("vipPanelPerm_"+k).checked;const n=readNumericField($("vipPanelLimit_"+k));if(!Number.isInteger(n)||n<0||n>100000){toast("سهمیه نامعتبر است","err");return;}limits[k]=n;}
  const btn=$("vipPanelSave");btn.disabled=true;
  try{
   await api("/api/admin/users/"+id+"/action",{method:"POST",body:{action:"vip_config",config:{days,permissions,limits}}});
@@ -2062,7 +2069,7 @@ function renderDetail(){
         </div>
         <h4 style="margin:14px 0 6px">سقف مصرف روزانه</h4>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px">
-          ${vipTypes.map(([key,label]) => '<label class="lbl">'+label+'<input inputmode="numeric" type="number" min="0" max="100000" id="vipLimit_'+key+'" value="'+esc(vipLimits[key]??vipDefaultLimits[key])+'"></label>').join("")}
+          ${vipTypes.map(([key,label]) => '<label class="lbl">'+label+'<input inputmode="numeric" type="text" pattern="[0-9۰-۹٠-٩]*" id="vipLimit_'+key+'" value="'+esc(vipLimits[key]??vipDefaultLimits[key])+'"></label>').join("")}
         </div>
         <small class="dim" style="display:block;margin-top:8px">تیک هر قابلیت را بردار تا دسترسی آن قطع شود. سقف صفر یعنی استفاده مجاز نیست.</small>
         <button class="primary" data-act="vip_config" style="width:100%;margin-top:12px">💾 ذخیره و فعال‌سازی VIP</button>
@@ -2208,11 +2215,11 @@ async function doAction(act){
     if(!await confirmAction("حذف VIP","اشتراک VIP این کاربر حذف و محدودیت عادی فعال شود؟")) return;
     value = false;
   } else if(act==="vip") {
-    const days = Number($("vipDays")?.value ?? 30);
+    const days = readNumericField($("vipDays"));
     const permissions = {}, limits = {};
     for(const key of ["message","voice_sent","image","edit","webapp","search"]){
       permissions[key] = !!$("vipPerm_"+key)?.checked;
-      const n = Number($("vipLimit_"+key)?.value);
+      const n = readNumericField($("vipLimit_"+key));
       if(!Number.isInteger(n) || n < 0 || n > 100000){ toast("سقف روزانه نامعتبر است","err"); return; }
       limits[key] = n;
     }
