@@ -1950,7 +1950,10 @@ function vipWelcomeText(days,permissions,limits){
  return "💎 تبریک! اشتراک VIP شما در AI SHAKI فعال شد.\nمدت: "+duration+"\n\nسهمیه روزانه شما:\n"+VIP_FEATURES.map(([k])=>"• "+labels[k]+": "+(permissions[k]?"روزانه "+fmtNum(limits[k]):"غیرفعال")).join("\n")+"\n\nاز امکانات فعال‌شده لذت ببر! 🔥";
 }
 async function saveVipFromPanel(id){
- const days=Number($("vipPanelDays").value),permissions={},limits={};
+ const rawDays=$("vipPanelDays")?.value;
+ const normalizedDays=String(rawDays??"30").trim().replace(/[۰-۹]/g,d=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[٠-٩]/g,d=>String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+ const days=normalizedDays===""?30:Number(normalizedDays),permissions={},limits={};
+ if(!Number.isInteger(days)||days<0||days>3650){toast("مدت اشتراک معتبر نیست؛ یک بازه از ۰ تا ۳۶۵۰ روز انتخاب کن.","err");return;}
  for(const [k] of VIP_FEATURES){permissions[k]=$("vipPanelPerm_"+k).checked;const n=Number($("vipPanelLimit_"+k).value);if(!Number.isInteger(n)||n<0||n>100000){toast("سهمیه نامعتبر است","err");return;}limits[k]=n;}
  const btn=$("vipPanelSave");btn.disabled=true;
  try{
@@ -2297,7 +2300,10 @@ async function doAction(act){
     if(!await confirmAction("حذف VIP","اشتراک VIP این کاربر حذف و محدودیت عادی فعال شود؟")) return;
     value = false;
   } else if(act==="vip") {
-    const days = Number($("vipDays")?.value ?? 30);
+    const rawDays = $("vipDays")?.value ?? 30;
+    const normalizedDays = String(rawDays).trim().replace(/[۰-۹]/g,d=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[٠-٩]/g,d=>String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+    const days = normalizedDays === "" ? 30 : Number(normalizedDays);
+    if(!Number.isInteger(days)||days<0||days>3650){toast("مدت اشتراک معتبر نیست؛ یک بازه از ۰ تا ۳۶۵۰ روز انتخاب کن.","err");return;}
     const permissions = {}, limits = {};
     for(const key of ["message","voice_sent","image","edit","webapp","search"]){
       permissions[key] = !!$("vipPerm_"+key)?.checked;
