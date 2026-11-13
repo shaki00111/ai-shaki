@@ -168,9 +168,9 @@ const ttsEnd = indexSource.indexOf("\nasync function handleOCR", ttsStart);
 const ttsSource = ttsStart >= 0 && ttsEnd > ttsStart ? indexSource.slice(ttsStart, ttsEnd) : "";
 ttsSource.includes('reserveDailyUsageWithUser(session, from, "voice_sent", env)') &&
 ttsSource.includes('await reservation.release();') &&
-s.includes("async function reserveDailyUsageWithUser") &&
-s.includes("incrementUsagePrivate(target, type);") &&
-s.includes("await saveSession(target, env);")
+indexSource.includes("async function reserveDailyUsageWithUser") &&
+indexSource.includes("incrementUsagePrivate(target, type);") &&
+indexSource.includes("await saveSession(target, env);")
   ? ok("direct /tts usage is atomically reserved and persisted before synthesis")
   : fail("direct /tts must reserve and persist quota before synthesis, then release on failure");
 
