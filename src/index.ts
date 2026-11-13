@@ -2138,6 +2138,8 @@ interface ChatSession {
     lastActivityAt?: number;
   };
   vipStatus: boolean;
+  vipExpiresAt?: number;
+  vipPermissions?: Partial<Record<LimitType, boolean>>;
   dailyLimits: { messages: number; voicesSent: number; voicesReceived: number; imagesGenerated: number; imagesEdited: number; webapps: number; searches: number; lastReset: number };
   personaVersion?: number;
   /**
@@ -5425,17 +5427,50 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     let session: Record<string, unknown> | null = null; try { session = await peekSessionRaw(env, userId); } catch {}
     const engs = session?.engines as Record<string, any> | undefined; const engine = engs?.[String(session?.activeEngine ?? "gemini")] ?? engs?.gemini;
     const history = Array.isArray(engine?.history) ? engine.history : []; const memoryMap = session?.userMemories as Record<string, any> | undefined; const memory = memoryMap?.[String(userId)] ?? null;
-    return json({ ok: true, user: rowToUserStats(row), details: { historyTurns: history.length, memoryFacts: Array.isArray(memory?.keyFacts) ? memory.keyFacts.length : 0, relationshipEdges: Array.isArray(memory?.relationshipGraph) ? memory.relationshipGraph.length : 0, customPrompt: typeof session?.customPrompts === "object" ? ((session?.customPrompts as Record<string, unknown>)?.gemini ?? null) : null, limitOverrides: session?.limitOverrides ?? null, notes: row.notes ?? "", sessionMissing: !session } });
+    return json({ ok: true, user: rowToUserStats(row), details: { historyTurns: history.length, memoryFacts: Array.isArray(memory?.keyFacts) ? memory.keyFacts.length : 0, relationshipEdges: Array.isArray(memory?.relationshipGraph) ? memory.relationshipGraph.length : 0, customPrompt: typeof session?.customPrompts === "object" ? ((session?.customPrompts as Record<string, unknown>)?.gemini ?? null) : null, limitOverrides: session?.limitOverrides ?? null, vipExpiresAt: Number(session?.vipExpiresAt) || null, vipPermissions: session?.vipPermissions ?? null, notes: row.notes ?? "", sessionMissing: !session } });
   }
   const actionMatch = path.match(/^users\/(\-?\d+)\/action$/);
   if (request.method === "POST" && actionMatch) {
     const userId = Number(actionMatch[1]); let body: Record<string, unknown>; try { body = await request.json() as Record<string, unknown>; } catch { return json({ ok: false, error: "invalid_json" }, 400); }
-    const action = String(body.action ?? ""); const allowed = new Set(["vip","block","language","persona","reset_usage","reset_memory","reset_session","prompt_clear","prompt_set","notes","limit_set","reminder_cancel","reminder_pause","reminder_resume"]);
+    const action = String(body.action ?? ""); const allowed = new Set(["vip","vip_config","block","language","persona","reset_usage","reset_memory","reset_session","prompt_clear","prompt_set","notes","limit_set","reminder_cancel","reminder_pause","reminder_resume"]);
     if (!allowed.has(action)) return json({ ok: false, error: "unsupported_action" }, 400);
     let ok = false;
-    if (action === "vip" || action === "block") {
+    if (action === "vip_config") {
+      const row = await getUserSummary(env, userId); if (!row) return json({ ok: false, error: "not_found" }, 404);
+      const raw = body.config && typeof body.config === "object" ? body.config as Record<string, unknown> : {};
+      const days = Number(raw.days);
+      if (!Number.isInteger(days) || days < 0 || days > 3650) return json({ ok: false, error: "invalid_vip_duration" }, 400);
+      const types: LimitType[] = ["message", "voice_sent", "image", "edit", "webapp", "search"];
+      const rp = raw.permissions && typeof raw.permissions === "object" ? raw.permissions as Record<string, unknown> : {};
+      const rl = raw.limits && typeof raw.limits === "object" ? raw.limits as Record<string, unknown> : {};
+      const permissions: Partial<Record<LimitType, boolean>> = {};
+      const limits: Partial<Record<LimitType, number>> = {};
+      for (const type of types) {
+        if (typeof rp[type] !== "boolean") return json({ ok: false, error: "invalid_vip_permissions" }, 400);
+        const n = Number(rl[type]);
+        if (!Number.isInteger(n) || n < 0 || n > 100000) return json({ ok: false, error: "invalid_vip_limit_" + type }, 400);
+        permissions[type] = rp[type] as boolean; limits[type] = n;
+      }
+      const target = await getOrCreateSession({ id: userId, type: "private" }, { id: userId, is_bot: false, first_name: row.first_name || "User" }, env);
+      const now = Date.now(), expiry = Number(target.vipExpiresAt) || 0;
+      target.vipStatus = true;
+      target.vipExpiresAt = days === 0 ? undefined : (target.vipStatus && expiry > now ? expiry : now) + days * 86400000;
+      target.vipPermissions = permissions;
+      target.limitOverrides = { ...(target.limitOverrides ?? {}), ...limits };
+      ok = await saveSession(target, env, { force: true }).then(() => true).catch(() => false);
+      if (ok) { await patchUserSummary(env, userId, { vip: true }); dropSessionMemory(userId); }
+    } else if (action === "vip" || action === "block") {
       const row = await getUserSummary(env, userId); if (!row) return json({ ok: false, error: "not_found" }, 404); const next = typeof body.value === "boolean" ? body.value : (action === "vip" ? row.vip !== 1 : row.blocked !== 1);
-      ok = await patchSessionJsonField(env, userId, action === "vip" ? "$.vipStatus" : "$.blocked", next); await patchUserSummary(env, userId, action === "vip" ? { vip: next } : { blocked: next }); dropSessionMemory(userId);
+      if (action === "vip") {
+        const target = await getOrCreateSession({ id: userId, type: "private" }, { id: userId, is_bot: false, first_name: row.first_name || "User" }, env);
+        target.vipStatus = next;
+        if (!next) { target.vipExpiresAt = undefined; target.vipPermissions = undefined; }
+        ok = await saveSession(target, env, { force: true }).then(() => true).catch(() => false);
+        if (ok) { await patchUserSummary(env, userId, { vip: next }); dropSessionMemory(userId); }
+      } else {
+        ok = await patchSessionJsonField(env, userId, "$.blocked", next);
+        await patchUserSummary(env, userId, { blocked: next }); dropSessionMemory(userId);
+      }
     } else if (action === "language") {
       const lang = String(body.value ?? ""); if (!(lang === "fa" || lang === "en" || lang === "ar")) return json({ ok: false, error: "invalid_language" }, 400);
       ok = await patchSessionJsonField(env, userId, "$.language", lang); if (ok) { await patchUserSummary(env, userId, { language: lang as Language }); await saveLanguageSnapshot(userId, lang as Language, env); dropSessionMemory(userId); }
@@ -16718,7 +16753,13 @@ async function checkDailyLimitWithUser(
 }
 
 function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverride?: boolean): { allowed: boolean; message?: string } {
-  const isVip = vipOverride ?? session.vipStatus;
+  const expiry = Number(session.vipExpiresAt) || 0;
+  const ownVipActive = Boolean(session.vipStatus && (!expiry || expiry > Date.now()));
+  const isVip = vipOverride === undefined ? ownVipActive : (vipOverride && (session.vipStatus ? ownVipActive : true));
+  if (isVip && ownVipActive && session.vipPermissions?.[type] === false) {
+    const labels: Record<LimitType, string> = { message: "پیام متنی", voice_sent: "ساخت ویس", image: "ساخت تصویر", edit: "ویرایش تصویر", webapp: "وب‌اپ", search: "جستجو" };
+    return { allowed: false, message: `⛔ دسترسی «${labels[type]}» در اشتراک VIP شما فعال نیست.` };
+  }
   const limits = isVip
     ? { message: cfg.VIP_MESSAGE_LIMIT, voice_sent: cfg.VIP_VOICE_LIMIT, image: cfg.VIP_IMAGE_LIMIT, webapp: cfg.VIP_WEBAPP_LIMIT, edit: cfg.VIP_EDIT_LIMIT, search: cfg.VIP_MESSAGE_LIMIT }
     : { message: cfg.MESSAGE_LIMIT, voice_sent: cfg.VOICE_LIMIT, image: cfg.IMAGE_LIMIT, webapp: cfg.WEBAPP_LIMIT, edit: cfg.EDIT_LIMIT, search: cfg.MESSAGE_LIMIT };
