@@ -18,9 +18,11 @@ export interface OwnerPersonalization {
   labels: Partial<Record<OwnerMenuItemId, string>>;
   hidden: OwnerMenuItemId[];
   order: OwnerMenuItemId[];
+  welcomeTextFa: string;
+  welcomeTextEn: string;
 }
 export const DEFAULT_OWNER_PERSONALIZATION: OwnerPersonalization = {
-  labels: {}, hidden: [], order: OWNER_MENU_ITEMS.map(item => item.id),
+  labels: {}, hidden: [], order: OWNER_MENU_ITEMS.map(item => item.id), welcomeTextFa: "", welcomeTextEn: "",
 };
 const ITEM_IDS = new Set<string>(OWNER_MENU_ITEMS.map(item => item.id));
 const REQUIRED_VISIBLE = new Set<string>(["personas", "close"]);
@@ -43,7 +45,11 @@ export function normalizeOwnerPersonalization(input: unknown): OwnerPersonalizat
     : [];
   const order = [...new Set(requestedOrder)];
   for (const item of OWNER_MENU_ITEMS) if (!order.includes(item.id)) order.push(item.id);
-  return { labels, hidden, order };
+  return {
+    labels, hidden, order,
+    welcomeTextFa: typeof raw.welcomeTextFa === "string" ? raw.welcomeTextFa.slice(0, 1200) : "",
+    welcomeTextEn: typeof raw.welcomeTextEn === "string" ? raw.welcomeTextEn.slice(0, 1200) : "",
+  };
 }
 
 /** Apply presentation only; callback_data, URLs and web-app targets stay untouched. */
@@ -80,4 +86,13 @@ export function ownerPersonalizationPreview(input: unknown): string[] {
   const settings = normalizeOwnerPersonalization(input);
   return settings.order.filter(id => !settings.hidden.includes(id))
     .map(id => settings.labels[id] ?? OWNER_MENU_ITEMS.find(item => item.id === id)!.fa);
+}
+
+/** Plain owner-authored text is HTML-escaped before it enters Telegram HTML mode. */
+export function ownerPersonalizationWelcome(input: unknown, language: string, fallback: string, name: string): string {
+  const settings = normalizeOwnerPersonalization(input);
+  const configured = language === "fa" ? settings.welcomeTextFa : settings.welcomeTextEn;
+  if (!configured.trim()) return fallback;
+  const escape = (value: string) => value.replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]!));
+  return escape(configured).replace(/\\{name\\}/g, escape(name));
 }
