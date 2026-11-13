@@ -1169,16 +1169,6 @@ pre,code,.mono{overflow-wrap:anywhere;word-break:break-word}
           <p class="status" style="padding-bottom:0">فعال/غیرفعال بودن پاسخ‌دهی خودکار Business برای مالک و VIPها.</p>
         </div></div>
       </section>
-      <section class="panel" id="panel-personalize" role="tabpanel" aria-labelledby="tab-personalize">
-        <div class="page-head"><h1>شخصی‌سازی متن‌ها و دکمه‌ها</h1><p>ویژهٔ مالک ربات؛ متن دکمه‌ها، نمایش و ترتیب منوی اصلی SHAKI</p></div>
-        <div class="card"><div class="section-head"><h2>تنظیم دکمه‌های منوی اصلی</h2><button class="sm ghost icon-btn" id="personalizeRefresh" aria-label="تازه‌سازی">↻</button></div>
-          <div class="section-body"><p class="dim">شناسه و عملکرد دکمه‌ها ثابت می‌ماند؛ فقط عنوان، ترتیب و نمایش تغییر می‌کند. دکمه‌های «تغییر شخصیت» و «بستن منو» همیشه فعال می‌مانند.</p>
-            <div id="personalizeRows" class="list"><div class="skel"><i></i><i></i><i></i></div></div>
-            <div class="card"><div class="section-head"><h2>پیش‌نمایش</h2></div><div class="list" id="personalizePreview"></div></div>
-            <div class="toolbar"><button class="primary" id="personalizeSave">💾 ذخیره تغییرات</button><button id="personalizeTest">📨 ارسال آزمایشی به مالک</button><button class="danger" id="personalizeReset">بازگشت به پیش‌فرض</button></div>
-          </div>
-        </div>
-      </section>
       <section class="panel" id="panel-system" role="tabpanel" aria-labelledby="tab-system">
         <div class="page-head"><h1>سیستم</h1><p>سلامت سرویس و تنظیمات سراسری ربات</p></div>
         <div class="card"><div class="section-head"><h2>وضعیت سرویس</h2><button class="sm ghost icon-btn" id="systemLoad" aria-label="تازه‌سازی وضعیت سیستم">↻</button></div><div class="section-body">
@@ -1186,6 +1176,30 @@ pre,code,.mono{overflow-wrap:anywhere;word-break:break-word}
           <button class="danger" id="maintToggle" style="width:100%;margin-top:var(--s3)">تغییر Maintenance</button>
         </div><div class="list" id="systemList"></div></div>
         <div class="card"><div class="section-head"><h2>تنظیمات ربات</h2><button class="sm ghost icon-btn" id="cfgLoad" aria-label="تازه‌سازی تنظیمات">↻</button></div><div id="cfgBody" class="section-body"><div class="skel"><i></i><i></i><i></i></div></div></div>
+      </section>
+      <section class="panel" id="panel-personalization" role="tabpanel" aria-labelledby="tab-personalization">
+        <div class="page-head"><h1>شخصی‌سازی متن‌ها و دکمه‌ها</h1><p>فقط مالک ربات می‌تواند متن خوش‌آمدگویی و دکمه‌های منوی پنل را تغییر دهد.</p></div>
+        <div class="card"><div class="section-head"><h2>متن خوش‌آمدگویی</h2><button class="sm ghost" id="personalizationReload">↻ بارگذاری</button></div>
+          <div class="section-body">
+            <label class="lbl" for="personalWelcomeFa">متن فارسی · از {name} برای نام کاربر استفاده کن</label>
+            <textarea id="personalWelcomeFa" rows="5" maxlength="1200" placeholder="متن فارسی خوش‌آمدگویی…"></textarea>
+            <label class="lbl" for="personalWelcomeEn" style="margin-top:var(--s3)">متن انگلیسی · {name}</label>
+            <textarea id="personalWelcomeEn" rows="4" maxlength="1200" placeholder="English welcome text…"></textarea>
+            <p class="dim">اگر متن را خالی بگذاری، متن پیش‌فرض فعلی SHAKI نمایش داده می‌شود. کدهای HTML به‌صورت متن امن نمایش داده می‌شوند.</p>
+          </div>
+        </div>
+        <div class="card"><div class="section-head"><h2>مدیریت دکمه‌های منو</h2></div>
+          <div class="section-body"><p class="dim">متن، نمایش و ترتیب دکمه‌ها را تغییر بده. عملکرد دکمه‌ها ثابت می‌ماند و فقط عنوان/ترتیب/نمایش عوض می‌شود.</p><div id="personalButtons" class="list"></div></div>
+        </div>
+        <div class="card"><div class="section-head"><h2>پیش‌نمایش</h2></div><div class="section-body"><div class="item" id="personalPreview" style="white-space:pre-wrap">پیش‌نمایش متن فارسی اینجا نمایش داده می‌شود.</div>
+          <div class="toolbar-line">
+            <button class="sm" id="personalPreviewBtn">به‌روزرسانی پیش‌نمایش</button>
+            <button class="sm primary" id="personalizationSave">ذخیره تغییرات</button>
+            <button class="sm" id="personalizationTest">ارسال آزمایشی برای مالک</button>
+            <button class="sm" id="personalizationRestore">بازیابی نسخه قبلی</button>
+            <button class="sm danger" id="personalizationReset">بازگشت به پیش‌فرض</button>
+          </div>
+        </div></div>
       </section>
     </main>
   </div>
@@ -1505,8 +1519,8 @@ const ICONS = {
   logs:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h4"/>',
   keys:'<circle cx="8" cy="12" r="3"/><path d="M11 12h9M17 12v3M14 12v2"/>',
   business:'<path d="M4 20V7l8-3 8 3v13"/><path d="M9 20v-6h6v6"/>',
-  personalize:'<path d="M4 5h16M4 12h16M4 19h16"/><circle cx="8" cy="5" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="10" cy="19" r="2"/>',
   system:'<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"/>',
+  personalization:'<path d="M4 5h16M4 12h10M4 19h16"/><circle cx="18" cy="12" r="2"/>',
   factory:'<path d="M4 20V9l5 3V9l5 3V6l6 3v11z"/>',
 };
 function icon(id){ return '<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICONS[id]||ICONS.overview)+'</svg>'; }
@@ -1535,8 +1549,8 @@ const NAV_GROUPS = [
     {id:"logs", label:"لاگ‌ها"},
     {id:"keys", label:"کلیدها"},
     {id:"business", label:"بیزینس"},
-    {id:"personalize", label:"شخصی‌سازی متن‌ها و دکمه‌ها"},
     {id:"system", label:"سیستم"},
+    {id:"personalization", label:"شخصی‌سازی متن‌ها و دکمه‌ها"},
   ]},
 ];
 const TABS = NAV_GROUPS.flatMap(g => g.tabs);
@@ -1644,9 +1658,9 @@ async function loadTab(tab, force){
     else if(tab==="logs")      ok = await loadLogs();
     else if(tab==="keys")      ok = await loadKeys();
     else if(tab==="business")  ok = await loadBusiness();
-    else if(tab==="personalize") ok = await loadPersonalization();
     // دو درخواست مستقل: سری‌بودن‌شان فقط تأخیر را دو برابر می‌کرد.
     else if(tab==="system")    ok = (await Promise.all([loadSystem(), loadConfig()])).every(Boolean);
+    else if(tab==="personalization") ok = await loadPersonalization();
     else ok = true;
   }catch(e){
     if(e && e.kind!=="abort" && e.name!=="AbortError") toast(e.message, "err");
@@ -1657,6 +1671,62 @@ async function loadTab(tab, force){
 
 /* ── داشبورد ───────────────────────────────────────────────────────────
  */
+const PERSONAL_BUTTONS = [
+  {id:"personas",label:"🎭 انتخاب شخصیت (فقط برای من)"},
+  {id:"prompt",label:"✏️ پرامپت شخصی من"},
+  {id:"clear_memory",label:"🆕 پاک کردن حافظه من"},
+  {id:"help",label:"❓ راهنما"},
+  {id:"group_settings",label:"👥 تنظیمات گروه (مدیریت)"},
+  {id:"close",label:"✖️ بستن"},
+];
+let personalizationState = null;
+function renderPersonalButtons(custom){
+  const labels = custom.labels || {}, hidden = new Set(custom.hidden || []);
+  const order = custom.order || PERSONAL_BUTTONS.map(b=>b.id);
+  const sorted = [...PERSONAL_BUTTONS].sort((a,b)=>order.indexOf(a.id)-order.indexOf(b.id));
+  $("personalButtons").innerHTML = sorted.map((b,i)=>`
+    <div class="item" data-personal-id="${b.id}">
+      <b>${esc(b.label)}</b>
+      <label class="lbl" for="personal-label-${b.id}">عنوان دکمه</label>
+      <input id="personal-label-${b.id}" data-personal-label value="${esc(labels[b.id]||"")}" maxlength="48" placeholder="${esc(b.label)}">
+      <div class="toolbar-line">
+        <label><input type="checkbox" data-personal-visible ${hidden.has(b.id)?"":"checked"} style="width:auto;min-height:0"> نمایش دکمه</label>
+        <label class="lbl" style="margin:0">ترتیب <input type="number" data-personal-order min="1" max="6" value="${i+1}" style="width:74px;min-height:34px"></label>
+      </div>
+    </div>`).join("");
+}
+async function loadPersonalization(){
+  return section($("personalButtons"),async()=>{
+    const data=await api("/api/admin/personalization");
+    personalizationState = data.customization || {};
+    $("personalWelcomeFa").value = personalizationState.welcomeTextFa || "";
+    $("personalWelcomeEn").value = personalizationState.welcomeTextEn || "";
+    renderPersonalButtons(personalizationState);
+    updatePersonalPreview();
+  },{rows:2});
+}
+function readPersonalizationForm(){
+  const labels={}, hidden=[], order=[];
+  document.querySelectorAll("[data-personal-id]").forEach(row=>{
+    const id=row.dataset.personalId;
+    const label=row.querySelector("[data-personal-label]").value.trim();
+    if(label) labels[id]=label;
+    if(!row.querySelector("[data-personal-visible]").checked) hidden.push(id);
+    order.push({id,position:Number(row.querySelector("[data-personal-order]").value)||99});
+  });
+  order.sort((a,b)=>a.position-b.position);
+  return {welcomeTextFa:$("personalWelcomeFa").value.slice(0,1200),welcomeTextEn:$("personalWelcomeEn").value.slice(0,1200),labels,hidden,order:order.map(x=>x.id)};
+}
+function updatePersonalPreview(){
+  const text=$("personalWelcomeFa").value.trim()||"متن پیش‌فرض فعلی SHAKI";
+  $("personalPreview").textContent=text.replace(/\{name\}/g,"مالک");
+}
+async function savePersonalization(){
+  try{
+    const data=await api("/api/admin/personalization",{method:"POST",body:{action:"save",customization:readPersonalizationForm()}});
+    personalizationState=data.customization; renderPersonalButtons(personalizationState); toast("تنظیمات ذخیره شد.","ok"); invalidateTab("personalization");
+  }catch(e){toast(e.message,"err");}
+}
 async function loadFactory(){
   return section($("factoryBuilds"),async()=>{
     const data=await api("/api/admin/factory/builds");
@@ -3125,90 +3195,6 @@ async function toggleMaintenance(){
     await loadSystem(); toast("حالت تعمیر تغییر کرد","ok");
   }catch(e){ toast(e.message,"err"); if(btn) btn.disabled = false; }
 }
-const PERSONALIZATION_ITEMS = [
-  {id:"personas",label:"🎭 تغییر شخصیت",locked:true},
-  {id:"new_chat",label:"🆕 گفتگوی جدید"},
-  {id:"prompt",label:"✏️ پرامپت سفارشی"},
-  {id:"language",label:"🌐 تغییر زبان"},
-  {id:"help",label:"❓ راهنما"},
-  {id:"vip",label:"💎 ارتقا به VIP"},
-  {id:"owner_online",label:"🟢 شاکی آنلاینم"},
-  {id:"owner_offline",label:"🌙 شاکی آفلاینم"},
-  {id:"admin_panel",label:"👑 پنل مدیریت ارشد"},
-  {id:"user_dashboard",label:"🚀 داشبورد من"},
-  {id:"group_settings",label:"👥 تنظیمات گروه"},
-  {id:"close",label:"✖️ بستن منو",locked:true},
-];
-let ownerPersonalization = null;
-async function loadPersonalization(){
-  return section($("personalizeRows"),async()=>{
-    const d=await api("/api/admin/personalization");
-    ownerPersonalization=d.settings||{labels:{},hidden:[],order:PERSONALIZATION_ITEMS.map(x=>x.id)};
-    renderPersonalization();
-    return true;
-  },{rows:5});
-}
-function renderPersonalization(){
-  const s=ownerPersonalization;
-  $("personalizeRows").innerHTML=s.order.map(id=>{
-    const item=PERSONALIZATION_ITEMS.find(x=>x.id===id); if(!item)return "";
-    const hidden=s.hidden.includes(id), value=s.labels[id]||item.label;
-    return '<div class="item" data-personal-row="'+id+'"><div class="item-row"><div style="flex:1"><label class="lbl">'+esc(item.label)+'</label>'+
-      '<input data-personal-label="'+id+'" maxlength="40" value="'+esc(value)+'" aria-label="متن '+esc(item.label)+'"></div>'+
-      '<div class="item-actions"><button class="sm" data-personal-up="'+id+'" aria-label="بالا">↑</button><button class="sm" data-personal-down="'+id+'" aria-label="پایین">↓</button></div></div>'+
-      '<label style="display:flex;align-items:center;gap:8px;margin-top:9px"><input type="checkbox" data-personal-hidden="'+id+'" '+(hidden?'checked':'')+(item.locked?' disabled':'')+' style="width:18px;min-height:18px"> مخفی شود</label></div>';
-  }).join("");
-  $("personalizePreview").innerHTML=personalizationPreview().map(t=>'<div class="item">'+esc(t)+'</div>').join("");
-  $("personalizeRows").querySelectorAll("input").forEach(el=>el.addEventListener("input",updatePersonalizationPreview));
-  $("personalizeRows").querySelectorAll("[data-personal-hidden]").forEach(el=>el.addEventListener("change",()=>{
-    const id=el.dataset.personalHidden;
-    ownerPersonalization.hidden=ownerPersonalization.hidden.filter(x=>x!==id);
-    if(el.checked&&!["personas","close"].includes(id))ownerPersonalization.hidden.push(id);
-    updatePersonalizationPreview();
-  }));
-  $("personalizeRows").querySelectorAll("[data-personal-up],[data-personal-down]").forEach(el=>el.addEventListener("click",()=>{
-    const id=el.dataset.personalUp||el.dataset.personalDown, dir=el.dataset.personalUp?-1:1;
-    const i=ownerPersonalization.order.indexOf(id), j=i+dir;
-    if(i<0||j<0||j>=ownerPersonalization.order.length)return;
-    [ownerPersonalization.order[i],ownerPersonalization.order[j]]=[ownerPersonalization.order[j],ownerPersonalization.order[i]];
-    renderPersonalization();
-  }));
-}
-function personalizationPreview(){
-  const s=ownerPersonalization;
-  return s.order.filter(id=>!s.hidden.includes(id)).map(id=>{
-    const item=PERSONALIZATION_ITEMS.find(x=>x.id===id);
-    return s.labels[id]||item?.label||id;
-  });
-}
-function updatePersonalizationPreview(){
-  $("personalizeRows").querySelectorAll("[data-personal-label]").forEach(el=>{
-    const id=el.dataset.personalLabel, value=el.value.trim();
-    if(value)ownerPersonalization.labels[id]=value; else delete ownerPersonalization.labels[id];
-  });
-  $("personalizePreview").innerHTML=personalizationPreview().map(t=>'<div class="item">'+esc(t)+'</div>').join("");
-}
-async function savePersonalization(){
-  updatePersonalizationPreview();
-  const btn=$("personalizeSave");btn.disabled=true;
-  try{
-    const d=await api("/api/admin/personalization",{method:"POST",body:{settings:ownerPersonalization}});
-    ownerPersonalization=d.settings;renderPersonalization();toast("شخصی‌سازی ذخیره شد ✓","ok");
-  }catch(e){toast("ذخیره نشد: "+e.message,"err");}
-  finally{btn.disabled=false;}
-}
-async function testPersonalization(){
-  updatePersonalizationPreview();
-  const btn=$("personalizeTest");btn.disabled=true;
-  try{await api("/api/admin/personalization-test",{method:"POST",body:{settings:ownerPersonalization}});toast("پیش‌نمایش برای مالک ارسال شد ✓","ok");}
-  catch(e){toast("ارسال آزمایشی ناموفق بود: "+e.message,"err");}
-  finally{btn.disabled=false;}
-}
-async function resetPersonalization(){
-  if(!await confirmAction("بازنشانی شخصی‌سازی","همهٔ عنوان‌ها، ترتیب و وضعیت نمایش به پیش‌فرض برگردد؟"))return;
-  ownerPersonalization={labels:{},hidden:[],order:PERSONALIZATION_ITEMS.map(x=>x.id)};
-  await savePersonalization();
-}
 const CFG_FIELDS = [
   ["message_limit","سقف پیام (عادی)"], ["image_limit","سقف تصویر (عادی)"],
   ["edit_limit","سقف ویرایش (عادی)"], ["voice_limit","سقف ویس (عادی)"], ["webapp_limit","سقف وب‌اپ (عادی)"],
@@ -3365,10 +3351,6 @@ function bindStatic(){
   });
   $("systemLoad").onclick = ()=>{ invalidateTab("system"); loadSystem(); };
   $("cfgLoad").onclick    = ()=> loadConfig();
-  if($("personalizeRefresh")) $("personalizeRefresh").onclick=()=>{invalidateTab("personalize");loadPersonalization();};
-  if($("personalizeSave")) $("personalizeSave").onclick=savePersonalization;
-  if($("personalizeTest")) $("personalizeTest").onclick=testPersonalization;
-  if($("personalizeReset")) $("personalizeReset").onclick=resetPersonalization;
   $("businessToggle").onclick = toggleBusiness;
   $("maintToggle").onclick    = toggleMaintenance;
 
@@ -3400,6 +3382,12 @@ function bindStatic(){
 }
 async function init(){
   buildNav();
+  if($("personalizationSave")) $("personalizationSave").onclick=savePersonalization;
+  if($("personalizationReload")) $("personalizationReload").onclick=()=>{invalidateTab("personalization");loadPersonalization();};
+  if($("personalPreviewBtn")) $("personalPreviewBtn").onclick=updatePersonalPreview;
+  if($("personalizationTest")) $("personalizationTest").onclick=async()=>{try{await api("/api/admin/personalization",{method:"POST",body:{action:"test"}});toast("پیام آزمایشی برای مالک ارسال شد.","ok");}catch(e){toast(e.message,"err");}};
+  if($("personalizationReset")) $("personalizationReset").onclick=async()=>{if(!confirm("همه تنظیمات شخصی‌سازی به پیش‌فرض برگردد؟"))return;try{const d=await api("/api/admin/personalization",{method:"POST",body:{action:"reset"}});personalizationState=d.customization; $("personalWelcomeFa").value="";$("personalWelcomeEn").value="";renderPersonalButtons(personalizationState);updatePersonalPreview();toast("به پیش‌فرض برگشت.","ok");}catch(e){toast(e.message,"err");}};
+  if($("personalizationRestore")) $("personalizationRestore").onclick=async()=>{if(!confirm("آخرین نسخه پشتیبان شخصی‌سازی بازیابی شود؟"))return;try{const d=await api("/api/admin/personalization",{method:"POST",body:{action:"restore"}});personalizationState=d.customization;$("personalWelcomeFa").value=personalizationState.welcomeTextFa||"";$("personalWelcomeEn").value=personalizationState.welcomeTextEn||"";renderPersonalButtons(personalizationState);updatePersonalPreview();toast("نسخه قبلی بازیابی شد.","ok");}catch(e){toast(e.message,"err");}};
   if($("vipSearchBtn")) $("vipSearchBtn").onclick=()=>{invalidateTab("vip");loadVipUsers();};
   if($("vipSearch")) $("vipSearch").addEventListener("keydown",e=>{if(e.key==="Enter"){invalidateTab("vip");loadVipUsers();}});
   if($("vipRefresh")) $("vipRefresh").onclick=()=>{invalidateTab("vip");loadVipUsers();};
