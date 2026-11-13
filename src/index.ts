@@ -14700,15 +14700,16 @@ async function executeStructuredTools(
     // tool calls cannot all pass against the same final remaining slot.
     const applyUsageQuota = async () => {
       if (isOwner) return;
+      const ownerUi = await getOwnerPersonalization(env);
       allowedImageCount = 0;
       allowedVoiceCount = 0;
       for (const _call of imageCalls) {
-        if (!checkDailyLimitPrivate(limitSession, "image", isVip).allowed) break;
+        if (!checkDailyLimitPrivate(limitSession, "image", isVip, ownerUi).allowed) break;
         incrementUsagePrivate(limitSession, "image");
         allowedImageCount++;
       }
       for (const _call of voiceCalls) {
-        if (!checkDailyLimitPrivate(limitSession, "voice_sent", isVip).allowed) break;
+        if (!checkDailyLimitPrivate(limitSession, "voice_sent", isVip, ownerUi).allowed) break;
         incrementUsagePrivate(limitSession, "voice_sent");
         allowedVoiceCount++;
       }
@@ -14777,7 +14778,7 @@ case "generate_image": {
     };
     if (imgIndex >= allowedImageCount) {
         await taskMgr?.failTask(taskKey, lang === "fa" ? "محدودیت روزانه تمام شد" : "Daily limit reached");
-        const quota = checkDailyLimitPrivate(limitSession, "image", isVip);
+        const quota = checkDailyLimitPrivate(limitSession, "image", isVip, await getOwnerPersonalization(env));
         await sendMessage(chatId, quota.message ?? t(lang, "img_limit"), { reply_to_message_id: replyTo });
         return { name: call.name, response: { success: false, error: "Limit exceeded" } };
     }
@@ -15808,7 +15809,7 @@ case "host_web_app": {
                   }
                 };
                 if (voiceIndex >= allowedVoiceCount) {
-                  const quota = checkDailyLimitPrivate(limitSession, "voice_sent", isVip);
+                  const quota = checkDailyLimitPrivate(limitSession, "voice_sent", isVip, await getOwnerPersonalization(env));
                   await sendMessage(
                     chatId,
                     quota.message ?? (lang === "fa" ? "⚠️ سقف ویس‌های مجاز روزانه تمام شده." : "⚠️ Daily voice limit reached."),
