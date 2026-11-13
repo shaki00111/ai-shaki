@@ -189,6 +189,19 @@ incomingVoiceSource.includes('checkDailyLimitWithUser(session, from, "message", 
   ? ok("incoming voice checks message eligibility and the AI turn counts it once")
   : fail("incoming voice must not consume the voice-generation quota");
 
+// ── Direct voice quota reservation ─────────────────────────────────────────
+console.log("\n[10] Direct voice quota reservation");
+const directVoiceStart = indexSource.indexOf("const directVoiceText = extractDirectVoiceText");
+const directVoiceEnd = indexSource.indexOf("\n      sendTyping(", directVoiceStart);
+const directVoiceSource = directVoiceStart >= 0 && directVoiceEnd > directVoiceStart
+  ? indexSource.slice(directVoiceStart, directVoiceEnd) : "";
+directVoiceSource.includes('reserveDailyUsageWithUser(session, user, "voice_sent", env)') &&
+directVoiceSource.includes("releaseVoiceReservation") &&
+!directVoiceSource.includes('checkDailyLimitWithUser(session, user, "voice_sent", env)') &&
+!directVoiceSource.includes('incrementUsageWithUser(session, user, "voice_sent", env)')
+  ? ok("direct voice requests reserve quota atomically and roll back failed sends")
+  : fail("direct voice requests must use atomic usage reservations");
+
 // ── Disabled-group personal panel access ───────────────────────────────────
 console.log("\n[9] Disabled-group personal panel access");
 const startHandler = indexSource.slice(indexSource.indexOf("async function handleStart"), indexSource.indexOf("\nasync function handleHelp", indexSource.indexOf("async function handleStart")));

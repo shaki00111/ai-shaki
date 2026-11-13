@@ -17521,16 +17521,18 @@ async function processAIRequestUnlocked(
           String(originalMsg.text ?? originalMsg.caption ?? "")
         );
         if (directVoiceText) {
+          let releaseVoiceReservation: (() => Promise<void>) | null = null;
+          let voiceDelivered = false;
           try {
-            const limitCheck = await checkDailyLimitWithUser(session, user, "voice_sent", env);
-            if (!limitCheck.allowed) {
+            const reservation = await reserveDailyUsageWithUser(session, user, "voice_sent", env);
+            if (!reservation.allowed) {
               if (loadingState.id) {
                 await deleteMessage(originalMsg.chat.id, loadingState.id).catch(() => {});
                 loadingState.id = undefined;
               }
               await sendMessage(
                 originalMsg.chat.id,
-                limitCheck.message ?? (session.language === "fa"
+                reservation.message ?? (session.language === "fa"
                   ? "⚠️ سقف ویس‌های مجاز روزانه تمام شده."
                   : "⚠️ Daily voice limit reached."),
                 { reply_to_message_id: originalMsg.message_id }
@@ -17538,6 +17540,7 @@ async function processAIRequestUnlocked(
               responseDelivered = true;
               break;
             }
+            releaseVoiceReservation = reservation.release;
 
             const ok = await sendVoiceResponse(
               originalMsg.chat.id,
@@ -17545,6 +17548,7 @@ async function processAIRequestUnlocked(
               directVoiceText,
               env
             );
+            voiceDelivered = ok;
 
             if (loadingState.id) {
               await deleteMessage(originalMsg.chat.id, loadingState.id).catch(() => {});
@@ -17552,6 +17556,8 @@ async function processAIRequestUnlocked(
             }
 
             if (!ok) {
+              await releaseVoiceReservation();
+              releaseVoiceReservation = null;
               await sendMessage(
                 originalMsg.chat.id,
                 session.language === "fa"
@@ -17563,9 +17569,8 @@ async function processAIRequestUnlocked(
               break;
             }
 
-            // The voice note itself is the user-visible answer for this turn.
+            // Reservation already persisted the successful voice usage atomically.
             responseDelivered = true;
-            runBackground(() => incrementUsageWithUser(session, user, "voice_sent", env), 6000, "usage");
             session.messageCount++;
             session.statistics.totalMessages++;
             recordRequest(session);
@@ -17591,6 +17596,10 @@ async function processAIRequestUnlocked(
             activeProgressMessages.delete(originalMsg.chat.id);
             break;
           } catch (e) {
+            if (!voiceDelivered && releaseVoiceReservation) {
+              await releaseVoiceReservation().catch(() => {});
+              releaseVoiceReservation = null;
+            }
             logger.error("Direct voice fast-path failed", e);
             if (loadingState.id) {
               await deleteMessage(originalMsg.chat.id, loadingState.id).catch(() => {});
