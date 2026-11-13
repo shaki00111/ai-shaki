@@ -317,6 +317,32 @@ indexSource.includes('!await isUserAdmin(from.id, chat.id)')
   : fail("shared group personal-panel access or admin-only group authorization is missing");
 
 
+console.log("\\n[13] Group anti-link and native moderation");
+indexSource.includes('if (data === "gset_antilinks")') &&
+indexSource.includes('gset_antilinks') &&
+indexSource.includes('groupConfig?.antiLinks && containsLink')
+  ? ok("group admins can enable anti-link and non-admin links are filtered")
+  : fail("group anti-link toggle and enforcement are incomplete");
+indexSource.includes('const groupConfig = await getGroupConfig(msg.chat.id, env).catch(() => null)')
+  ? ok("anti-link storage failures do not crash update dispatch")
+  : fail("anti-link checks must fail safely when group settings storage is unavailable");
+const moderationStart = indexSource.indexOf("async function handleGroupModerationCommand");
+const moderationEnd = indexSource.indexOf("\n// SECTION: MESSAGE HANDLERS", moderationStart);
+const moderationSource = moderationStart >= 0 && moderationEnd > moderationStart
+  ? indexSource.slice(moderationStart, moderationEnd) : "";
+for (const action of ["banChatMember", "unbanChatMember", "restrictChatMember"]) {
+  moderationSource.includes(`tg("${action}"`)
+    ? ok(`group moderation uses Telegram ${action} API`)
+    : fail(`group moderation is missing Telegram ${action}`);
+}
+moderationSource.includes('!await isUserAdmin(from.id, chat.id)') &&
+moderationSource.includes('!await isUserAdmin(botId, chat.id)')
+  ? ok("group moderation verifies both group-admin and bot-admin permissions")
+  : fail("group moderation must verify administrator and bot permissions");
+messageHandler.includes('const moderationCommand = ["/ban", "/unban", "/kick", "/mute", "/unmute"].includes(commandProbe)')
+  ? ok("authorized moderation commands remain available when bot replies are paused")
+  : fail("paused groups must keep authorized moderation commands available");
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);

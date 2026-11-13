@@ -3579,7 +3579,7 @@ const _webAppViewBuffer = new Map<string, number>();
 // Stored at KV key `groupcfg:{chatId}`. Absent settings mean enabled.
 // Explicit admin disables are preserved. `allowHeavy` permits web-app / long-code building
 // in the group. Reads are cached in-isolate so a group costs ~0 extra KV reads.
-interface GroupConfig { enabled: boolean; allowHeavy: boolean; }
+interface GroupConfig { enabled: boolean; allowHeavy: boolean; antiLinks?: boolean; }
 const _groupCfgCache = new Map<number, { cfg: GroupConfig; ts: number }>();
 const GROUP_CFG_TTL_MS = 30_000;
 const GROUP_CFG_CACHE_MAX = 1000;
@@ -3590,7 +3590,7 @@ async function getGroupConfig(chatId: number, env: Env): Promise<GroupConfig> {
   let cfgv: GroupConfig = normalizeGroupConfig(null);
   try {
     const raw = await env.SESSIONS.get(`groupcfg:${chatId}`, "json") as Partial<GroupConfig> | null;
-    cfgv = normalizeGroupConfig(raw);
+    cfgv = { ...normalizeGroupConfig(raw), antiLinks: raw?.antiLinks === true };
   } catch (error) {
     if(hit)return hit.cfg;
     throw error; // An unreadable explicit disable is not permission to re-enable.
@@ -3610,8 +3610,9 @@ async function setGroupConfig(chatId: number, patch: Partial<GroupConfig>, env: 
   const merged: GroupConfig = {
     enabled: patch.enabled ?? current.enabled,
     allowHeavy: patch.allowHeavy ?? current.allowHeavy,
+    antiLinks: patch.antiLinks ?? current.antiLinks ?? false,
   };
-  if(current.enabled===merged.enabled&&current.allowHeavy===merged.allowHeavy)return current;
+  if(current.enabled===merged.enabled&&current.allowHeavy===merged.allowHeavy&&current.antiLinks===merged.antiLinks)return current;
   await env.SESSIONS.put(`groupcfg:${chatId}`, JSON.stringify(merged));
   _groupCfgCache.set(chatId, { cfg: merged, ts: Date.now() });
   return merged;
@@ -23288,6 +23289,60 @@ Current user message:
   }
   return { parts, pendingImageBytes };
 }
+async function handleGroupModerationCommand(msg: TgMessage, command: string, args: string[], env: Env): Promise<void> {
+  const { chat, from, reply_to_message: reply } = msg;
+  if (!from) return;
+  if (chat.type === "private") {
+    await sendMessage(chat.id, "این دستور فقط داخل گروه کار می‌کنه.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  if (!await isUserAdmin(from.id, chat.id)) {
+    await sendMessage(chat.id, "🚫 فقط مدیران گروه و مالک ربات می‌تونن از این دستور استفاده کنن.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  const target = reply?.from;
+  if (!target || target.is_bot || target.id === from.id || target.id === cfg.BOT_OWNER_ID) {
+    await sendMessage(chat.id, "برای این دستور باید روی پیام یک عضو عادی گروه ریپلای کنی.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  const botId = BOT_SELF_ID ?? BOT_INFO?.id;
+  if (!botId || !await isUserAdmin(botId, chat.id)) {
+    await sendMessage(chat.id, "⚠️ برای مدیریت اعضا، اول ربات رو در گروه ادمین کن و دسترسی محدودسازی اعضا رو بده.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  try {
+    if (command === "/ban") {
+      await tg("banChatMember", { chat_id: chat.id, user_id: target.id });
+      await sendMessage(chat.id, `⛔️ ${escapeHTML(target.first_name)} از گروه بن شد.`, { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+    } else if (command === "/unban") {
+      await tg("unbanChatMember", { chat_id: chat.id, user_id: target.id, only_if_banned: true });
+      await sendMessage(chat.id, `✅ بن ${escapeHTML(target.first_name)} برداشته شد.`, { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+    } else if (command === "/kick") {
+      await tg("banChatMember", { chat_id: chat.id, user_id: target.id });
+      await tg("unbanChatMember", { chat_id: chat.id, user_id: target.id, only_if_banned: true });
+      await sendMessage(chat.id, `👢 ${escapeHTML(target.first_name)} از گروه اخراج شد.`, { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+    } else if (command === "/mute") {
+      const minutes = Math.max(1, Math.min(10080, Number(args[0]) || 30));
+      await tg("restrictChatMember", {
+        chat_id: chat.id, user_id: target.id,
+        permissions: { can_send_messages: false, can_send_audios: false, can_send_documents: false, can_send_photos: false, can_send_videos: false, can_send_video_notes: false, can_send_voice_notes: false, can_send_polls: false, can_send_other_messages: false, can_add_web_page_previews: false },
+        until_date: Math.floor(Date.now() / 1000) + minutes * 60,
+      });
+      await sendMessage(chat.id, `🔇 ${escapeHTML(target.first_name)} به مدت ${minutes} دقیقه سکوت شد.`, { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+    } else if (command === "/unmute") {
+      const chatInfo = await tg("getChat", { chat_id: chat.id }) as { permissions?: Record<string, boolean> };
+      await tg("restrictChatMember", {
+        chat_id: chat.id, user_id: target.id,
+        permissions: chatInfo.permissions ?? { can_send_messages: true, can_send_audios: true, can_send_documents: true, can_send_photos: true, can_send_videos: true, can_send_video_notes: true, can_send_voice_notes: true, can_send_polls: true, can_send_other_messages: true, can_add_web_page_previews: true },
+      });
+      await sendMessage(chat.id, `🔊 سکوت ${escapeHTML(target.first_name)} برداشته شد.`, { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+    }
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "خطای ناشناخته";
+    await sendMessage(chat.id, `❌ عملیات انجام نشد: ${escapeHTML(detail)}`, { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+  }
+}
+
 // SECTION: MESSAGE HANDLERS
 /** What an inline result stores for its "Run in private chat" deep link. */
 interface InlineHandoff {
@@ -23334,7 +23389,8 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
       const personalStart = commandProbe === "/start";
       const panelCommand = commandProbe === "/panel" || commandProbe === "پنل" || commandProbe === "panel";
       const adminSettings = commandProbe === "/settings" && await isUserAdmin(from.id, chat.id);
-      if (!personalStart && !panelCommand && !adminSettings) return;
+      const moderationCommand = ["/ban", "/unban", "/kick", "/mute", "/unmute"].includes(commandProbe) && await isUserAdmin(from.id, chat.id);
+      if (!personalStart && !panelCommand && !adminSettings && !moderationCommand) return;
     }
 
     if (chat.type !== "private" && /^(?:پنل|panel)$/i.test(text.trim())) {
@@ -23513,6 +23569,11 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
       switch (command) {
         case "/panel": await handlePanelCommand(msg, env); break;
         case "/forcejoin": await handleForceJoinCommand(msg, args, env); break;
+        case "/ban":
+        case "/unban":
+        case "/kick":
+        case "/mute":
+        case "/unmute": await handleGroupModerationCommand(msg, command, args, env); break;
         case "/start": await handleStart(msg, env); break;
         case "/donate": {
           const donate = buildDonateMessage(session.language);
@@ -26070,6 +26131,18 @@ if (data === "open_language") {
     return;
   }
 
+  if (data === "gset_antilinks") {
+    if (chat.type === "private" || !await isUserAdmin(from.id, chat.id)) {
+      await answerCb(cb.id, session.language === "fa" ? "🚫 فقط مدیران گروه مجاز هستند." : "🚫 Only group administrators can change this.", true);
+      return;
+    }
+    const cur = await getGroupConfig(chat.id, env);
+    const next = await setGroupConfig(chat.id, { antiLinks: !cur.antiLinks }, env);
+    await answerCb(cb.id, session.language === "fa" ? (next.antiLinks ? "🔗 ضدلینک فعال شد" : "🔗 ضدلینک خاموش شد") : (next.antiLinks ? "🔗 Anti-link enabled" : "🔗 Anti-link disabled"), true);
+    await showGroupSettings(chat.id, message.message_id, session, env);
+    return;
+  }
+
   if (data === "gset_heavy") {
     if (chat.type === "private" || !await isUserAdmin(from.id, chat.id)) {
       await answerCb(cb.id, session.language === "fa" ? "🚫 فقط مدیران گروه مجاز هستند." : "🚫 Only group administrators can change this.", true);
@@ -26467,17 +26540,22 @@ async function showGroupSettings(chatId: number, msgId: number, session: ChatSes
     ? `👥 *تنظیمات گروه*\n\n` +
       `🟢 پاسخ‌گویی ربات: *${onTxt(gcfg.enabled)}*\n` +
       `🛠️ کارهای سنگین (وب‌اپ/کد طولانی): *${onTxt(gcfg.allowHeavy)}*\n` +
-      `📢 حالت پاسخ: *فقط منشن (دائمی)*\n\n` +
+      `📢 حالت پاسخ: *فقط منشن (دائمی)*\n` +
+      `🔗 ضدلینک: *${onTxt(gcfg.antiLinks === true)}*\n\n` +
+      `_مدیریت کاربران: روی پیام کاربر ریپلای کن و از /ban، /mute 30، /unban یا /unmute استفاده کن._\n` +
       `_گروه‌ها به‌صورت پیش‌فرض فعال‌اند. مدیران گروه می‌توانند پاسخ‌گویی را متوقف کنند._`
     : `👥 *Group Settings*\n\n` +
       `🟢 Bot replies: *${onTxt(gcfg.enabled)}*\n` +
       `🛠️ Heavy tasks (web apps/long code): *${onTxt(gcfg.allowHeavy)}*\n` +
-      `📢 Reply mode: *Mention only (Permanent)*\n\n` +
+      `📢 Reply mode: *Mention only (Permanent)*\n` +
+      `🔗 Anti-link: *${onTxt(gcfg.antiLinks === true)}*\n\n` +
+      `_Reply to a user's message and use /ban, /mute 30, /unban or /unmute to moderate._\n` +
       `_Groups are enabled by default. Group administrators can disable replies._`;
 
   const kb: InlineKeyboard = { inline_keyboard: [
     [btn(`🟢 ${fa ? "پاسخ‌گویی ربات" : "Bot replies"}: ${gcfg.enabled ? (fa ? "فعال" : "On") : (fa ? "غیرفعال" : "Off")}`, "gset_enabled")],
     [btn(`🛠️ ${fa ? "کارهای سنگین" : "Heavy Tasks"}: ${gcfg.allowHeavy ? (fa ? "مجاز" : "On") : (fa ? "غیرمجاز" : "Off")}`, "gset_heavy")],
+    [btn(`🔗 ${fa ? "ضدلینک" : "Anti-link"}: ${gcfg.antiLinks ? (fa ? "فعال" : "On") : (fa ? "خاموش" : "Off")}`, "gset_antilinks")],
     [btn(fa ? "🔙 بازگشت" : "🔙 Back", "home:open")]
   ]};
   await editMessageText(chatId, msgId, text, { reply_markup: JSON.stringify(validateKeyboard(kb)) });
@@ -26684,6 +26762,23 @@ async function dispatchUpdate(update: TgUpdate, env: Env): Promise<void> {
       const msg = update.message;
       if (!msg.from || msg.from.is_bot) return;
       if (!cfg.ALLOWED_CHAT_TYPES.includes(msg.chat.type)) return;
+
+      // Anti-link moderation applies to every group message type, including captions.
+      if (msg.chat.type !== "private") {
+        const groupConfig = await getGroupConfig(msg.chat.id, env).catch(() => null);
+        const body = (msg.text ?? msg.caption ?? "").trim();
+        const containsLink = /(?:https?:\/\/|www\.|t\.me\/|telegram\.me\/)/i.test(body);
+        if (groupConfig?.antiLinks && containsLink && !await isUserAdmin(msg.from.id, msg.chat.id)) {
+          const botId = BOT_SELF_ID ?? BOT_INFO?.id;
+          if (botId && await isUserAdmin(botId, msg.chat.id)) {
+            await deleteMessage(msg.chat.id, msg.message_id);
+            await sendMessage(msg.chat.id, "🔗 ارسال لینک در این گروه مجاز نیست.", { reply_to_message_id: msg.message_id }).catch(() => {});
+          } else {
+            await sendMessage(msg.chat.id, "⚠️ ضدلینک فعاله، اما ربات برای حذف لینک‌ها به دسترسی ادمین نیاز داره.", { reply_to_message_id: msg.message_id }).catch(() => {});
+          }
+          return;
+        }
+      }
 
       // Every message handler is entered through `runMessageHandler` so a throw in
       // a handler *prologue* — session load, activation gate, block lookup, slot
