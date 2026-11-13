@@ -17063,7 +17063,7 @@ function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverri
     };
     const [faLabel, enLabel] = typeLabels[type];
     const rewardHint = type === "message"
-      ? "\n\n🎁 هدیه روزانه ۲۰ پیام: /freebonus\n🔗 هر دعوت موفق: ۱۰ پیام و ۲ ویس اضافه: /referral"
+      ? "\n\n🔗 با دعوت هر دوست جدید: ۱۰ پیام و ۲ ویس اضافه بگیر: /referral"
       : type === "voice_sent"
         ? "\n\n🔗 با هر دعوت موفق، ۲ ویس و ۱۰ پیام اضافه بگیر: /referral"
         : "\n\n🔗 برای دریافت پیام و ویس اضافه با دعوت دوستان: /referral";
@@ -21092,7 +21092,7 @@ function parseReferralStartPayload(value: string): number | null {
 async function claimReferralReward(referred: TgUser, inviterId: number, session: ChatSession, env: Env): Promise<"credited" | "duplicate" | "self" | "old" | "unavailable"> {
   if (inviterId === referred.id) return "self";
   const firstUsed = Number(session.statistics?.firstUsed) || 0;
-  if (!firstUsed || Date.now() - firstUsed > 5 * 60_000) return "old";
+  if (!firstUsed || firstUsed > Date.now() || Date.now() - firstUsed > 24 * 60 * 60_000) return "old";
   let claimInserted = false;
   try {
     await ensureReferralSchema(env);
@@ -21160,30 +21160,6 @@ async function handleReferralCommand(msg: TgMessage, env: Env): Promise<void> {
     await sendMessage(msg.chat.id, "⚠️ فعلاً نتونستم آمار دعوت‌ها رو بخونم. دوباره امتحان کن.", { reply_to_message_id: msg.message_id });
   }
 }
-async function handleFreeBonusCommand(msg: TgMessage, env: Env): Promise<void> {
-  const user = msg.from;
-  if (!user) return;
-  if (msg.chat.type !== "private") {
-    await sendMessage(msg.chat.id, "🎁 این هدیه فقط در پیوی و برای حساب خودت فعال می‌شه.", { reply_to_message_id: msg.message_id });
-    return;
-  }
-  const session = await getOrCreateSession(msg.chat, user, env);
-  await refreshVipEntitlementFromStore(session, user, env);
-  if (isVipEntitlementActive(readVipEntitlementSnapshot(session))) {
-    await sendMessage(msg.chat.id, "💎 حساب VIP تو سهمیه بالاتری داره؛ این هدیه مخصوص پلن رایگانه.", { reply_to_message_id: msg.message_id });
-    return;
-  }
-  if (session.dailyLimits.freeBonusClaimed) {
-    await sendMessage(msg.chat.id, "⏳ هدیه ۲۰ پیام امروزت رو قبلاً گرفتی. بعد از ریست سهمیه دوباره برگرد.", { reply_to_message_id: msg.message_id });
-    return;
-  }
-  session.dailyLimits.freeBonusClaimed = true;
-  session.dailyLimits.referralBonusMessages = Math.min(500, (Number(session.dailyLimits.referralBonusMessages) || 0) + 20);
-  await saveSession(session, env, { force: true });
-  await sendMessage(msg.chat.id, "🎁 <b>۲۰ پیام رایگان به سهمیه امروزت اضافه شد!</b>\nاین هدیه روزانه یک‌بار قابل دریافته.", { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
-}
-
-
 // ── GROUP GAMIFICATION ──────────────────────────────────────────────────────
 function groupLevelFromXp(xpValue: number): number {
   const xp = Math.max(0, Math.floor(Number(xpValue) || 0));
@@ -23875,7 +23851,6 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
         case "/unmute": await handleGroupModerationCommand(msg, command, args, env); break;
         case "/start": await handleStart(msg, env); break;
         case "/referral": await handleReferralCommand(msg, env); break;
-        case "/freebonus": await handleFreeBonusCommand(msg, env); break;
         case "/leaderboard":
         case "/rank": await handleGroupLeaderboard(msg, session, env); break;
         case "/profile": await handleGroupProfile(msg, session, env); break;
