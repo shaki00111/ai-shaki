@@ -6,7 +6,8 @@
  */
 export class ProviderKeyCooldowns {
   private readonly disabledUntil = new Map<string, number>();
-  constructor(private readonly now: () => number = Date.now) {}
+  private readonly now: () => number;
+  constructor(now: () => number = Date.now) { this.now = now; }
   isDisabled(key: string): boolean {
     const until = this.disabledUntil.get(key);
     if (!until) return false;
