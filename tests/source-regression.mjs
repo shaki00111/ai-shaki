@@ -230,6 +230,26 @@ messageHandler.includes('const adminSettings = commandProbe === "/settings" && a
   ? ok("disabled groups allow personal /start but keep /settings admin-only")
   : fail("disabled-group command gate must allow /start to everyone and /settings to admins");
 
+// ── Direct image command and regeneration quota accounting ─────────────────
+console.log("\n[11] Direct image quota accounting");
+const imageCommandStart = indexSource.indexOf("async function handleImg(");
+const imageCommandEnd = indexSource.indexOf("\nasync function handleSearch", imageCommandStart);
+const imageCommandSource = imageCommandStart >= 0 && imageCommandEnd > imageCommandStart
+  ? indexSource.slice(imageCommandStart, imageCommandEnd) : "";
+imageCommandSource.includes('reserveDailyUsageWithUser(session, from, "image", env)') &&
+imageCommandSource.includes("reservation.release()") &&
+!imageCommandSource.includes('incrementUsageWithUser(session, from, "image", env)')
+  ? ok("/img counts each successful image with an atomic reservation")
+  : fail("/img must reserve quota for every generated image");
+const regenStart = indexSource.indexOf('if (data.startsWith("img_regen_"))');
+const regenEnd = indexSource.indexOf('if (data === "open_language")', regenStart);
+const regenSource = regenStart >= 0 && regenEnd > regenStart ? indexSource.slice(regenStart, regenEnd) : "";
+regenSource.includes('reserveDailyUsageWithUser(session, from, "image", env)') &&
+regenSource.includes("reservation.release()") &&
+!regenSource.includes('incrementUsageWithUser(session, from, "image", env)')
+  ? ok("image regeneration uses a durable reservation")
+  : fail("image regeneration must use an atomic quota reservation");
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
