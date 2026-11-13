@@ -3126,18 +3126,18 @@ async function toggleMaintenance(){
   }catch(e){ toast(e.message,"err"); if(btn) btn.disabled = false; }
 }
 const PERSONALIZATION_ITEMS = [
-  {id:"personas",label:"تغییر شخصیت",locked:true},
-  {id:"new_chat",label:"گفتگوی جدید"},
-  {id:"prompt",label:"پرامپت سفارشی"},
-  {id:"language",label:"تغییر زبان"},
-  {id:"help",label:"راهنما"},
-  {id:"vip",label:"ارتقا به VIP"},
-  {id:"owner_online",label:"وضعیت آنلاین مالک"},
-  {id:"owner_offline",label:"وضعیت آفلاین مالک"},
-  {id:"admin_panel",label:"پنل مدیریت ارشد"},
-  {id:"user_dashboard",label:"داشبورد کاربر"},
-  {id:"group_settings",label:"تنظیمات گروه"},
-  {id:"close",label:"بستن منو",locked:true},
+  {id:"personas",label:"🎭 تغییر شخصیت",locked:true},
+  {id:"new_chat",label:"🆕 گفتگوی جدید"},
+  {id:"prompt",label:"✏️ پرامپت سفارشی"},
+  {id:"language",label:"🌐 تغییر زبان"},
+  {id:"help",label:"❓ راهنما"},
+  {id:"vip",label:"💎 ارتقا به VIP"},
+  {id:"owner_online",label:"🟢 شاکی آنلاینم"},
+  {id:"owner_offline",label:"🌙 شاکی آفلاینم"},
+  {id:"admin_panel",label:"👑 پنل مدیریت ارشد"},
+  {id:"user_dashboard",label:"🚀 داشبورد من"},
+  {id:"group_settings",label:"👥 تنظیمات گروه"},
+  {id:"close",label:"✖️ بستن منو",locked:true},
 ];
 let ownerPersonalization = null;
 async function loadPersonalization(){
