@@ -14649,56 +14649,44 @@ async function executeStructuredTools(
         }
     }
 
-    let limitSession = session;
+    let limitSession = session.type === "private" ? session : privateUserSession;
     if(!await chatCanReceive(env.DB,chatId))throw new Error("CHAT_DELIVERY_UNAVAILABLE");
-    if (session.type !== "private" && !isVip) {
-      limitSession = await getOrCreateSession({ id: sender.id, type: "private" }, sender, env);
-    }
 
     const imageCalls = calls.filter(c => c.name === "generate_image");
-    // KV CONSERVATION: only host (persist) generated images to KV when they are
-    // needed for embedding into a web app being built in the same batch. Plain image
-    // requests are delivered as raw Telegram bytes with zero KV writes.
+    // KV CONSERVATION: only host generated images when needed by a web app/game.
     const needsImageHosting = calls.some(c => c.name === "host_web_app" || c.name === "create_game");
     const voiceCalls = calls.filter(c => c.name === "voice_response");
     let allowedImageCount = imageCalls.length;
     let allowedVoiceCount = voiceCalls.length;
 
-    // شمارش سهمیه‌ی تصویر/صدا یک read-modify-write روی سشن است. در گروه، limitSession
-    // سشنِ *خصوصیِ* کاربر است (نه سشنِ گروه که مِیوتکس بیرونی رویش قفل دارد)، پس اگر
-    // همان کاربر هم‌زمان در دو گروه درخواست بدهد، افزایش‌ها درهم می‌شوند و سقف دور زده
-    // می‌شود. این بخش را با همان مِیوتکسِ per-user حساب‌داری سریال می‌کنیم. در پیوی
-    // limit}Session === session است و مِیوتکسِ بیرونیِ chatId کافی‌ست، پس قفل لازم نیست.
+    // Reserve quota on the member's own session, even in groups. This keeps personal
+    // VIP caps/permissions effective and avoids charging the shared group session.
     const applyUsageQuota = async () => {
-      if (imageCalls.length > 0 && !isVip) {
-        const remainingImages = Math.max(0, cfg.IMAGE_LIMIT - limitSession.dailyLimits.imagesGenerated);
-        if (imageCalls.length > remainingImages) allowedImageCount = remainingImages;
+      if (isOwner) return;
+      if (imageCalls.length > 0) {
+        const check = checkDailyLimitPrivate(limitSession, "image", isVip);
+        const cap = isVip
+          ? resolveVipDailyLimit(true, userVipActive ? limitSession.vipLimits?.image : undefined, limitSession.limitOverrides?.image, cfg.VIP_IMAGE_LIMIT)
+          : cfg.IMAGE_LIMIT;
+        const remaining = check.allowed ? Math.max(0, cap - limitSession.dailyLimits.imagesGenerated) : 0;
+        allowedImageCount = Math.min(imageCalls.length, remaining);
         limitSession.dailyLimits.imagesGenerated += allowedImageCount;
       }
-      if (voiceCalls.length > 0 && !isVip) {
-        const remainingVoices = Math.max(0, cfg.VOICE_LIMIT - limitSession.dailyLimits.voicesSent);
-        if (voiceCalls.length > remainingVoices) allowedVoiceCount = remainingVoices;
+      if (voiceCalls.length > 0) {
+        const check = checkDailyLimitPrivate(limitSession, "voice_sent", isVip);
+        const cap = isVip
+          ? resolveVipDailyLimit(true, userVipActive ? limitSession.vipLimits?.voice_sent : undefined, limitSession.limitOverrides?.voice_sent, cfg.VIP_VOICE_LIMIT)
+          : cfg.VOICE_LIMIT;
+        const remaining = check.allowed ? Math.max(0, cap - limitSession.dailyLimits.voicesSent) : 0;
+        allowedVoiceCount = Math.min(voiceCalls.length, remaining);
         limitSession.dailyLimits.voicesSent += allowedVoiceCount;
       }
-      if ((imageCalls.length > 0 || voiceCalls.length > 0) && !isVip) {
-        await saveSession(limitSession, env);
-      }
+      if (imageCalls.length > 0 || voiceCalls.length > 0) await saveSession(limitSession, env);
     };
-    if (!isVip && (imageCalls.length > 0 || voiceCalls.length > 0)) {
-      // Private and group calls share one per-user counter and lock.
+    if (imageCalls.length > 0 || voiceCalls.length > 0) {
       await updateMutex.run(`usage:${sender.id}`, applyUsageQuota);
-    } else {
-      await applyUsageQuota();
     }
-    const releaseReservedUsage = async (type: "image" | "voice_sent") => {
-      if (isVip || isOwner) return;
-      await updateMutex.run(`usage:${sender.id}`, async () => {
-        if (type === "image") limitSession.dailyLimits.imagesGenerated = Math.max(0, limitSession.dailyLimits.imagesGenerated - 1);
-        else limitSession.dailyLimits.voicesSent = Math.max(0, limitSession.dailyLimits.voicesSent - 1);
-        await saveSession(limitSession, env);
-      });
-    };
-  
+
     // A turn may legitimately build something and then act on it, so a second
     // build is allowed. What must not happen is an unbounded rebuild loop, and
     // the ToolCallLedger already suppresses an identical repeat.
