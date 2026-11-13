@@ -10086,32 +10086,14 @@ function detectErrorType(msg: string): ErrorType {
 
 function formatError(error: Error, lang: Language, isAdmin = false): string {
   const type = detectErrorType(error.message);
-  const icons: Record<ErrorType, string> = {
-    quota: "📊", auth: "🔑", network: "🌐", timeout: "⏱️",
-    blocked: "🛡️", empty: "📭", server: "🔥", unknown: "⚠️",
-  };
-  const msgs: Record<ErrorType, [string, string]> = {
-    quota:   ["ظرفیت مدل تمام شده.", "Quota exceeded."],
-    auth:    ["مشکل در کلید API.", "Authentication failed."],
-    network: ["مشکل در اتصال به سرور.", "Connection error."],
-    timeout: ["زمان پاسخگویی تمام شد.", "Request timed out."],
-    blocked: ["محتوا توسط فیلتر امنیتی مسدود شد.", "Content blocked by safety filter."],
-    empty:   ["پاسخ خالی. سوال را تغییر دهید.", "Empty response. Please rephrase."],
-    server: [
-      "تعداد تلاش‌های این درخواست تمام شد؛ لطفاً دوباره ارسال کن.",
-      "The request attempt budget was exhausted. Please try again."
-    ],
-    unknown: ["خطای غیرمنتظره.", "Unexpected error."],
-  };
-  const icon = icons[type];
-  const [fa, en] = msgs[type];
-  const userMsg = lang === "fa" ? fa : en;
-  let out = `${icon} ${userMsg}`;
-  
-  if (isAdmin) {
-    out += `\n\n🔧 **Raw Error Details:**\n\`\`\`\n${error.message}\n\`\`\``;
-  }
-  return out;
+  // Safety blocks are useful to explain directly. All provider, quota, network,
+  // timeout and unknown failures share the same friendly wording for free/VIP.
+  const userMsg = type === "blocked"
+    ? (lang === "fa" ? "🛡️ این درخواست توسط فیلتر امنیتی متوقف شد." : "🛡️ This request was stopped by the safety filter.")
+    : friendlyFailure(error.message, lang);
+  return isAdmin
+    ? `${userMsg}\n\n🔧 **Raw Error Details:**\n\`\`\`\n${error.message}\n\`\`\``
+    : userMsg;
 }
 
 const toolErrorNotices = new NoticeGate();
