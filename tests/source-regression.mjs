@@ -283,14 +283,14 @@ forceJoinCommandSource.includes('await env.SESSIONS.put("force_join_config"')
   : fail("force-join setup must verify the channel and bot-admin status before saving");
 
 const confirmCardStart = indexSource.indexOf("async function sendPersonaConfirmCard");
-const confirmCardEnd = indexSource.indexOf("\\n/**", confirmCardStart);
+const confirmCardEnd = indexSource.indexOf("\n/**", confirmCardStart);
 const confirmCardSource = confirmCardStart >= 0
   ? indexSource.slice(confirmCardStart, confirmCardEnd > confirmCardStart ? confirmCardEnd : confirmCardStart + 3000) : "";
 confirmCardSource.includes("env: Env") && confirmCardSource.includes("personalizePersonaKeyboard(card.keyboard, env)")
   ? ok("persona confirmation keyboards use owner-customized labels")
   : fail("persona confirmation keyboards must use owner-customized labels");
 const personaQuestionStart = indexSource.indexOf('if (intent.kind === "question")');
-const personaQuestionEnd = indexSource.indexOf("// kind === \\"switch\\"", personaQuestionStart);
+const personaQuestionEnd = indexSource.indexOf('// kind === "switch"', personaQuestionStart);
 const personaQuestionSource = personaQuestionStart >= 0
   ? indexSource.slice(personaQuestionStart, personaQuestionEnd > personaQuestionStart ? personaQuestionEnd : personaQuestionStart + 1200) : "";
 personaQuestionSource.includes("personalizePersonaKeyboard(card.keyboard, env)")
