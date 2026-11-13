@@ -1686,12 +1686,18 @@ const PERSONAL_BUTTONS = [
   {id:"group_settings",label:"👥 تنظیمات گروه"},
   {id:"close",label:"✖️ بستن منو"},
 ];
+const PERSONA_BUTTONS = [
+  {id:"nova",label:"🤖 شاکی"},{id:"lilith",label:"🖤 لیلیت"},
+  {id:"cypher",label:"👽 سایفر"},{id:"victoria",label:"👑 ویکتوریا"},
+  {id:"aria",label:"✨ آریا"},{id:"jax",label:"⚡ جکس"},
+];
 let personalizationState = null;
 function renderPersonalButtons(custom){
   const labels = custom.labels || {}, hidden = new Set(custom.hidden || []);
+  const personaLabels = custom.personaLabels || {};
   const order = custom.order || PERSONAL_BUTTONS.map(b=>b.id);
   const sorted = [...PERSONAL_BUTTONS].sort((a,b)=>order.indexOf(a.id)-order.indexOf(b.id));
-  $("personalButtons").innerHTML = sorted.map((b,i)=>`
+  const menuHtml = sorted.map((b,i)=>`
     <div class="item" data-personal-id="${b.id}">
       <b>${esc(b.label)}</b>
       <label class="lbl" for="personal-label-${b.id}">عنوان دکمه</label>
@@ -1701,6 +1707,14 @@ function renderPersonalButtons(custom){
         <label class="lbl" style="margin:0">ترتیب <input type="number" data-personal-order min="1" max="12" value="${i+1}" style="width:74px;min-height:34px"></label>
       </div>
     </div>`).join("");
+  const personaHtml = `<div class="item"><b>🎭 دکمه‌های انتخاب شخصیت</b><p class="dim">عنوان دکمه‌های شاکی، لیلیت، سایفر، ویکتوریا، آریا و جکس را هم تغییر بده.</p></div>` +
+    PERSONA_BUTTONS.map(b=>`
+      <div class="item" data-persona-id="${b.id}">
+        <b>${esc(b.label)}</b>
+        <label class="lbl" for="persona-label-${b.id}">عنوان دکمه شخصیت</label>
+        <input id="persona-label-${b.id}" data-persona-label value="${esc(personaLabels[b.id]||"")}" maxlength="48" placeholder="${esc(b.label)}">
+      </div>`).join("");
+  $("personalButtons").innerHTML = menuHtml + personaHtml;
 }
 async function loadPersonalization(){
   return section($("personalButtons"),async()=>{
@@ -1713,7 +1727,7 @@ async function loadPersonalization(){
   },{rows:2});
 }
 function readPersonalizationForm(){
-  const labels={}, hidden=[], order=[];
+  const labels={}, personaLabels={}, hidden=[], order=[];
   document.querySelectorAll("[data-personal-id]").forEach(row=>{
     const id=row.dataset.personalId;
     const label=row.querySelector("[data-personal-label]").value.trim();
@@ -1721,8 +1735,13 @@ function readPersonalizationForm(){
     if(!row.querySelector("[data-personal-visible]").checked) hidden.push(id);
     order.push({id,position:Number(row.querySelector("[data-personal-order]").value)||99});
   });
+  document.querySelectorAll("[data-persona-id]").forEach(row=>{
+    const id=row.dataset.personaId;
+    const label=row.querySelector("[data-persona-label]").value.trim();
+    if(label) personaLabels[id]=label;
+  });
   order.sort((a,b)=>a.position-b.position);
-  return {welcomeTextFa:$("personalWelcomeFa").value.slice(0,1200),welcomeTextEn:$("personalWelcomeEn").value.slice(0,1200),labels,hidden,order:order.map(x=>x.id)};
+  return {welcomeTextFa:$("personalWelcomeFa").value.slice(0,1200),welcomeTextEn:$("personalWelcomeEn").value.slice(0,1200),labels,personaLabels,hidden,order:order.map(x=>x.id)};
 }
 function updatePersonalPreview(){
   const custom=readPersonalizationForm();
@@ -1732,7 +1751,8 @@ function updatePersonalPreview(){
     const item=PERSONAL_BUTTONS.find(b=>b.id===id);
     return item ? "• "+(labels[id]||item.label) : "";
   }).filter(Boolean);
-  $("personalPreview").textContent=welcome.replace(/\{name\}/g,"مالک")+"\n\n"+menu.join("\n");
+  const personaPreview=PERSONA_BUTTONS.map(b=>"• "+(custom.personaLabels?.[b.id]||b.label)).join("\n");
+  $("personalPreview").textContent=welcome.replace(/\{name\}/g,"مالک")+"\n\n"+menu.join("\n")+"\n\n🎭 شخصیت‌ها\n"+personaPreview;
 }
 async function savePersonalization(){
   try{
