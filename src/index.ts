@@ -26118,6 +26118,38 @@ if (data === "open_language") {
     return;
   }
 
+  if (data === "gset_help") {
+    if (chat.type === "private" || !await isUserAdmin(from.id, chat.id)) {
+      await answerCb(cb.id, session.language === "fa" ? "🚫 فقط مدیران گروه مجاز هستند." : "🚫 Group administrators only.", true);
+      return;
+    }
+    await answerCb(cb.id);
+    const fa = session.language === "fa";
+    const guide = fa
+      ? "📖 راهنمای مدیریت گروه AI SHAKI\\n\\n"
+        + "👤 مدیریت اعضا (روی پیام کاربر ریپلای کن):\\n"
+        + "/mute 10 — سکوت ۱۰ دقیقه‌ای؛ /mute — سکوت بدون زمان\\n"
+        + "/unmute — رفع سکوت\\n"
+        + "/ban — مسدودکردن تعامل کاربر با شاکی در همین گروه\\n"
+        + "/unban — رفع مسدودی تعامل\\n"
+        + "/kick — اخراج کوتاه‌مدت و اجازه ورود مجدد\\n"
+        + "همچنین می‌توانی از شاکی بخواهی کاربر را سکوت یا اخراج کند؛ قبل از اجرا دسترسی ادمین بررسی می‌شود.\\n\\n"
+        + "🛡 تنظیمات فعلی پنل:\\n"
+        + "• پاسخ‌گویی ربات: روشن/خاموش\\n"
+        + "• کارهای سنگین: اجازه/ممنوعیت وب‌اپ و کدنویسی طولانی\\n"
+        + "• ضدلینک: حذف پیام‌های دارای لینک طبق فیلتر فعلی\\n\\n"
+        + "⚠️ ربات باید ادمین گروه باشد و مجوز محدودکردن اعضا و حذف پیام را داشته باشد. بعضی عملیات مثل سکوت و حذف پیام بدون مجوز تلگرام انجام نمی‌شوند.\\n"
+        + "ℹ️ قابلیت‌هایی که در این راهنما نیامده‌اند هنوز در پنل فعال نیستند؛ دکمه‌ها فقط وضعیت واقعی قابلیت‌های موجود را نشان می‌دهند."
+      : "📖 AI SHAKI group management guide\\n\\n"
+        + "Reply to a member's message: /mute 10, /mute, /unmute, /ban, /unban, /kick.\\n"
+        + "Current panel controls: bot replies, heavy tasks, and anti-link.\\n"
+        + "The bot needs Telegram admin rights for restrictions and deleting messages. Unsupported features are not shown as active.";
+    await editMessageText(chat.id, message.message_id, guide, {
+      reply_markup: JSON.stringify({ inline_keyboard: [[btn(fa ? "🔙 بازگشت به مدیریت گروه" : "🔙 Back to group settings", "group_settings")]] })
+    });
+    return;
+  }
+
   if (data === "gset_enabled") {
     if (chat.type === "private" || !await isUserAdmin(from.id, chat.id)) {
       await answerCb(cb.id, session.language === "fa" ? "🚫 فقط مدیران گروه مجاز هستند." : "🚫 Only group administrators can change this.", true);
@@ -26556,6 +26588,7 @@ async function showGroupSettings(chatId: number, msgId: number, session: ChatSes
     [btn(`🟢 ${fa ? "پاسخ‌گویی ربات" : "Bot replies"}: ${gcfg.enabled ? (fa ? "فعال" : "On") : (fa ? "غیرفعال" : "Off")}`, "gset_enabled")],
     [btn(`🛠️ ${fa ? "کارهای سنگین" : "Heavy Tasks"}: ${gcfg.allowHeavy ? (fa ? "مجاز" : "On") : (fa ? "غیرمجاز" : "Off")}`, "gset_heavy")],
     [btn(`🔗 ${fa ? "ضدلینک" : "Anti-link"}: ${gcfg.antiLinks ? (fa ? "فعال" : "On") : (fa ? "خاموش" : "Off")}`, "gset_antilinks")],
+    [btn(fa ? "📖 راهنمای مدیریت گروه" : "📖 Group management guide", "gset_help")],
     [btn(fa ? "🔙 بازگشت" : "🔙 Back", "home:open")]
   ]};
   await editMessageText(chatId, msgId, text, { reply_markup: JSON.stringify(validateKeyboard(kb)) });
