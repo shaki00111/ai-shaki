@@ -166,9 +166,15 @@ toolSource.includes('await releaseReservedUsage("voice_sent")')
 const ttsStart = indexSource.indexOf("async function handleTTS");
 const ttsEnd = indexSource.indexOf("\nasync function handleOCR", ttsStart);
 const ttsSource = ttsStart >= 0 && ttsEnd > ttsStart ? indexSource.slice(ttsStart, ttsEnd) : "";
-ttsSource.includes('if (session.type === "private") await saveSession(session, env);')
-  ? ok("private /tts usage is persisted after successful delivery")
-  : fail("private /tts usage must be persisted after successful delivery");
+const reservationStart = indexSource.indexOf("async function reserveDailyUsageWithUser");
+const reservationEnd = indexSource.indexOf("\nfunction formatConfigChangeSummary", reservationStart);
+const reservationSource = reservationStart >= 0 && reservationEnd > reservationStart
+  ? indexSource.slice(reservationStart, reservationEnd) : "";
+ttsSource.includes('reserveDailyUsageWithUser(session, from, "voice_sent", env)') &&
+reservationSource.includes("incrementUsagePrivate(target, type);") &&
+reservationSource.includes("await saveSession(target, env);")
+  ? ok("private /tts reserves and persists voice usage before synthesis")
+  : fail("private /tts must reserve and persist voice usage before synthesis");
 
 // ── Incoming voice quota accounting ────────────────────────────────────────
 console.log("\n[8] Incoming voice quota accounting");
