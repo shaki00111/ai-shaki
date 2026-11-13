@@ -6466,37 +6466,49 @@ async function executeToolForWebApp(call: GeminiFunctionCall, user: TgUser, env:
       }
       case "generate_image": {
         setMiniAppProgress(user.id, lang === "fa" ? "🎨 در حال رندر تصویر..." : "🎨 Rendering image...");
-        const limitCheck = await checkDailyLimitWithUser(session, user, "image", env);
-        if (!limitCheck.allowed) return { response: { success: false, error: "limit_reached", message: limitCheck.message } };
-
-        let prompt = String(call.args.prompt ?? "").trim();
-        prompt = await enhanceImagePrompt(prompt, env);
-        for (const model of cfg.AI_IMAGE_MODELS) {
-          if(turnToken?.cancelled)break;
-          const img = await withTimeout(generateImageCF(prompt, model, env), 45_000, "timeout").catch(() => null);
-          if (img) {
-            if(turnToken?.cancelled)return {response:{success:false,error:"CANCELLED_BY_USER"}};
-            const url = await registerAndSaveMedia(`img_${generateId()}`, bytesToArrayBuffer(img), user.id, user.first_name, env, prompt);
-            if (!url) return { response: { success: false, error: "storage_failed" } };
-            await incrementUsageWithUser(session, user, "image", env);
-            return { response: { success: true, url, prompt, note: "..." }, imageUrl: url };
+        const reservation = await reserveDailyUsageWithUser(session, user, "image", env);
+        if (!reservation.allowed) return { response: { success: false, error: "limit_reached", message: reservation.message } };
+        let delivered = false;
+        try {
+          let prompt = String(call.args.prompt ?? "").trim();
+          if (!prompt) return { response: { success: false, error: "empty_prompt" } };
+          prompt = await enhanceImagePrompt(prompt, env);
+          for (const model of cfg.AI_IMAGE_MODELS) {
+            if (turnToken?.cancelled) break;
+            const img = await withTimeout(generateImageCF(prompt, model, env), 45_000, "timeout").catch(() => null);
+            if (img) {
+              if (turnToken?.cancelled) return { response: { success: false, error: "CANCELLED_BY_USER" } };
+              const url = await registerAndSaveMedia(`img_${generateId()}`, bytesToArrayBuffer(img), user.id, user.first_name, env, prompt);
+              if (!url) return { response: { success: false, error: "storage_failed" } };
+              delivered = true;
+              return { response: { success: true, url, prompt, note: "..." }, imageUrl: url };
+            }
           }
+          return { response: { success: false } };
+        } finally {
+          if (!delivered) await reservation.release().catch(() => {});
         }
-        return { response: { success: false } };
       }
       case "voice_response": {
         setMiniAppProgress(user.id, lang === "fa" ? "🎙️ در حال ساخت صدا..." : "🎙️ Synthesizing voice...");
-        const limitCheck = await checkDailyLimitWithUser(session, user, "voice_sent", env);
-        if (!limitCheck.allowed) return { response: { success: false, error: "limit_reached", message: limitCheck.message } };
-        const audio = await synthesizeVoice(String(call.args.text ?? ""), env);
-        if (!audio) return { response: { success: false } };
-        if(turnToken?.cancelled)return {response:{success:false,error:"CANCELLED_BY_USER"}};
-        const id = `voice_${generateId()}`;
-        const put = await putMediaBlob(env, id, bytesToArrayBuffer(audio), "audio/mpeg");
-        if (!put.ok) return { response: { success: false, error: "storage_failed" } };
-        const url = `${requestOrigin}/app/${id}.mp3`;
-        await incrementUsageWithUser(session, user, "voice_sent", env);
-        return { response: { success: true, url }, audioUrl: url };
+        const reservation = await reserveDailyUsageWithUser(session, user, "voice_sent", env);
+        if (!reservation.allowed) return { response: { success: false, error: "limit_reached", message: reservation.message } };
+        let delivered = false;
+        try {
+          const spokenText = String(call.args.text ?? "").trim();
+          if (!spokenText) return { response: { success: false, error: "empty_text" } };
+          const audio = await synthesizeVoice(spokenText, env);
+          if (!audio) return { response: { success: false } };
+          if (turnToken?.cancelled) return { response: { success: false, error: "CANCELLED_BY_USER" } };
+          const id = `voice_${generateId()}`;
+          const put = await putMediaBlob(env, id, bytesToArrayBuffer(audio), "audio/mpeg");
+          if (!put.ok) return { response: { success: false, error: "storage_failed" } };
+          const url = `${requestOrigin}/app/${id}.mp3`;
+          delivered = true;
+          return { response: { success: true, url }, audioUrl: url };
+        } finally {
+          if (!delivered) await reservation.release().catch(() => {});
+        }
       }
         
       case "search_images": {
@@ -21309,10 +21321,17 @@ async function handleImg(msg: TgMessage, args: string[], env: Env): Promise<void
   const procMsg = await sendMessage(chat.id, statusText, { reply_to_message_id: msg.message_id });
 
   let success = 0;
+  let quotaMessage = "";
   const errors: string[] = [];
 
   for (let i = 0; i < cfg.AI_IMAGE_MODELS.length; i++) {
     const model = cfg.AI_IMAGE_MODELS[i];
+    const reservation = await reserveDailyUsageWithUser(session, from, "image", env);
+    if (!reservation.allowed) {
+      quotaMessage = reservation.message ?? t(lang, "img_limit");
+      break;
+    }
+    let reservationKept = false;
     await editMessageText(chat.id, procMsg.message_id,
       `${statusText}\n\n🎨 ${getShortModelName(model)} (${i + 1}/${cfg.AI_IMAGE_MODELS.length})...`,
     ).catch(() => {});
@@ -21333,17 +21352,20 @@ async function handleImg(msg: TgMessage, args: string[], env: Env): Promise<void
 
       const caption = lang === "fa" ? "بفرما، اینم عکسی که خواستی 🖤" : "Here’s the image you asked for 🖤";
   
-      await sendImageFile(chat.id, img, caption, { 
+      await sendImageFile(chat.id, img, caption, {
         reply_to_message_id: msg.message_id,
         parse_mode: "HTML"
       }, `nova_img_${generateId()}.png`);
       success++;
+      reservationKept = true;
     } catch (e) {
       const m = e instanceof Error ? e.message : String(e);
       errors.push(`• **${getShortModelName(model)}**: ${m.includes("Timeout") ? "⏱️" : "❌"} ${m.substring(0, 40)}`);
       if (m.includes("FLAGGED_PROMPT")) {
         break;
       }
+    } finally {
+      if (!reservationKept) await reservation.release().catch(() => {});
     }
 
     if (Date.now() - msg.date * 1000 > 27_000) break;
@@ -21352,6 +21374,7 @@ async function handleImg(msg: TgMessage, args: string[], env: Env): Promise<void
   let final = success > 0 ? t(lang, "img_success") : t(lang, "img_failed");
   if (translated) final += `\n\nPrompt: \`${prompt}\``;
 
+  if (quotaMessage) final += `\n\n${quotaMessage}`;
   const hasFlagged = errors.some(err => err.includes("FLAGGED_PROMPT"));
   const isOwner = from.id === cfg.BOT_OWNER_ID;
   if (hasFlagged) {
@@ -21373,7 +21396,6 @@ async function handleImg(msg: TgMessage, args: string[], env: Env): Promise<void
   await editMessageText(chat.id, procMsg.message_id, final);
 
   if (success > 0) {
-    await incrementUsageWithUser(session, from, "image", env);
     session.statistics.totalMessages++;
     saveSession(session, env).catch(() => {});
   }
