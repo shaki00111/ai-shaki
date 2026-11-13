@@ -8,7 +8,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
-    "test": "node --experimental-loader ./tests/ts-resolve.mjs --test tests/core.test.mjs tests/engines.test.mjs tests/regression.test.mjs && node tests/source-regression.mjs && node --experimental-loader ./tests/ts-resolve.mjs --test tests/personalization.test.mjs",
+    "test": "node --experimental-loader ./tests/ts-resolve.mjs --test tests/core.test.mjs tests/engines.test.mjs tests/regression.test.mjs tests/ui-personalization.test.mjs && node tests/source-regression.mjs && node --experimental-loader ./tests/ts-resolve.mjs --test tests/personalization.test.mjs",
     "type-check": "tsc --noEmit",
     "validate": "npm run type-check && npm test && wrangler deploy --dry-run --outdir=.wrangler/dry",
     "cf-types": "wrangler types",
