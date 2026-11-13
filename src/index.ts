@@ -4942,7 +4942,8 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const action = String(body.action ?? "save");
     if (action === "test") {
-      const sample = ownerPersonalizationWelcome(current, "fa", "⚡ AI SHAKI\nپیش‌نمایش پیام خوش‌آمدگویی", "مالک");
+      const testSettings = body.customization ? normalizeOwnerPersonalization(body.customization) : current;
+      const sample = ownerPersonalizationWelcome(testSettings, "fa", "⚡ AI SHAKI\nپیش‌نمایش پیام خوش‌آمدگویی", "مالک");
       try {
         await sendMessage(user.id, sample, { parse_mode: "HTML" });
         return json({ ok: true, sent: true });
