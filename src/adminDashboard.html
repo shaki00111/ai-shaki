@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=0.88,minimum-scale=0.7,maximum-scale=2,user-scalable=yes,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=3,user-scalable=yes,viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <meta name="robots" content="noindex,nofollow">
 <title>AI SHAKI — مرکز کنترل</title>
@@ -841,6 +841,32 @@ pre,code,.mono{overflow-wrap:anywhere;word-break:break-word}
  .vip-limit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 }
 #panel-vip [hidden]{display:none!important}
+</style>
+
+<style id="shaki-telegram-touch-layout-fix">
+/* Telegram Android can expose a desktop-like CSS viewport even on a narrow
+   phone. Detect touch input as well as width so the desktop sidebar can never
+   reserve a third of the phone screen. */
+@media (pointer:coarse), (max-width:1024px){
+  #app,.body,.main{width:100%!important;max-width:100%!important;min-width:0!important}
+  .sidebar{display:none!important}
+  .hamb{display:inline-flex!important}
+  .body{display:flex!important;flex:1 1 auto!important;overflow:hidden!important}
+  .main{display:block!important;flex:1 1 0%!important;min-height:0!important;overflow-x:hidden!important;overflow-y:auto!important}
+  .main .panel.active{width:100%!important;max-width:100%!important;min-width:0!important}
+  #mobileQuickNav{display:grid!important}
+}
+@media (pointer:coarse){
+  html,body{overflow-x:clip!important}
+  .topbar{width:100%!important;max-width:100%!important}
+  .main{padding-inline:10px!important}
+  .main .panel.active>*{width:auto;max-width:100%;min-width:0}
+  .card,.section-body,.section-head,.toolbar,.list,.metrics,.provider-row{max-width:100%!important;min-width:0!important}
+  .provider-info{flex:1 1 0;min-width:0}
+  .provider-info b,.provider-info small{overflow-wrap:anywhere;word-break:break-word}
+  table{min-width:0}
+  .tablewrap{overflow-x:auto!important}
+}
 </style>
 </head>
 <body>
