@@ -14,15 +14,22 @@ export const OWNER_MENU_ITEMS = [
 ] as const;
 
 export type OwnerMenuItemId = typeof OWNER_MENU_ITEMS[number]["id"];
+export const PERSONA_MENU_ITEMS = [
+  { id: "nova", fa: "شاکی" }, { id: "lilith", fa: "لیلیت" },
+  { id: "cypher", fa: "سایفر" }, { id: "victoria", fa: "ویکتوریا" },
+  { id: "aria", fa: "آریا" }, { id: "jax", fa: "جکس" },
+] as const;
+export type PersonaMenuItemId = typeof PERSONA_MENU_ITEMS[number]["id"];
 export interface OwnerPersonalization {
   labels: Partial<Record<OwnerMenuItemId, string>>;
+  personaLabels: Partial<Record<PersonaMenuItemId, string>>;
   hidden: OwnerMenuItemId[];
   order: OwnerMenuItemId[];
   welcomeTextFa: string;
   welcomeTextEn: string;
 }
 export const DEFAULT_OWNER_PERSONALIZATION: OwnerPersonalization = {
-  labels: {}, hidden: [], order: OWNER_MENU_ITEMS.map(item => item.id), welcomeTextFa: "", welcomeTextEn: "",
+  labels: {}, personaLabels: {}, hidden: [], order: OWNER_MENU_ITEMS.map(item => item.id), welcomeTextFa: "", welcomeTextEn: "",
 };
 const ITEM_IDS = new Set<string>(OWNER_MENU_ITEMS.map(item => item.id));
 const REQUIRED_VISIBLE = new Set<string>(["personas", "close"]);
@@ -36,6 +43,13 @@ export function normalizeOwnerPersonalization(input: unknown): OwnerPersonalizat
     const clean = value.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 40);
     if (clean) labels[key as OwnerMenuItemId] = clean;
   }
+  const rawPersonaLabels = raw.personaLabels && typeof raw.personaLabels === "object" ? raw.personaLabels as Record<string, unknown> : {};
+  const personaLabels: OwnerPersonalization["personaLabels"] = {};
+  for (const [key, value] of Object.entries(rawPersonaLabels)) {
+    if (!PERSONA_MENU_ITEMS.some(item => item.id === key) || typeof value !== "string") continue;
+    const clean = value.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 48);
+    if (clean) personaLabels[key as PersonaMenuItemId] = clean;
+  }
   const hidden = Array.isArray(raw.hidden)
     ? [...new Set(raw.hidden.filter((id): id is OwnerMenuItemId =>
         typeof id === "string" && ITEM_IDS.has(id) && !REQUIRED_VISIBLE.has(id)))]
@@ -46,7 +60,7 @@ export function normalizeOwnerPersonalization(input: unknown): OwnerPersonalizat
   const order = [...new Set(requestedOrder)];
   for (const item of OWNER_MENU_ITEMS) if (!order.includes(item.id)) order.push(item.id);
   return {
-    labels, hidden, order,
+    labels, personaLabels, hidden, order,
     welcomeTextFa: typeof raw.welcomeTextFa === "string" ? raw.welcomeTextFa.slice(0, 1200) : "",
     welcomeTextEn: typeof raw.welcomeTextEn === "string" ? raw.welcomeTextEn.slice(0, 1200) : "",
   };
@@ -95,4 +109,19 @@ export function ownerPersonalizationWelcome(input: unknown, language: string, fa
   if (!configured.trim()) return fallback;
   const escape = (value: string) => value.replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]!));
   return escape(configured).replace(/\{name\}/g, escape(name));
+}
+
+/** Rename persona picker buttons without changing their callback targets. */
+export function applyOwnerPersonaLabels<T extends { text: string; callback_data?: string }>(
+  keyboard: { inline_keyboard: T[][] }, input: unknown
+): { inline_keyboard: T[][] } {
+  const settings = normalizeOwnerPersonalization(input);
+  return {
+    inline_keyboard: keyboard.inline_keyboard.map(row => row.map(button => {
+      const match = button.callback_data?.match(/^persona_select_(nova|lilith|cypher|victoria|aria|jax)$/);
+      if (!match) return button;
+      const label = settings.personaLabels[match[1] as PersonaMenuItemId];
+      return label ? { ...button, text: label } as T : button;
+    })),
+  };
 }
