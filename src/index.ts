@@ -5354,7 +5354,9 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     const q = url.searchParams.get("q")?.trim() || null; const rawSort = url.searchParams.get("sort") ?? "new";
     const sort = (rawSort === "active" || rawSort === "messages" ? rawSort : "new") as UserSortKey;
     const limit = Math.min(50, Math.max(5, Number(url.searchParams.get("limit") ?? 20) || 20));
-    return json({ ok: true, ...(await queryUsersCursor(env, { search: q, sortBy: sort, limit, cursor: url.searchParams.get("cursor"), last: url.searchParams.get("last") === "1" })) });
+    const result = await queryUsersCursor(env, { search: q, sortBy: sort, limit, cursor: url.searchParams.get("cursor"), last: url.searchParams.get("last") === "1" });
+    if ("error" in result) return json({ ok: false, error: result.error, message: "فهرست کاربران از پایگاه داده خوانده نشد؛ لطفاً دوباره تلاش کنید." }, 503);
+    return json({ ok: true, ...result });
   }
   const memMatch = path.match(/^users\/(\-?\d+)\/memory$/);
   if (request.method === "GET" && memMatch) {
@@ -14726,6 +14728,14 @@ case "generate_image": {
         return { name: call.name, response: { success: false, error: "Empty prompt" } };
     }
     const imgIndex = imageCalls.indexOf(call);
+    if (isVip) {
+        const vipImageLimit = await checkDailyLimitWithUser(session, sender, "image", env);
+        if (!vipImageLimit.allowed) {
+            await taskMgr?.failTask(taskKey, lang === "fa" ? "سهمیه تصویر VIP تمام شده" : "VIP image quota reached");
+            await sendMessage(chatId, vipImageLimit.message ?? (lang === "fa" ? "⚠️ سهمیه تصویر VIP شما تمام شده." : "⚠️ Your VIP image quota is exhausted."), { reply_to_message_id: replyTo });
+            return { name: call.name, response: { success: false, error: "VIP_IMAGE_LIMIT_REACHED", abort_chain: true, user_notified: true } };
+        }
+    }
     if (imgIndex >= allowedImageCount) {
         await taskMgr?.failTask(taskKey, lang === "fa" ? "محدودیت روزانه تمام شد" : "Daily limit reached");
         await sendMessage(chatId, t(lang, "img_limit"), { reply_to_message_id: replyTo });
@@ -14793,6 +14803,7 @@ case "generate_image": {
                   { artifact: { kind: "image", label: finalPrompt, ref: hostedImageUrl || imgRef || undefined } },
                 );
                 imageSuccess = true;
+                if (isVip) await incrementUsageWithUser(session, sender, "image", env);
                 markUserActivity(session, "image");
                 break;
             }
@@ -15732,6 +15743,13 @@ case "host_web_app": {
                   return { name: call.name, response: { success: false, error: "Empty text — no speech was produced and nothing was sent. Answer in text instead." } };
                 }
                 const voiceIndex = voiceCalls.indexOf(call);
+                if (isVip) {
+                  const vipVoiceLimit = await checkDailyLimitWithUser(session, sender, "voice_sent", env);
+                  if (!vipVoiceLimit.allowed) {
+                    await sendMessage(chatId, vipVoiceLimit.message ?? (lang === "fa" ? "⚠️ سهمیه ویس VIP شما تمام شده." : "⚠️ Your VIP voice quota is exhausted."), { reply_to_message_id: replyTo });
+                    return { name: call.name, response: { success: false, error: "VIP_VOICE_LIMIT_REACHED", abort_chain: true, user_notified: true } };
+                  }
+                }
                 if (voiceIndex >= allowedVoiceCount) {
                   await sendMessage(
                     chatId,
@@ -15747,6 +15765,7 @@ case "host_web_app": {
                   // Shared direct sender: no media KV write, no duplicate synthesis code.
                   const sent = await sendVoiceResponse(chatId, replyTo, text, env);
                   if (sent) {
+                    if (isVip) await incrementUsageWithUser(session, sender, "voice_sent", env);
                     return {
                       name: call.name,
                       response: {
@@ -16906,6 +16925,8 @@ async function incrementUsageWithUser(
     });
   } else {
     incrementUsagePrivate(session, type);
+    // Persist private usage too; otherwise counters vanish when the Worker isolate is recycled.
+    await saveSession(session, env);
   }
 }
 
@@ -19045,7 +19066,10 @@ async function queryUsersCursor(env: Env, opts: { sortBy?: UserSortKey; search?:
     const lastRow = rows.at(-1);
     const nextCursor = lastRow ? encodeUserCursor({ sortValue: Number(lastRow[sortColumn as keyof UserSummaryRow] ?? 0), userId: lastRow.user_id }) : null;
     return { users: rows.map(rowToUserStats), nextCursor, hasNext };
-  } catch (e) { logger.warn("queryUsersCursor failed", e); return { users: [], nextCursor: null, hasNext: false }; }
+  } catch (e) {
+    logger.error("queryUsersCursor failed", e);
+    return { users: [], nextCursor: null, hasNext: false, error: "users_query_failed" as const };
+  }
 }
 
 async function patchSessionJsonField(env: Env, userId: number, path: string, value: unknown): Promise<boolean> {
