@@ -287,6 +287,13 @@ indexSource.includes('gset_antilinks') &&
 indexSource.includes('groupConfig?.antiLinks && containsLink')
   ? ok("group admins can enable anti-link and incoming group links are moderated")
   : fail("group anti-link toggle and enforcement are incomplete");
+indexSource.includes('const groupConfig = await getGroupConfig(msg.chat.id, env).catch(() => null)') &&
+indexSource.includes('if (groupConfig?.antiLinks && containsLink')
+  ? ok("anti-link storage failures do not crash the update dispatcher")
+  : fail("anti-link checks must fail safely when group settings storage is unavailable");
+messageHandler.includes('const moderationCommand = ["/ban", "/unban", "/kick", "/mute", "/unmute"].includes(commandProbe)')
+  ? ok("admins can still run moderation commands when ordinary group replies are paused")
+  : fail("paused groups must keep authorized moderation commands available");
 const moderationStart = indexSource.indexOf("async function handleGroupModerationCommand");
 const moderationEnd = indexSource.indexOf("\n// SECTION: MESSAGE HANDLERS", moderationStart);
 const moderationSource = moderationStart >= 0 && moderationEnd > moderationStart
