@@ -4960,6 +4960,10 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     if (action === "test") {
       const testSettings = body.customization ? normalizeOwnerPersonalization(body.customization) : current;
       const sample = ownerPersonalizationWelcome(testSettings, "fa", "⚡ AI SHAKI\nپیش‌نمایش پیام خوش‌آمدگویی", "مالک");
+      const helpSample = ownerPersonalizationText(testSettings, "fa", "help", "", { name: "مالک" });
+      const quotaSample = ownerPersonalizationText(testSettings, "fa", "quota", "", {
+        limit: 50, label: "ویس", contact: cfg.VIP_CONTACT, vip: "VIP",
+      });
       try {
         const ownerSession = await getOrCreateSession({ id: user.id, type: "private" }, user, env);
         const testKeyboard = await buildHomeKeyboard(ownerSession, user.id, env, testSettings);
@@ -4967,7 +4971,9 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
           parse_mode: "HTML",
           reply_markup: JSON.stringify(validateKeyboard(testKeyboard)),
         });
-        return json({ ok: true, sent: true, keyboard: true });
+        if (helpSample) await sendMessage(user.id, helpSample);
+        if (quotaSample) await sendMessage(user.id, quotaSample);
+        return json({ ok: true, sent: true, keyboard: true, help: Boolean(helpSample), quota: Boolean(quotaSample) });
       } catch (e) {
         logger.warn("[personalization] owner test-send failed", e);
         return json({ ok: false, error: "test_send_failed" }, 502);
@@ -21105,9 +21111,11 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
   const session = await getOrCreateSession(chat, from, env);
   const lang = session.language;
   const isOwner = from.id === cfg.BOT_OWNER_ID;
+  const ownerUi = await getOwnerPersonalization(env);
+  const configuredHelp = ownerPersonalizationText(ownerUi, lang, "help", "", { name: from.first_name });
 
   if (chat.type !== "private") {
-    const groupHelp = lang === "fa"
+    let groupHelp = lang === "fa"
       ? `📖 *راهنمای شاکی در گروه*\n\n` +
         `• \`/start\` — منوی شخصی شما در این گروه\n` +
         `• \`/new\` — پاک کردن حافظه‌ی گفتگوی شما در این گروه\n` +
@@ -21122,6 +21130,7 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
         (lang === "ar"
           ? `💡 يمكنك استخدام \`@${BOT_INFO?.username ?? "SHAKI"} search: …\` دون إضافة البوت.`
           : `💡 Without adding SHAKI, type \`@${BOT_INFO?.username ?? "SHAKI"} search: topic\` right here to use inline mode.`);
+    if (configuredHelp) groupHelp = configuredHelp;
     const kb: InlineKeyboard = { inline_keyboard: await isUserAdmin(from.id, chat.id)
       ? [[btn(lang === "fa" ? "👥 تنظیمات گروه" : "👥 Group Settings", "group_settings")]]
       : [] };
@@ -21223,6 +21232,7 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
     }
   }
 
+  if (configuredHelp) text = configuredHelp;
   const kb: InlineKeyboard = { inline_keyboard: [
     ...(isOwner ? [[adminPanelButton("👑 Admin Panel", chat.type === "private")]] : []),
     [btn(lang === "fa" ? "🔙 بازگشت" : "🔙 Back", "home:open")],
