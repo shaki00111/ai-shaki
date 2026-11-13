@@ -20,9 +20,14 @@ export interface OwnerPersonalization {
   order: OwnerMenuItemId[];
   welcomeTextFa: string;
   welcomeTextEn: string;
+  helpTextFa: string;
+  helpTextEn: string;
+  quotaTextFa: string;
+  quotaTextEn: string;
 }
 export const DEFAULT_OWNER_PERSONALIZATION: OwnerPersonalization = {
-  labels: {}, hidden: [], order: OWNER_MENU_ITEMS.map(item => item.id), welcomeTextFa: "", welcomeTextEn: "",
+  labels: {}, hidden: [], order: OWNER_MENU_ITEMS.map(item => item.id),
+  welcomeTextFa: "", welcomeTextEn: "", helpTextFa: "", helpTextEn: "", quotaTextFa: "", quotaTextEn: "",
 };
 const ITEM_IDS = new Set<string>(OWNER_MENU_ITEMS.map(item => item.id));
 const REQUIRED_VISIBLE = new Set<string>(["personas", "close"]);
@@ -49,7 +54,28 @@ export function normalizeOwnerPersonalization(input: unknown): OwnerPersonalizat
     labels, hidden, order,
     welcomeTextFa: typeof raw.welcomeTextFa === "string" ? raw.welcomeTextFa.slice(0, 1200) : "",
     welcomeTextEn: typeof raw.welcomeTextEn === "string" ? raw.welcomeTextEn.slice(0, 1200) : "",
+    helpTextFa: typeof raw.helpTextFa === "string" ? raw.helpTextFa.slice(0, 1200) : "",
+    helpTextEn: typeof raw.helpTextEn === "string" ? raw.helpTextEn.slice(0, 1200) : "",
+    quotaTextFa: typeof raw.quotaTextFa === "string" ? raw.quotaTextFa.slice(0, 1200) : "",
+    quotaTextEn: typeof raw.quotaTextEn === "string" ? raw.quotaTextEn.slice(0, 1200) : "",
   };
+}
+
+export function ownerPersonalizationText(
+  input: unknown,
+  language: string,
+  kind: "help" | "quota",
+  fallback: string,
+  variables: Record<string, string | number> = {},
+): string {
+  const settings = normalizeOwnerPersonalization(input);
+  const configured = kind === "help"
+    ? (language === "fa" ? settings.helpTextFa : settings.helpTextEn)
+    : (language === "fa" ? settings.quotaTextFa : settings.quotaTextEn);
+  if (!configured.trim()) return fallback;
+  return configured.replace(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g, (match, key: string) =>
+    Object.prototype.hasOwnProperty.call(variables, key) ? String(variables[key]) : match
+  );
 }
 
 /** Apply presentation only; callback_data, URLs and web-app targets stay untouched. */
