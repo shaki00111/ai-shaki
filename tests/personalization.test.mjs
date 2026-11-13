@@ -47,3 +47,17 @@ test("welcome text is safely escaped and supports the name placeholder", async (
   assert.equal(value, "سلام &lt;مالک&gt; &lt;script&gt;");
   assert.equal(ownerPersonalizationWelcome({}, "fa", "fallback", "A"), "fallback");
 });
+
+test("owner customization includes persona buttons such as Lilith and Jax", () => {
+  const source = { inline_keyboard: [[
+    { text: "Lilith default", callback_data: "persona_select_lilith" },
+    { text: "Jax default", callback_data: "persona_select_jax" },
+  ]] };
+  const result = applyOwnerMenuPersonalization(source, {
+    labels: { persona_lilith: "🌙 لیلیت دلخواه", persona_jax: "⚡ جکس دلخواه" },
+    order: ["persona_jax", "persona_lilith"],
+  });
+  const flat = result.inline_keyboard.flat();
+  assert.deepEqual(flat.map(button => button.text), ["⚡ جکس دلخواه", "🌙 لیلیت دلخواه"]);
+  assert.deepEqual(flat.map(button => button.callback_data), ["persona_select_jax", "persona_select_lilith"]);
+});
