@@ -63,7 +63,7 @@ export function applyOwnerMenuPersonalization<T extends {
     const id = idFor(button);
     if (!id) return { button, id: null as OwnerMenuItemId | null };
     const item = OWNER_MENU_ITEMS.find(entry => entry.id === id)!;
-    return { id, button: { ...button, text: settings.labels[id] ?? item.fa } as T };
+    return { id, button: { ...button, text: settings.labels[id] ?? button.text } as T };
   }).filter(entry => !entry.id || !settings.hidden.includes(entry.id));
   buttons.sort((a, b) => {
     if (a.id === "close") return 1;
