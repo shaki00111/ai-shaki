@@ -21087,7 +21087,8 @@ async function claimReferralReward(referred: TgUser, inviterId: number, session:
     const inserted = await env.DB.prepare(
       "INSERT OR IGNORE INTO shaki_referral_claims (referred_user_id, inviter_user_id, created_at) VALUES (?, ?, ?)"
     ).bind(referred.id, inviterId, Date.now()).run();
-    if (Number(inserted.meta?.changes ?? 0) !== 1) return "duplicate";
+    const insertMeta = inserted as unknown as { meta?: { changes?: number } };
+    if (Number(insertMeta.meta?.changes ?? 0) !== 1) return "duplicate";
     await updateMutex.run(`referral-reward:${inviterId}`, async () => {
       const inviter = await getOrCreateSession(
         { id: inviterId, type: "private" },
