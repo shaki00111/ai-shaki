@@ -120,6 +120,32 @@ button.act:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
 body{background-color:#08090d}
 button:focus-visible,a:focus-visible,input:focus-visible{outline-color:#ff8a52}
 
+
+/* SHAKI GLASS LIGHT — low-motion, mobile-first visual refresh */
+:root{
+  --bg:#070912;--bg-1:rgba(17,22,38,.94);--bg-2:rgba(23,30,49,.92);--bg-3:#202943;
+  --border:rgba(153,145,255,.18);--border-2:rgba(170,163,255,.30);
+  --accent:#8b7cff;--accent-2:#54dfd0;--shadow:0 12px 30px rgba(0,0,0,.28);
+}
+body{
+  background:radial-gradient(850px 420px at 90% -10%,rgba(124,111,247,.16),transparent 62%),
+             radial-gradient(700px 360px at 0% 10%,rgba(61,232,200,.07),transparent 60%),var(--bg);
+}
+header.top,.card,.item{
+  background:linear-gradient(145deg,rgba(25,32,53,.94),rgba(12,17,30,.96));
+  border-color:var(--border);box-shadow:var(--shadow);
+}
+header.top{border-color:var(--border-2)}
+.logo{background:linear-gradient(145deg,#8173ff,#4bcfcb);box-shadow:none}
+nav.tabs button{background:rgba(17,22,38,.92);border-color:var(--border)}
+nav.tabs button[aria-selected="true"]{background:linear-gradient(120deg,#7467ed,#4b8fbd);border-color:rgba(173,164,255,.5)}
+.plan.pro,.pill.live{background:rgba(61,232,200,.07)}
+.bar{background:#252d45}.bar i{background:linear-gradient(90deg,#8576ff,#4ed9cb)}
+button,.act{min-height:42px}
+.skeleton{background:linear-gradient(145deg,#171e32,#202943);animation:none!important}
+*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
 </style>
 
 <style id="shaki-brand-skin">
