@@ -978,6 +978,25 @@ pre,code,.mono{overflow-wrap:anywhere;word-break:break-word}
         <div class="detail-hint" id="detailHint">برای دیدن و ویرایش جزئیات، روی نام یک کاربر بزنید — پنل درست زیر همان ردیف باز می‌شود.</div>
       </section>
 
+      <section class="panel" id="panel-forcejoin" role="tabpanel" aria-labelledby="tab-forcejoin">
+        <div class="page-head"><h1>مدیریت عمومی ربات</h1><p>تنظیمات سراسری فقط برای مالک ربات؛ عضویت اجباری کاربران پیوی از این بخش کنترل می‌شود.</p></div>
+        <div class="card"><div class="section-head"><h2>🔒 عضویت اجباری کانال</h2><button class="sm ghost icon-btn" id="fjRefresh" aria-label="تازه‌سازی">↻</button></div>
+          <div class="section-body">
+            <div class="pill" id="fjStatus" aria-live="polite">در حال بررسی…</div>
+            <label class="lbl" for="fjChannel" style="margin-top:var(--s3)">آیدی کانال یا @username</label>
+            <input id="fjChannel" class="ltr" placeholder="@channel یا -1001234567890" autocomplete="off">
+            <p class="dim">ربات باید در کانال ادمین باشد. این تنظیم، استفاده از ربات در پیوی را تا زمان عضویت کاربر محدود می‌کند.</p>
+            <div class="toolbar-line"><button class="primary" id="fjSave">💾 فعال‌سازی / ذخیره کانال</button><button class="danger" id="fjDisable">خاموش‌کردن</button></div>
+            <div class="item" id="fjDetails" style="margin-top:var(--s3)">وضعیت کانال پس از بارگذاری نمایش داده می‌شود.</div>
+          </div>
+        </div>
+        <div class="card"><div class="section-head"><h2>📣 ارسال‌های همگانی</h2></div><div class="section-body">
+          <p class="dim">ارسال پیام همگانی متنی و مشاهده پیشرفت در بخش «پیام‌ها» قرار دارد. برای جلوگیری از ارسال اشتباهی، هر ارسال نیازمند تأیید نهایی است.</p>
+          <button class="primary" id="goBroadcast" style="width:100%">رفتن به پیام همگانی ←</button>
+          <p class="dim" style="margin-top:var(--s3)">فروارد همگانی و مدیریت کمپین‌های تبلیغاتی هنوز در این نسخه به مسیر اجرایی وصل نشده‌اند؛ آن‌ها را به‌عنوان قابلیت مستقل اضافه می‌کنم، نه دکمه‌ی نمایشیِ بدون عملکرد.</p>
+        </div></div>
+      </section>
+
       <section class="panel" id="panel-broadcast" role="tabpanel" aria-labelledby="tab-broadcast">
         <div class="page-head"><h1>ارسال پیام</h1><p>ارسال همگانی یا پیام مستقیم به یک کاربر</p></div>
         <div class="card"><div class="section-head"><h2>ارسال همگانی</h2></div><div class="section-body">
@@ -1533,6 +1552,9 @@ const NAV_GROUPS = [
     {id:"jobs", label:"زمان‌بندی"},
     {id:"audit", label:"تاریخچه مدیریت"},
   ]},
+  {id:"general", label:"مدیریت عمومی", tabs:[
+    {id:"forcejoin", label:"عضویت اجباری و جوین"},
+  ]},
   {id:"people", label:"کاربران", tabs:[
     {id:"users", label:"کاربران"},
     {id:"vip", label:"مدیریت VIP"},
@@ -1650,6 +1672,7 @@ async function loadTab(tab, force){
     else if(tab==="audit")     ok = await loadOperationsPage("audit");
     else if(tab==="users")     ok = await loadUsers(true);
     else if(tab==="vip")       ok = await loadVipUsers();
+    else if(tab==="forcejoin") ok = await loadForceJoin();
     else if(tab==="broadcast") ok = await loadBroadcast();
     else if(tab==="groups")    ok = await loadGroups();
     else if(tab==="deployments") ok = await loadDeployments();
@@ -2411,6 +2434,39 @@ async function doAction(act){
     toast("خطا: "+e.message,"err");
     document.querySelectorAll("#detail [data-act]").forEach(b=> b.disabled = false);
   }finally{ actionBusy = false; }
+}
+
+/* ── عضویت اجباری سراسری ───────────────────────────────────────────── */
+async function loadForceJoin(){
+  return section($("fjDetails"),async()=>{
+    const d=await api("/api/admin/forcejoin");
+    const c=d.config||{};
+    $("fjStatus").textContent=c.enabled?"🔒 عضویت اجباری فعال است":"⚪ عضویت اجباری خاموش است";
+    $("fjChannel").value=c.enabled?(c.title||String(c.channelId||"")):"";
+    $("fjDetails").innerHTML=c.enabled
+      ? '<b>کانال فعال:</b> '+esc(c.title||"کانال")+'<br><small class="ltr">'+esc(String(c.channelId||""))+'</small><br><a href="'+esc(c.inviteLink||"#")+'" target="_blank" rel="noopener">باز کردن کانال</a>'
+      : 'هنوز کانالی برای عضویت اجباری تنظیم نشده است.';
+    $("fjSave").onclick=saveForceJoin;
+    $("fjDisable").onclick=disableForceJoin;
+    $("fjRefresh").onclick=()=>loadTab("forcejoin",true);
+    $("goBroadcast").onclick=()=>setTab("broadcast");
+  },{rows:1});
+}
+async function saveForceJoin(){
+  const channel=$("fjChannel").value.trim();
+  if(!channel){toast("آیدی یا یوزرنیم کانال را وارد کن","err");return;}
+  if(!await confirmAction("فعال‌سازی عضویت اجباری","از این پس کاربران پیوی باید عضو این کانال باشند. ادامه می‌دهی؟"))return;
+  const b=$("fjSave");b.disabled=true;
+  try{await api("/api/admin/forcejoin",{method:"POST",body:{channel}});toast("عضویت اجباری فعال شد ✓","ok");invalidateTab("forcejoin");await loadForceJoin();}
+  catch(e){toast("فعال‌سازی نشد: "+(e.detail||e.message),"err");}
+  finally{b.disabled=false;}
+}
+async function disableForceJoin(){
+  if(!await confirmAction("خاموش‌کردن عضویت اجباری","محدودیت عضویت کانال برای کاربران پیوی برداشته شود؟"))return;
+  const b=$("fjDisable");b.disabled=true;
+  try{await api("/api/admin/forcejoin",{method:"POST",body:{enabled:false}});toast("عضویت اجباری خاموش شد","ok");invalidateTab("forcejoin");await loadForceJoin();}
+  catch(e){toast(e.message,"err");}
+  finally{b.disabled=false;}
 }
 
 /* ── برادکست و پیام مستقیم ───────────────────────────────────────────── */
