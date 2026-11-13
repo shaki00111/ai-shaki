@@ -282,6 +282,25 @@ forceJoinCommandSource.includes('await env.SESSIONS.put("force_join_config"')
   ? ok("owner can configure force-join only after bot-admin verification")
   : fail("force-join setup must verify the channel and bot-admin status before saving");
 
+indexSource.includes('if (data === "gset_antilinks")') &&
+indexSource.includes('gset_antilinks') &&
+indexSource.includes('groupConfig.antiLinks && containsLink')
+  ? ok("group admins can enable anti-link and incoming group links are moderated")
+  : fail("group anti-link toggle and enforcement are incomplete");
+const moderationStart = indexSource.indexOf("async function handleGroupModerationCommand");
+const moderationEnd = indexSource.indexOf("\n// SECTION: MESSAGE HANDLERS", moderationStart);
+const moderationSource = moderationStart >= 0 && moderationEnd > moderationStart
+  ? indexSource.slice(moderationStart, moderationEnd) : "";
+for (const action of ["banChatMember", "unbanChatMember", "restrictChatMember"]) {
+  moderationSource.includes(`tg("${action}"`)
+    ? ok(`group moderation uses Telegram ${action} API`)
+    : fail(`group moderation is missing Telegram ${action}`);
+}
+moderationSource.includes('!await isUserAdmin(from.id, chat.id)') &&
+moderationSource.includes('!await isUserAdmin(botId, chat.id)')
+  ? ok("group moderation verifies both admin user and bot permissions")
+  : fail("group moderation must verify administrator and bot permissions");
+
 const confirmCardStart = indexSource.indexOf("async function sendPersonaConfirmCard");
 const confirmCardEnd = indexSource.indexOf("\n/**", confirmCardStart);
 const confirmCardSource = confirmCardStart >= 0
