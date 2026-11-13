@@ -137,6 +137,13 @@ This allows SHAKI to act as both an AI assistant and a lightweight application-g
 
 ---
 
+## 👥 Group Control & Moderation
+
+- Use `/panel` or send `پنل` inside a group. Every member can open their own personal panel; group administrators and the bot owner also see group settings.
+- Group administrators can enable anti-link moderation in group settings. The bot must be an administrator with permission to delete messages for automatic link removal.
+- Reply to a member's message with `/ban`, `/unban`, `/kick`, `/mute 30` (minutes), or `/unmute`. The sender must be a group administrator and the bot must have the required administrator rights.
+- The bot owner can enable private-chat channel membership with `/forcejoin @channelusername` after adding the bot as a channel administrator. Use `/forcejoin off` to disable it. This gate applies only to private chats; group conversations are exempt.
+
 ## 🧠 Memory System
 
 SHAKI supports multiple levels of memory.
