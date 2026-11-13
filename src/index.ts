@@ -10515,7 +10515,10 @@ function touchGroupMember(session: ChatSession, user: TgUser): void {
 function pruneGroupMembers(session: ChatSession): void {
   const members = session.groupMembers;
   if (!members || members.size <= GROUP_MEMBER_LIMIT) return;
-  const ordered = Array.from(members.values()).sort((a, b) => b.lastSeen - a.lastSeen);
+  // Keep the highest-scoring members for the leaderboard; recency breaks ties.
+  const ordered = Array.from(members.values()).sort((a, b) =>
+    (Number(b.xp) || 0) - (Number(a.xp) || 0) || b.lastSeen - a.lastSeen
+  );
   for (const member of ordered.slice(GROUP_MEMBER_LIMIT)) {
     members.delete(member.userId);
     // Per-member state keyed by the same id is now unreachable — drop it too so
