@@ -2210,6 +2210,7 @@ interface UserStatistics {
   lastSeen?: number;
   lastActivityType?: string;
   riskScore?: number;
+  vipExpiresAt?: number;
 }
 
 /** دنormalized row of the D1 `users` table — the fast materialized summary used
@@ -2220,6 +2221,7 @@ interface UserSummaryRow {
   first_name: string;
   language: Language;
   vip: number;
+  vip_expires_at?: number | null;
   blocked: number;
   persona_id: string;
   created_at: number;
@@ -18904,6 +18906,7 @@ function rowToUserStats(row: UserSummaryRow): UserStatistics {
     },
     activeEngine: "gemini",
     vipStatus: row.vip === 1,
+    vipExpiresAt: Number(row.vip_expires_at) > 0 ? Number(row.vip_expires_at) : undefined,
     blocked: row.blocked === 1,
     dailyLimits: {
       messages: row.daily_messages,
@@ -19033,7 +19036,7 @@ async function queryUsersCursor(env: Env, opts: { sortBy?: UserSortKey; search?:
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const order = descending ? "DESC" : "ASC";
-  const sql = `SELECT user_id, username, first_name, language, vip, blocked, persona_id, created_at, last_seen, last_activity_type, message_count, gemini_messages, voices_received, daily_messages, daily_images, daily_edits, daily_searches, daily_voice, risk_score, notes FROM users ${whereSql} ORDER BY ${sortColumn} ${order}, user_id ${order} LIMIT ?`;
+  const sql = `SELECT user_id, username, first_name, language, vip, (SELECT CASE WHEN json_valid(kv.value_text) THEN CAST(json_extract(kv.value_text, '$.vipExpiresAt') AS INTEGER) ELSE NULL END FROM kv_store kv WHERE kv.key = 'session:' || users.user_id LIMIT 1) AS vip_expires_at, blocked, persona_id, created_at, last_seen, last_activity_type, message_count, gemini_messages, voices_received, daily_messages, daily_images, daily_edits, daily_searches, daily_voice, risk_score, notes FROM users ${whereSql} ORDER BY ${sortColumn} ${order}, user_id ${order} LIMIT ?`;
   params.push(limit + 1);
   try {
     const res = await env.DB.prepare(sql).bind(...params).all<UserSummaryRow>();
