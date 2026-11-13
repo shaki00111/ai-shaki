@@ -1189,6 +1189,19 @@ pre,code,.mono{overflow-wrap:anywhere;word-break:break-word}
             <p class="dim">اگر متن را خالی بگذاری، متن پیش‌فرض فعلی SHAKI نمایش داده می‌شود. کدهای HTML به‌صورت متن امن نمایش داده می‌شوند.</p>
           </div>
         </div>
+        <div class="card"><div class="section-head"><h2>متن راهنما و سهمیه</h2></div>
+          <div class="section-body">
+            <label class="lbl" for="personalHelpFa">راهنمای فارسی</label>
+            <textarea id="personalHelpFa" rows="4" maxlength="1200" placeholder="متن سفارشی راهنمای شاکی…"></textarea>
+            <label class="lbl" for="personalHelpEn" style="margin-top:var(--s3)">Help text · English</label>
+            <textarea id="personalHelpEn" rows="3" maxlength="1200" placeholder="Custom SHAKI help text…"></textarea>
+            <label class="lbl" for="personalQuotaFa" style="margin-top:var(--s3)">پیام محدودیت فارسی</label>
+            <textarea id="personalQuotaFa" rows="3" maxlength="1200" placeholder="سهمیه {label} شما تمام شد؛ سقف امروز {limit} است."></textarea>
+            <label class="lbl" for="personalQuotaEn" style="margin-top:var(--s3)">Quota message · English</label>
+            <textarea id="personalQuotaEn" rows="3" maxlength="1200" placeholder="Your {label} quota ({limit}) has been reached."></textarea>
+            <p class="dim">متغیرهای پیام سهمیه: {limit} تعداد مجاز، {label} نام قابلیت، {contact} راه ارتباطی VIP و {vip} وضعیت اشتراک. خالی بگذاری، متن پیش‌فرض استفاده می‌شود.</p>
+          </div>
+        </div>
         <div class="card"><div class="section-head"><h2>مدیریت دکمه‌های منو</h2></div>
           <div class="section-body"><p class="dim">متن، نمایش و ترتیب دکمه‌ها را تغییر بده. عملکرد دکمه‌ها ثابت می‌ماند و فقط عنوان/ترتیب/نمایش عوض می‌شود.</p><div id="personalButtons" class="list"></div></div>
         </div>
@@ -1708,6 +1721,10 @@ async function loadPersonalization(){
     personalizationState = data.customization || {};
     $("personalWelcomeFa").value = personalizationState.welcomeTextFa || "";
     $("personalWelcomeEn").value = personalizationState.welcomeTextEn || "";
+    $("personalHelpFa").value = personalizationState.helpTextFa || "";
+    $("personalHelpEn").value = personalizationState.helpTextEn || "";
+    $("personalQuotaFa").value = personalizationState.quotaTextFa || "";
+    $("personalQuotaEn").value = personalizationState.quotaTextEn || "";
     renderPersonalButtons(personalizationState);
     updatePersonalPreview();
   },{rows:2});
@@ -1722,7 +1739,15 @@ function readPersonalizationForm(){
     order.push({id,position:Number(row.querySelector("[data-personal-order]").value)||99});
   });
   order.sort((a,b)=>a.position-b.position);
-  return {welcomeTextFa:$("personalWelcomeFa").value.slice(0,1200),welcomeTextEn:$("personalWelcomeEn").value.slice(0,1200),labels,hidden,order:order.map(x=>x.id)};
+  return {
+    welcomeTextFa:$("personalWelcomeFa").value.slice(0,1200),
+    welcomeTextEn:$("personalWelcomeEn").value.slice(0,1200),
+    helpTextFa:$("personalHelpFa").value.slice(0,1200),
+    helpTextEn:$("personalHelpEn").value.slice(0,1200),
+    quotaTextFa:$("personalQuotaFa").value.slice(0,1200),
+    quotaTextEn:$("personalQuotaEn").value.slice(0,1200),
+    labels,hidden,order:order.map(x=>x.id)
+  };
 }
 function updatePersonalPreview(){
   const custom=readPersonalizationForm();
@@ -1732,7 +1757,12 @@ function updatePersonalPreview(){
     const item=PERSONAL_BUTTONS.find(b=>b.id===id);
     return item ? "• "+(labels[id]||item.label) : "";
   }).filter(Boolean);
-  $("personalPreview").textContent=welcome.replace(/\{name\}/g,"مالک")+"\n\n"+menu.join("\n");
+  const help=custom.helpTextFa.trim()||"راهنمای پیش‌فرض فعلی SHAKI";
+  const quota=(custom.quotaTextFa.trim()||"پیام پیش‌فرض محدودیت سهمیه")
+    .replace(/\{limit\}/g,"50").replace(/\{label\}/g,"ویس")
+    .replace(/\{contact\}/g,"@SHAKI0030").replace(/\{vip\}/g,"VIP");
+  $("personalPreview").textContent="خوش‌آمدگویی:\n"+welcome.replace(/\{name\}/g,"مالک")+
+    "\n\nراهنما:\n"+help+"\n\nپیام سهمیه:\n"+quota+"\n\nمنو:\n"+menu.join("\n");
 }
 async function savePersonalization(){
   try{
@@ -3421,8 +3451,8 @@ async function init(){
   if($("personalizationReload")) $("personalizationReload").onclick=()=>{invalidateTab("personalization");loadPersonalization();};
   if($("personalPreviewBtn")) $("personalPreviewBtn").onclick=updatePersonalPreview;
   if($("personalizationTest")) $("personalizationTest").onclick=async()=>{try{await api("/api/admin/personalization",{method:"POST",body:{action:"test",customization:readPersonalizationForm()}});toast("پیام آزمایشی برای مالک ارسال شد.","ok");}catch(e){toast(e.message,"err");}};
-  if($("personalizationReset")) $("personalizationReset").onclick=async()=>{if(!confirm("همه تنظیمات شخصی‌سازی به پیش‌فرض برگردد؟"))return;try{const d=await api("/api/admin/personalization",{method:"POST",body:{action:"reset"}});personalizationState=d.customization; $("personalWelcomeFa").value="";$("personalWelcomeEn").value="";renderPersonalButtons(personalizationState);updatePersonalPreview();toast("به پیش‌فرض برگشت.","ok");}catch(e){toast(e.message,"err");}};
-  if($("personalizationRestore")) $("personalizationRestore").onclick=async()=>{if(!confirm("آخرین نسخه پشتیبان شخصی‌سازی بازیابی شود؟"))return;try{const d=await api("/api/admin/personalization",{method:"POST",body:{action:"restore"}});personalizationState=d.customization;$("personalWelcomeFa").value=personalizationState.welcomeTextFa||"";$("personalWelcomeEn").value=personalizationState.welcomeTextEn||"";renderPersonalButtons(personalizationState);updatePersonalPreview();toast("نسخه قبلی بازیابی شد.","ok");}catch(e){toast(e.message,"err");}};
+  if($("personalizationReset")) $("personalizationReset").onclick=async()=>{if(!confirm("همه تنظیمات شخصی‌سازی به پیش‌فرض برگردد؟"))return;try{const d=await api("/api/admin/personalization",{method:"POST",body:{action:"reset"}});personalizationState=d.customization; $("personalWelcomeFa").value="";$("personalWelcomeEn").value="";$("personalHelpFa").value="";$("personalHelpEn").value="";$("personalQuotaFa").value="";$("personalQuotaEn").value="";renderPersonalButtons(personalizationState);updatePersonalPreview();toast("به پیش‌فرض برگشت.","ok");}catch(e){toast(e.message,"err");}};
+  if($("personalizationRestore")) $("personalizationRestore").onclick=async()=>{if(!confirm("آخرین نسخه پشتیبان شخصی‌سازی بازیابی شود؟"))return;try{const d=await api("/api/admin/personalization",{method:"POST",body:{action:"restore"}});personalizationState=d.customization;$("personalWelcomeFa").value=personalizationState.welcomeTextFa||"";$("personalWelcomeEn").value=personalizationState.welcomeTextEn||"";$("personalHelpFa").value=personalizationState.helpTextFa||"";$("personalHelpEn").value=personalizationState.helpTextEn||"";$("personalQuotaFa").value=personalizationState.quotaTextFa||"";$("personalQuotaEn").value=personalizationState.quotaTextEn||"";renderPersonalButtons(personalizationState);updatePersonalPreview();toast("نسخه قبلی بازیابی شد.","ok");}catch(e){toast(e.message,"err");}};
   if($("vipSearchBtn")) $("vipSearchBtn").onclick=()=>{invalidateTab("vip");loadVipUsers();};
   if($("vipSearch")) $("vipSearch").addEventListener("keydown",e=>{if(e.key==="Enter"){invalidateTab("vip");loadVipUsers();}});
   if($("vipRefresh")) $("vipRefresh").onclick=()=>{invalidateTab("vip");loadVipUsers();};
