@@ -1804,7 +1804,7 @@ async function loadVipUsers(){
  return section(list,async()=>{
   const p=new URLSearchParams({limit:"20",sort:"new"});if(q)p.set("q",q);
   const d=await api("/api/admin/users?"+p.toString()),now=Date.now(),found=d.users||[];
-  const matches=found.filter(u=>u.vipStatus);
+  const matches=q?found:found.filter(u=>u.vipStatus);
   list.innerHTML=matches.map(u=>{
    const exp=Number(u.vipExpiresAt||0),expired=!!(exp&&exp<=now);
    return '<div class="item item-row"><div style="min-width:0"><b>'+esc(u.firstName||"کاربر")+' <span class="tag '+(expired?'warn':'vip')+'">'+(expired?'منقضی':'VIP فعال')+'</span></b><small class="mono">'+u.userId+(u.userName?' · @'+esc(u.userName):'')+'</small><small>'+(exp?(expired?'منقضی: ':'پایان: ')+esc(fmt(exp)):'اشتراک دائمی')+'</small></div><button class="sm primary" data-vip-open="'+u.userId+'">مدیریت</button></div>';
@@ -2197,6 +2197,8 @@ async function doAction(act){
     try{
       await api("/api/admin/users/"+id+"/action",{method:"POST",body});
       toast("اشتراک VIP ذخیره و فعال شد ✓","ok");
+      try{await api("/api/admin/message",{method:"POST",body:{userId:id,message:vipWelcomeText(days,permissions,limits)}});toast("پیام مشخصات VIP ارسال شد ✓","ok");}
+      catch(notifyError){toast("VIP فعال شد، اما پیام به کاربر نرسید: "+notifyError.message,"err");}
       invalidateTab("users"); await selectUser(id); loadUsers().catch(()=>{});
     }catch(e){ toast("خطا: "+e.message,"err"); document.querySelectorAll("#detail [data-act]").forEach(b=>b.disabled=false); }
     finally{ actionBusy=false; }
