@@ -23389,7 +23389,8 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
       const personalStart = commandProbe === "/start";
       const panelCommand = commandProbe === "/panel";
       const adminSettings = commandProbe === "/settings" && await isUserAdmin(from.id, chat.id);
-      if (!personalStart && !panelCommand && !adminSettings) return;
+      const moderationCommand = ["/ban", "/unban", "/kick", "/mute", "/unmute"].includes(commandProbe) && await isUserAdmin(from.id, chat.id);
+      if (!personalStart && !panelCommand && !adminSettings && !moderationCommand) return;
     }
 
     const isGroup = chat.type !== "private";
@@ -26809,10 +26810,10 @@ async function dispatchUpdate(update: TgUpdate, env: Env): Promise<void> {
 
       // Anti-link moderation applies to every group message type, including captions.
       if (msg.chat.type !== "private") {
-        const groupConfig = await getGroupConfig(msg.chat.id, env);
+        const groupConfig = await getGroupConfig(msg.chat.id, env).catch(() => null);
         const body = (msg.text ?? msg.caption ?? "").trim();
         const containsLink = /(?:https?:\/\/|www\.|t\.me\/|telegram\.me\/)/i.test(body);
-        if (groupConfig.antiLinks && containsLink && !await isUserAdmin(msg.from.id, msg.chat.id)) {
+        if (groupConfig?.antiLinks && containsLink && !await isUserAdmin(msg.from.id, msg.chat.id)) {
           const botId = BOT_SELF_ID ?? BOT_INFO?.id;
           if (botId && await isUserAdmin(botId, msg.chat.id)) {
             await deleteMessage(msg.chat.id, msg.message_id);
