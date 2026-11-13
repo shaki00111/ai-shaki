@@ -40,3 +40,10 @@ test("required persona and close controls cannot be hidden", () => {
   assert.ok(preview.includes("🎭 تغییر شخصیت"));
   assert.ok(preview.includes("✖️ بستن منو"));
 });
+
+test("welcome text is safely escaped and supports the name placeholder", async () => {
+  const { ownerPersonalizationWelcome } = await import("../src/ownerPersonalization.ts");
+  const value = ownerPersonalizationWelcome({ welcomeTextFa: "سلام {name} <script>" }, "fa", "fallback", "<مالک>");
+  assert.equal(value, "سلام &lt;مالک&gt; &lt;script&gt;");
+  assert.equal(ownerPersonalizationWelcome({}, "fa", "fallback", "A"), "fallback");
+});
