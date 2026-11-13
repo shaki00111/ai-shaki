@@ -50,3 +50,16 @@ export function resolveVipDailyLimit(
     ? override
     : defaultLimit;
 }
+
+
+/** Preserve a permanent VIP grant when its editor is saved with a duration. */
+export function resolveVipExpiry(
+  wasActive: boolean,
+  currentExpiry: number | undefined,
+  days: number,
+  now = Date.now(),
+): number | undefined {
+  if (days === 0 || (wasActive && !currentExpiry)) return undefined;
+  const base = wasActive && currentExpiry && currentExpiry > now ? currentExpiry : now;
+  return base + days * 86_400_000;
+}
