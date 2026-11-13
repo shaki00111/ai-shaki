@@ -284,7 +284,7 @@ forceJoinCommandSource.includes('await env.SESSIONS.put("force_join_config"')
 
 indexSource.includes('if (data === "gset_antilinks")') &&
 indexSource.includes('gset_antilinks') &&
-indexSource.includes('groupConfig.antiLinks && containsLink')
+indexSource.includes('groupConfig?.antiLinks && containsLink')
   ? ok("group admins can enable anti-link and incoming group links are moderated")
   : fail("group anti-link toggle and enforcement are incomplete");
 const moderationStart = indexSource.indexOf("async function handleGroupModerationCommand");
