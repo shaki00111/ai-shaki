@@ -23313,25 +23313,6 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
     ]);
     if (mc.blocked) { await sendMessage(chat.id, mc.message!, { reply_to_message_id: msg.message_id }); return; }
 
-    // Private-only force-join gate. The owner can always configure and test it.
-    if (chat.type === "private" && from.id !== cfg.BOT_OWNER_ID) {
-      const forceJoin = await readForceJoinConfig(env);
-      if (forceJoin?.enabled) {
-        const membership = await withTimeout(
-          tg("getChatMember", { chat_id: forceJoin.channelId, user_id: from.id }) as Promise<{ status?: string; is_member?: boolean }>,
-          6_000, "force-join membership check",
-        ).catch(() => null);
-        const joined = !!membership && (
-          membership.status === "creator" || membership.status === "administrator" ||
-          membership.status === "member" || (membership.status === "restricted" && membership.is_member === true)
-        );
-        if (!joined) {
-          await sendForceJoinPrompt(chat.id, msg.message_id, forceJoin, session.language, !membership);
-          return;
-        }
-      }
-    }
-
     // معرفی یک‌باره در پی‌وی خود ربات؛ پس از آن گفتگو مستقیم ادامه پیدا می‌کند.
     if (chat.type === "private") {
       const introKey = `private_intro:${from.id}`;
@@ -25486,6 +25467,26 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
     return;
   }
 
+  // Existing private-menu callbacks are gated too; the owner is exempt.
+  if (chat.type === "private" && from.id !== cfg.BOT_OWNER_ID) {
+    const forceJoin = await readForceJoinConfig(env);
+    if (forceJoin?.enabled) {
+      const membership = await withTimeout(
+        tg("getChatMember", { chat_id: forceJoin.channelId, user_id: from.id }) as Promise<{ status?: string; is_member?: boolean }>,
+        6_000, "force-join membership check",
+      ).catch(() => null);
+      const joined = !!membership && (
+        membership.status === "creator" || membership.status === "administrator" ||
+        membership.status === "member" || (membership.status === "restricted" && membership.is_member === true)
+      );
+      if (!joined) {
+        await answerCb(cb.id, "🔒 ابتدا باید عضو کانال شوی.", true);
+        await sendForceJoinPrompt(chat.id, message.message_id, forceJoin, "fa", !membership);
+        return;
+      }
+    }
+  }
+
   // Rate limiting for callbacks
   const now = Date.now();
   const cbLimits = callbackRateLimits.get(from.id) ?? [];
@@ -26721,6 +26722,27 @@ async function dispatchUpdate(update: TgUpdate, env: Env): Promise<void> {
       const msg = update.message;
       if (!msg.from || msg.from.is_bot) return;
       if (!cfg.ALLOWED_CHAT_TYPES.includes(msg.chat.type)) return;
+
+      // Enforce channel membership for every private input type (text, voice,
+      // photo, document and sticker), not just ordinary text messages.
+      if (msg.chat.type === "private" && msg.from.id !== cfg.BOT_OWNER_ID) {
+        const forceJoin = await readForceJoinConfig(env);
+        if (forceJoin?.enabled) {
+          const membership = await withTimeout(
+            tg("getChatMember", { chat_id: forceJoin.channelId, user_id: msg.from.id }) as Promise<{ status?: string; is_member?: boolean }>,
+            6_000, "force-join membership check",
+          ).catch(() => null);
+          const joined = !!membership && (
+            membership.status === "creator" || membership.status === "administrator" ||
+            membership.status === "member" || (membership.status === "restricted" && membership.is_member === true)
+          );
+          if (!joined) {
+            const lang = (await getOrCreateSession(msg.chat, msg.from, env)).language;
+            await sendForceJoinPrompt(msg.chat.id, msg.message_id, forceJoin, lang, !membership);
+            return;
+          }
+        }
+      }
 
       // Every message handler is entered through `runMessageHandler` so a throw in
       // a handler *prologue* — session load, activation gate, block lookup, slot
