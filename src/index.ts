@@ -5480,13 +5480,7 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     if (action === "vip_config") {
       const row = await getUserSummary(env, userId); if (!row) return json({ ok: false, error: "not_found" }, 404);
       const raw = body.config && typeof body.config === "object" ? body.config as Record<string, unknown> : {};
-      const durationValue = raw.days ?? raw.durationDays ?? raw.duration ?? body.days;
-      const normalizedDuration = typeof durationValue === "string"
-        ? durationValue.trim().replace(/[۰-۹]/g, digit => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit))).replace(/[٠-٩]/g, digit => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
-        : durationValue;
-      const days = normalizedDuration === undefined || normalizedDuration === null || normalizedDuration === ""
-        ? 30
-        : Number(normalizedDuration);
+      const days = Number(raw.days);
       if (!Number.isInteger(days) || days < 0 || days > 3650) return json({ ok: false, error: "invalid_vip_duration" }, 400);
       const types: LimitType[] = ["message", "voice_sent", "image", "edit", "webapp", "search"];
       const rp = raw.permissions && typeof raw.permissions === "object" ? raw.permissions as Record<string, unknown> : {};
@@ -10189,7 +10183,8 @@ async function notifyTurnFailure(
     _lastTurnFailureNotice.set(chatId, now);
 
     const isOwner = opts.userId !== undefined && opts.userId === cfg.BOT_OWNER_ID;
-    let text = formatError(err, opts.lang ?? cachedChatLanguage(chatId), isOwner);
+    const lang = opts.lang ?? cachedChatLanguage(chatId);
+    let text = isOwner ? formatError(err, lang, true) : friendlyFailure(err, lang);
     // Correlation id only for the owner: it is meaningless noise for everyone
     // else, but it is what makes a support report matchable to a stored
     // diagnostic row.
@@ -18199,7 +18194,9 @@ recordRequest(session);
     // cannot resurrect a half-written answer on top of it.
     await replyStreamer.stop();
 
-    const errorMsg = formatError(err, session.language, user.id === cfg.BOT_OWNER_ID);
+    const errorMsg = user.id === cfg.BOT_OWNER_ID
+      ? formatError(err, session.language, true)
+      : friendlyFailure(err, session.language);
     run.finish("failed");
     const retryKb = type !== "blocked" && type !== "auth" ? {
       inline_keyboard: [[btn("🔄 تلاش مجدد", "retry_last_msg")]]
