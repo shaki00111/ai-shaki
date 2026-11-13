@@ -1778,6 +1778,7 @@ function renderDetail(){
   const ov = d.limitOverrides||{};
   const ovTxt = Object.keys(ov).length ? Object.keys(ov).map(k=>`${esc(k)}=${fmtNum(ov[k])}`).join(" · ") : "پیش‌فرض سراسری";
   const vipPerm = d.vipPermissions||{};
+  const vipLimits = d.vipLimits||{};
   const vipExpiry = Number(d.vipExpiresAt||0);
   const vipExpired = !!(u.vipStatus && vipExpiry && vipExpiry <= Date.now());
   const vipTypes = [["message","پیام متنی"],["voice_sent","ساخت ویس"],["image","ساخت تصویر"],["edit","ویرایش تصویر"],["webapp","وب‌اپ و بازی"],["search","جستجو"]];
@@ -1832,7 +1833,7 @@ function renderDetail(){
         </div>
         <h4 style="margin:14px 0 6px">سقف مصرف روزانه</h4>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px">
-          ${vipTypes.map(([key,label]) => '<label class="lbl">'+label+'<input inputmode="numeric" type="number" min="0" max="100000" id="vipLimit_'+key+'" value="'+esc(ov[key]??vipDefaultLimits[key])+'"></label>').join("")}
+          ${vipTypes.map(([key,label]) => '<label class="lbl">'+label+'<input inputmode="numeric" type="number" min="0" max="100000" id="vipLimit_'+key+'" value="'+esc(vipLimits[key]??vipDefaultLimits[key])+'"></label>').join("")}
         </div>
         <small class="dim" style="display:block;margin-top:8px">تیک هر قابلیت را بردار تا دسترسی آن قطع شود. سقف صفر یعنی استفاده مجاز نیست.</small>
         <button class="primary" data-act="vip_config" style="width:100%;margin-top:12px">💾 ذخیره و فعال‌سازی VIP</button>
