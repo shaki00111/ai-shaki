@@ -26889,7 +26889,11 @@ async function dispatchUpdate(update: TgUpdate, env: Env): Promise<void> {
       if (msg.chat.type !== "private") {
         const groupConfig = await getGroupConfig(msg.chat.id, env).catch(() => null);
         if (groupConfig && !await isUserAdmin(msg.from.id, msg.chat.id)) {
-          const violation = getGroupPolicyViolation(msg, groupConfig);
+          const body = (msg.text ?? msg.caption ?? "").trim();
+          const containsLink = /(?:https?:\/\/|www\.|t\.me\/|telegram\.me\/)/i.test(body);
+          const violation = groupConfig?.antiLinks && containsLink
+            ? "ارسال لینک در این گروه مجاز نیست."
+            : getGroupPolicyViolation(msg, groupConfig);
           if (violation) {
             const botId = BOT_SELF_ID ?? BOT_INFO?.id;
             if (botId && await isUserAdmin(botId, msg.chat.id)) {
