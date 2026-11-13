@@ -16993,6 +16993,53 @@ function incrementUsagePrivate(session: ChatSession, type: LimitType): void {
   else if (type === "search") session.dailyLimits.searches = (session.dailyLimits.searches ?? 0) + 1;
 }
 
+function decrementUsagePrivate(session: ChatSession, type: LimitType): void {
+  if (type === "message") session.dailyLimits.messages = Math.max(0, session.dailyLimits.messages - 1);
+  else if (type === "voice_sent") session.dailyLimits.voicesSent = Math.max(0, session.dailyLimits.voicesSent - 1);
+  else if (type === "image") session.dailyLimits.imagesGenerated = Math.max(0, session.dailyLimits.imagesGenerated - 1);
+  else if (type === "webapp") session.dailyLimits.webapps = Math.max(0, session.dailyLimits.webapps - 1);
+  else if (type === "edit") session.dailyLimits.imagesEdited = Math.max(0, session.dailyLimits.imagesEdited - 1);
+  else if (type === "search") session.dailyLimits.searches = Math.max(0, (session.dailyLimits.searches ?? 0) - 1);
+}
+
+/** Reserve a per-user quota slot before expensive work; release it if delivery fails. */
+async function reserveDailyUsageWithUser(
+  session: ChatSession, user: TgUser, type: LimitType, env: Env,
+): Promise<{ allowed: boolean; message?: string; release: () => Promise<void> }> {
+  if (user.id === cfg.BOT_OWNER_ID) return { allowed: true, release: async () => {} };
+  const lockKey = `usage:${user.id}`;
+  return updateMutex.run(lockKey, async () => {
+    let target = session;
+    let vipOverride: boolean | undefined;
+    if (session.type !== "private") {
+      target = await getOrCreateSession({ id: user.id, type: "private" }, user, env);
+      await refreshVipEntitlementFromStore(target, user, env);
+      const ownVip = isVipEntitlementActive(readVipEntitlementSnapshot(target));
+      const groupExpiry = Number(session.vipExpiresAt) || 0;
+      const groupVip = Boolean(session.vipStatus && (!groupExpiry || groupExpiry > Date.now()));
+      vipOverride = ownVip || groupVip;
+    } else {
+      await refreshVipEntitlementFromStore(target, user, env);
+    }
+    const check = checkDailyLimitPrivate(target, type, vipOverride);
+    if (!check.allowed) return { allowed: false, message: check.message, release: async () => {} };
+    incrementUsagePrivate(target, type);
+    await saveSession(target, env);
+    let released = false;
+    return {
+      allowed: true,
+      release: async () => {
+        if (released) return;
+        released = true;
+        await updateMutex.run(lockKey, async () => {
+          decrementUsagePrivate(target, type);
+          await saveSession(target, env);
+        });
+      },
+    };
+  });
+}
+
 function formatConfigChangeSummary(changes: BotConfigChange[], lang: Language): string {
   const labels: Partial<Record<keyof BotConfig, string>> = lang === "fa"
     ? { image_limit: "سقف تصویر", message_limit: "سقف پیام", voice_limit: "سقف ویس", system_prompt: "سیستم پرامپت", maintenance: "حالت تعمیرات", vip_contact: "تماس VIP" }
@@ -21514,23 +21561,23 @@ async function handleTTS(msg: TgMessage, args: string[], env: Env): Promise<void
     return;
   }
 
-  const limitCheck = await checkDailyLimitWithUser(session, from, "voice_sent", env);
-  if (!limitCheck.allowed) { await sendMessage(chat.id, limitCheck.message!, { reply_to_message_id: msg.message_id }); return; }
+  const reservation = await reserveDailyUsageWithUser(session, from, "voice_sent", env);
+  if (!reservation.allowed) { await sendMessage(chat.id, reservation.message ?? "⚠️ سهمیه روزانه ویس تمام شده.", { reply_to_message_id: msg.message_id }); return; }
 
-  const loading = await sendMessage(chat.id, isFa ? "🎙️ در حال ساخت صدا..." : "🎙️ Synthesizing voice...", { reply_to_message_id: msg.message_id });
+  let loading: TgMessage | null = null;
   try {
+    loading = await sendMessage(chat.id, isFa ? "🎙️ در حال ساخت صدا..." : "🎙️ Synthesizing voice...", { reply_to_message_id: msg.message_id });
     const ok = await sendVoiceResponse(chat.id, msg.message_id, text, env);
     await deleteMessage(chat.id, loading.message_id).catch(() => {});
-    if (ok) {
-      await incrementUsageWithUser(session, from, "voice_sent", env);
-      // Private-session increments are in-memory until explicitly saved.
-      if (session.type === "private") await saveSession(session, env);
-    } else {
+    if (!ok) {
+      await reservation.release();
       await sendMessage(chat.id, isFa ? "❌ ساخت صدا ناموفق بود." : "❌ Voice synthesis failed.", { reply_to_message_id: msg.message_id });
     }
   } catch (e) {
+    await reservation.release().catch(() => {});
     logger.error("handleTTS failed", e);
-    await editMessageText(chat.id, loading.message_id, isFa ? "❌ ساخت صدا ناموفق بود." : "❌ Voice synthesis failed.").catch(() => {});
+    if (loading) await editMessageText(chat.id, loading.message_id, isFa ? "❌ ساخت صدا ناموفق بود." : "❌ Voice synthesis failed.").catch(() => {});
+    else await sendMessage(chat.id, isFa ? "❌ ساخت صدا ناموفق بود." : "❌ Voice synthesis failed.", { reply_to_message_id: msg.message_id }).catch(() => {});
   }
 }
 
