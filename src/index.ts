@@ -5023,6 +5023,37 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     }
   }
   await ensureUserSchemaOnce(env);
+  // Owner-only forced-join settings for the Control Center.
+  if (path === "forcejoin") {
+    if (request.method === "GET") {
+      const current = await getForceJoinConfig(env);
+      return json({ ok: true, config: current ? { enabled: true, channelId: current.channelId, title: current.title, inviteLink: current.inviteLink } : { enabled: false } });
+    }
+    if (request.method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
+    const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+    if (body.enabled === false) {
+      await env.SESSIONS.put("force_join:config", JSON.stringify({ enabled: false }));
+      return json({ ok: true, config: { enabled: false } });
+    }
+    const channelRef = String(body.channel ?? "").trim();
+    if (!channelRef) return json({ ok: false, error: "channel_required", message: "آیدی یا آیدی عمومی کانال را وارد کن." }, 400);
+    try {
+      const channel = await tg("getChat", { chat_id: channelRef }) as { id: number; type: string; title?: string; username?: string; invite_link?: string };
+      if (channel.type !== "channel") return json({ ok: false, error: "not_a_channel", message: "این شناسه مربوط به کانال نیست." }, 400);
+      const botId = BOT_SELF_ID || (await tg("getMe", {}) as TgUser).id;
+      const botMember = await tg("getChatMember", { chat_id: channel.id, user_id: botId }) as { status?: string };
+      if (!["administrator", "creator"].includes(String(botMember.status))) return json({ ok: false, error: "bot_not_admin", message: "ربات باید در کانال ادمین باشد." }, 400);
+      let inviteLink = channel.invite_link || (channel.username ? `https://t.me/${channel.username}` : "");
+      if (!inviteLink) inviteLink = await tg("exportChatInviteLink", { chat_id: channel.id }) as string;
+      const config: ForceJoinConfig = { enabled: true, channelId: channel.id, title: channel.title || channel.username || "کانال", inviteLink };
+      await env.SESSIONS.put("force_join:config", JSON.stringify(config));
+      return json({ ok: true, config: { enabled: true, channelId: config.channelId, title: config.title, inviteLink: config.inviteLink } });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "خطای ناشناخته";
+      return json({ ok: false, error: "forcejoin_setup_failed", message }, 400);
+    }
+  }
+
   // Owner-only customization is isolated from ordinary bot settings. This
   // handler has already verified signed Telegram initData and the exact owner id.
   if (path === "personalization") {
