@@ -2442,7 +2442,7 @@ async function loadForceJoin(){
     const d=await api("/api/admin/forcejoin");
     const c=d.config||{};
     $("fjStatus").textContent=c.enabled?"🔒 عضویت اجباری فعال است":"⚪ عضویت اجباری خاموش است";
-    $("fjChannel").value=c.enabled?(c.title||String(c.channelId||"")):"";
+    $("fjChannel").value=c.enabled?String(c.channelId||""):"";
     $("fjDetails").innerHTML=c.enabled
       ? '<b>کانال فعال:</b> '+esc(c.title||"کانال")+'<br><small class="ltr">'+esc(String(c.channelId||""))+'</small><br><a href="'+esc(c.inviteLink||"#")+'" target="_blank" rel="noopener">باز کردن کانال</a>'
       : 'هنوز کانالی برای عضویت اجباری تنظیم نشده است.';
