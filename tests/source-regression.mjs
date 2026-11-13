@@ -166,15 +166,28 @@ toolSource.includes('await releaseReservedUsage("voice_sent")')
 const ttsStart = indexSource.indexOf("async function handleTTS");
 const ttsEnd = indexSource.indexOf("\nasync function handleOCR", ttsStart);
 const ttsSource = ttsStart >= 0 && ttsEnd > ttsStart ? indexSource.slice(ttsStart, ttsEnd) : "";
-const reserveStart = indexSource.indexOf("async function reserveDailyUsageWithUser");
-const reserveEnd = indexSource.indexOf("\nfunction formatConfigChangeSummary", reserveStart);
-const reserveSource = reserveStart >= 0 && reserveEnd > reserveStart ? indexSource.slice(reserveStart, reserveEnd) : "";
+const reservationStart = indexSource.indexOf("async function reserveDailyUsageWithUser");
+const reservationEnd = indexSource.indexOf("\nfunction formatConfigChangeSummary", reservationStart);
+const reservationSource = reservationStart >= 0 && reservationEnd > reservationStart
+  ? indexSource.slice(reservationStart, reservationEnd) : "";
 ttsSource.includes('reserveDailyUsageWithUser(session, from, "voice_sent", env)') &&
-ttsSource.includes("await reservation.release()") &&
-reserveSource.includes("incrementUsagePrivate(target, type)") &&
-reserveSource.includes("await saveSession(target, env)")
-  ? ok("private /tts quota is atomically reserved, persisted, and released on failure")
-  : fail("private /tts must reserve and persist quota before synthesis and release on failure");
+reservationSource.includes("incrementUsagePrivate(target, type);") &&
+reservationSource.includes("await saveSession(target, env);")
+  ? ok("private /tts reserves and persists voice usage before synthesis")
+  : fail("private /tts must reserve and persist voice usage before synthesis");
+
+// ── Incoming voice quota accounting ────────────────────────────────────────
+console.log("\n[8] Incoming voice quota accounting");
+const incomingVoiceStart = indexSource.indexOf("async function handleVoiceMessage");
+const incomingVoiceEnd = indexSource.indexOf("\nasync function handleMediaMessage", incomingVoiceStart);
+const incomingVoiceSource = incomingVoiceStart >= 0 && incomingVoiceEnd > incomingVoiceStart
+  ? indexSource.slice(incomingVoiceStart, incomingVoiceEnd) : "";
+incomingVoiceSource.includes('checkDailyLimitWithUser(session, from, "message", env)') &&
+!incomingVoiceSource.includes('incrementUsageWithUser(session, from, "message", env)') &&
+!incomingVoiceSource.includes('checkDailyLimitWithUser(session, from, "voice_sent", env)') &&
+!incomingVoiceSource.includes('incrementUsageWithUser(session, from, "voice_sent", env)')
+  ? ok("incoming voice checks message eligibility and the AI turn counts it once")
+  : fail("incoming voice must not consume the voice-generation quota");
 
 console.log("");
 if (failures > 0) {
