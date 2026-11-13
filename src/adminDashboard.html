@@ -1777,6 +1777,11 @@ function renderDetail(){
   const st = u.statistics||{}, dl = u.dailyLimits||{};
   const ov = d.limitOverrides||{};
   const ovTxt = Object.keys(ov).length ? Object.keys(ov).map(k=>`${esc(k)}=${fmtNum(ov[k])}`).join(" · ") : "پیش‌فرض سراسری";
+  const vipPerm = d.vipPermissions||{};
+  const vipExpiry = Number(d.vipExpiresAt||0);
+  const vipExpired = !!(u.vipStatus && vipExpiry && vipExpiry <= Date.now());
+  const vipTypes = [["message","پیام متنی"],["voice_sent","ساخت ویس"],["image","ساخت تصویر"],["edit","ویرایش تصویر"],["webapp","وب‌اپ و بازی"],["search","جستجو"]];
+  const vipDefaultLimits = {message:1000,voice_sent:50,image:30,edit:20,webapp:20,search:100};
   $("detail").innerHTML = `
     <div style="position:relative">
       <button class="sm ghost icon-btn dpanel-close" type="button" data-collapse title="بستن" aria-label="بستن جزئیات">✕</button>
@@ -1789,7 +1794,8 @@ function renderDetail(){
       <div class="kv">
         <div><span>زبان</span><b>${esc(u.language||"fa")}</b></div>
         <div><span>Persona</span><b>${esc(u.personaId||"SHAKI")}</b></div>
-        <div><span>VIP</span><b>${u.vipStatus?"فعال":"غیرفعال"}</b></div>
+        <div><span>VIP</span><b>${vipExpired?"منقضی‌شده":u.vipStatus?"فعال":"غیرفعال"}</b></div>
+        <div><span>پایان اشتراک</span><b style="font-size:11.5px">${vipExpiry&&!vipExpired?esc(fmt(vipExpiry)):"—"}</b></div>
         <div><span>مسدود</span><b>${u.blocked?"بله":"خیر"}</b></div>
         <div><span>کل پیام</span><b>${fmtNum(st.totalMessages)}</b></div>
         <div><span>تِرن تاریخچه</span><b>${fmtNum(d.historyTurns)}</b></div>
@@ -1809,8 +1815,30 @@ function renderDetail(){
         <button data-act="dm">📨 پیام مستقیم</button>
       </div>
 
-      <div class="section"><h3>سقف اختصاصی (Limit Override)</h3>
-        <div class="pill">${ovTxt}</div>
+      <div class="section">
+        <h3>💎 مدیریت اشتراک VIP</h3>
+        <div class="pill ${vipExpired?"bad":u.vipStatus?"ok":""}">${vipExpired?"اشتراک منقضی شده":u.vipStatus?"اشتراک فعال":"بدون اشتراک VIP"}</div>
+        <div class="toolbar-line">
+          <label class="lbl" for="vipDays" style="width:100%">مدت اشتراک</label>
+          <select id="vipDays">
+            <option value="7">یک هفته</option><option value="14">دو هفته</option><option value="21">سه هفته</option>
+            <option value="30" selected>یک ماه</option><option value="60">دو ماه</option><option value="90">سه ماه</option>
+            <option value="180">شش ماه</option><option value="365">یک سال</option><option value="0">دائمی</option>
+          </select>
+        </div>
+        <h4 style="margin:14px 0 6px">دسترسی‌های اشتراک</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px">
+          ${vipTypes.map(([key,label]) => '<label class="item" style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer"><input type="checkbox" id="vipPerm_'+key+'" style="width:18px;min-height:18px;accent-color:var(--accent)" '+(vipPerm[key]!==false?'checked':'')+'><span>'+label+'</span></label>').join("")}
+        </div>
+        <h4 style="margin:14px 0 6px">سقف مصرف روزانه</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px">
+          ${vipTypes.map(([key,label]) => '<label class="lbl">'+label+'<input inputmode="numeric" type="number" min="0" max="100000" id="vipLimit_'+key+'" value="'+esc(ov[key]??vipDefaultLimits[key])+'"></label>').join("")}
+        </div>
+        <small class="dim" style="display:block;margin-top:8px">تیک هر قابلیت را بردار تا دسترسی آن قطع شود. سقف صفر یعنی استفاده مجاز نیست.</small>
+        <button class="primary" data-act="vip_config" style="width:100%;margin-top:12px">💾 ذخیره و فعال‌سازی VIP</button>
+        <div class="pill" style="margin-top:8px">${ovTxt}</div>
+      </div>
+      <div class="section"><h3>سقف اختصاصی (تنظیم پیشرفته)</h3>
         <div class="toolbar-line">
           <select id="limitType">
             <option value="message">پیام</option><option value="image">تصویر</option>
@@ -1946,7 +1974,30 @@ async function doAction(act){
     catch(e){ toast("ارسال نشد: "+(e.detail||e.message),"err"); }
     return;
   }
-  if(act==="vip")   value = !u.vipStatus;
+  if(act==="vip" && u.vipStatus){
+    if(!await confirmAction("حذف VIP","اشتراک VIP این کاربر حذف و محدودیت عادی فعال شود؟")) return;
+    value = false;
+  } else if(act==="vip") {
+    const days = Number($("vipDays")?.value ?? 30);
+    const permissions = {}, limits = {};
+    for(const key of ["message","voice_sent","image","edit","webapp","search"]){
+      permissions[key] = !!$("vipPerm_"+key)?.checked;
+      const n = Number($("vipLimit_"+key)?.value);
+      if(!Number.isInteger(n) || n < 0 || n > 100000){ toast("سقف روزانه نامعتبر است","err"); return; }
+      limits[key] = n;
+    }
+    const body = { action:"vip_config", config:{ days, permissions, limits } };
+    if(actionBusy){ toast("درخواست قبلی هنوز تمام نشده","err"); return; }
+    actionBusy = true;
+    document.querySelectorAll("#detail [data-act]").forEach(b=> b.disabled = true);
+    try{
+      await api("/api/admin/users/"+id+"/action",{method:"POST",body});
+      toast("اشتراک VIP ذخیره و فعال شد ✓","ok");
+      invalidateTab("users"); await selectUser(id); loadUsers().catch(()=>{});
+    }catch(e){ toast("خطا: "+e.message,"err"); document.querySelectorAll("#detail [data-act]").forEach(b=>b.disabled=false); }
+    finally{ actionBusy=false; }
+    return;
+  }
   if(act==="block") value = !u.blocked;
   if(act==="persona"){
     const opts = (personaCache||[]).map(p=>({ value:p.id, label:(p.emoji||"")+" "+(p.nameFA||p.id) }));
