@@ -5480,7 +5480,13 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     if (action === "vip_config") {
       const row = await getUserSummary(env, userId); if (!row) return json({ ok: false, error: "not_found" }, 404);
       const raw = body.config && typeof body.config === "object" ? body.config as Record<string, unknown> : {};
-      const days = Number(raw.days);
+      const durationValue = raw.days ?? raw.durationDays ?? raw.duration ?? body.days;
+      const normalizedDuration = typeof durationValue === "string"
+        ? durationValue.trim().replace(/[۰-۹]/g, digit => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit))).replace(/[٠-٩]/g, digit => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+        : durationValue;
+      const days = normalizedDuration === undefined || normalizedDuration === null || normalizedDuration === ""
+        ? 30
+        : Number(normalizedDuration);
       if (!Number.isInteger(days) || days < 0 || days > 3650) return json({ ok: false, error: "invalid_vip_duration" }, 400);
       const types: LimitType[] = ["message", "voice_sent", "image", "edit", "webapp", "search"];
       const rp = raw.permissions && typeof raw.permissions === "object" ? raw.permissions as Record<string, unknown> : {};
