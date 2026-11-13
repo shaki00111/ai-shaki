@@ -217,6 +217,14 @@ const miniToolStart = indexSource.indexOf("async function executeToolForWebApp")
 const miniToolEnd = indexSource.indexOf("\nasync function ", miniToolStart + 20);
 const miniToolSource = miniToolStart >= 0 && miniToolEnd > miniToolStart
   ? indexSource.slice(miniToolStart, miniToolEnd) : "";
+const regenStart = indexSource.indexOf('if (data.startsWith("img_regen_"))');
+const regenEnd = indexSource.indexOf('if (data === "open_language")', regenStart);
+const regenSource = regenStart >= 0 && regenEnd > regenStart ? indexSource.slice(regenStart, regenEnd) : "";
+regenSource.includes('reserveDailyUsageWithUser(session, from, "image", env)') &&
+regenSource.includes("reservation.release()") &&
+!regenSource.includes('incrementUsageWithUser(session, from, "image", env)')
+  ? ok("image regeneration reserves and releases its quota safely")
+  : fail("image regeneration must use an atomic quota reservation");
 miniToolSource.includes('reserveDailyUsageWithUser(session, user, "image", env)') &&
 miniToolSource.includes('reserveDailyUsageWithUser(session, user, "voice_sent", env)') &&
 miniToolSource.includes("reservation.release()")
