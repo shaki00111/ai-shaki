@@ -3726,7 +3726,6 @@ async function drainBackgroundTasks(maxMs = 8000): Promise<void> {
 
 const activeRequests = new Map<number, Set<{ id: string; ts: number }>>();
 const callbackRateLimits = new Map<number, number[]>();
-const sessionLoadLocks = new Map<number, Promise<ChatSession>>();
 const groupContextCache = new Map<number, { messages: GroupMessage[]; lastCleanup: number }>();
 const modelListStates = new Map<string, { page: number; perPage: number; totalPages: number }>();
 type UserSortKey = "new" | "active" | "messages";
@@ -7955,11 +7954,7 @@ async function flushPendingSessions(env: Env, force = false, maxMs = 6000): Prom
 
 function dropSessionMemory(id: number): void {
   sessionCache.delete(`session:${id}`);
-  // Also drop any in-flight load. getOrCreateSession now returns cache hits and
-  // shares one promise per chat, so an admin action that invalidates the session
-  // must clear the pending promise too — otherwise a concurrent loader could
-  // resolve and re-seed the cache with the pre-invalidation snapshot.
-  sessionLoadLocks.delete(id);
+  // No in-flight session promises are shared across Worker requests.
   _sharedMemCache.delete(id);
   _pendingSessionFlush.delete(id);
   _lastSessionWriteHash.delete(id);
@@ -8152,10 +8147,9 @@ async function getOrCreateSession(chat: TgChat, user: TgUser, env: Env): Promise
     return ensureUserScaffolding(cached, user);
   }
 
-  // Coalesce concurrent cold loads for the same chat onto one storage read.
-  const inFlight = sessionLoadLocks.get(chat.id);
-  if (inFlight) return inFlight.then(s => ensureUserScaffolding(s, user));
-
+  // Do not share in-flight Promises across Worker requests. A module-scope
+  // Promise can outlive its originating request and trigger
+  // handle_cross_request_promise_resolution in Cloudflare Workers.
   const load = (async (): Promise<ChatSession> => {
     const raw = await env.SESSIONS.get(cacheKey, "json");
     let session: ChatSession;
@@ -8175,17 +8169,11 @@ async function getOrCreateSession(chat: TgChat, user: TgUser, env: Env): Promise
     return session;
   })();
 
-  // Register before awaiting so peers observe the in-flight load, and always
-  // clear the entry once settled (success or failure).
-  const guarded = withTimeout(load, 10_000, "Session load timeout")
+  return withTimeout(load, 10_000, "Session load timeout")
     .catch((e) => {
       logger.warn(`Session load failed for ${chat.id}; preserving stored state`, e);
       throw e;
-    })
-    .finally(() => { sessionLoadLocks.delete(chat.id); });
-
-  sessionLoadLocks.set(chat.id, guarded);
-  return guarded;
+    });
 }
 // SECTION: SYSTEM PROMPT BUILDER
 function buildSystemPrompt(
@@ -14485,7 +14473,22 @@ async function executeStructuredTools(
     const origin = capturedOrigin ?? "https://t.me";
     const sender = originalMsg.from ?? { id: chatId, is_bot: false, first_name: "User" };
     const isOwner = sender.id === cfg.BOT_OWNER_ID;
-    const isVip = session.vipStatus || isOwner;
+    // Resolve the sender's own private entitlement even when the request is
+    // executed in a group session. Group session.vipStatus only represents a
+    // group-wide VIP grant; it must not hide a member's personal VIP plan.
+    const privateUserSession = session.type === "private"
+      ? session
+      : await getOrCreateSession({ id: sender.id, type: "private" }, sender, env);
+    const userVipExpiry = Number(privateUserSession.vipExpiresAt) || 0;
+    const userVipActive = Boolean(
+      privateUserSession.vipStatus && (!userVipExpiry || userVipExpiry > Date.now())
+    );
+    const groupVipExpiry = Number(session.vipExpiresAt) || 0;
+    const groupVipActive = Boolean(
+      session.type !== "private" && session.vipStatus &&
+      (!groupVipExpiry || groupVipExpiry > Date.now())
+    );
+    const isVip = isOwner || userVipActive || groupVipActive;
     const rejectedResults: ToolResult[] = [];
 
     // GROUP POLICY: web apps & long code files are CPU/time heavy. They are blocked
@@ -26218,12 +26221,7 @@ function pruneMemoryCaches(): void {
     if (set.size === 0) activeRequests.delete(chatId);
   }
 
-  // ۸. قفل‌های بارگذاری سشن — ورودی‌های بیش از ۵ دقیقه (مرده)
-  if (sessionLoadLocks.size > 500) {
-    // فقط اندازه را محدود کن — خودِ promiseها همیشه با finally پاک می‌شوند
-    let dropped = 0;
-    for (const k of sessionLoadLocks.keys()) { sessionLoadLocks.delete(k); if (++dropped >= 100) break; }
-  }
+  // No module-scope pending session promises need cleanup.
 
   // ۹. پنل‌های کنترل‌سنتر (مالکیت پیام) — قدیمی‌تر از ۱ ساعت
   if (panelOwners.size > 3000) {

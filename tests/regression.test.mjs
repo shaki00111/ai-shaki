@@ -214,9 +214,7 @@ test("housekeeping: no unsupported DELETE ... LIMIT statements", () => {
 test("session: cache hits are returned instead of re-reading D1", () => {
   const body = fnSource("getOrCreateSession");
   assert.match(body, /return ensureUserScaffolding\(cached, user\)/, "a cache hit must be returned");
-  assert.match(body, /sessionLoadLocks\.set\(chat\.id, guarded\)/, "in-flight load must be registered");
-  // The lock must be cleared exactly once, via finally on the guarded promise.
-  assert.match(body, /\.finally\(\(\) => \{ sessionLoadLocks\.delete\(chat\.id\); \}\)/);
+  assert.doesNotMatch(body, /sessionLoadLocks|inFlight/, "session loads must not reuse pending promises across Worker requests");
 });
 
 test("session: per-user scaffolding still runs on the cache-hit path", () => {
