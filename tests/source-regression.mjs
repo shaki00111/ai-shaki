@@ -138,6 +138,38 @@ adminSource.includes("--accent:#9b7bff!important") && adminSource.includes("--ac
   : fail("Owner dashboard brand tokens do not match the Mini App");
 
 
+// ── VIP tool quota invariants ─────────────────────────────────────────────
+console.log("\n[7] VIP tool quota invariants");
+const toolStart = indexSource.indexOf("async function executeStructuredTools");
+const toolEnd = indexSource.indexOf("\ninterface BotConfigChange", toolStart);
+const toolSource = toolStart >= 0 && toolEnd > toolStart ? indexSource.slice(toolStart, toolEnd) : "";
+const quotaStart = toolSource.indexOf("const applyUsageQuota");
+const quotaEnd = toolSource.indexOf("const releaseReservedUsage", quotaStart);
+const quotaSource = quotaStart >= 0 && quotaEnd > quotaStart ? toolSource.slice(quotaStart, quotaEnd) : "";
+toolSource.includes("const limitSession = privateUserSession;")
+  ? ok("group and private tool usage share the sender's private quota session")
+  : fail("tool quota session must always be the sender's private session");
+quotaSource.includes('checkDailyLimitPrivate(limitSession, "voice_sent", isVip)') &&
+quotaSource.includes('checkDailyLimitPrivate(limitSession, "image", isVip)')
+  ? ok("VIP custom limits and permissions are checked before tool execution")
+  : fail("voice/image tool reservations must enforce VIP limits and permissions");
+quotaSource.includes('incrementUsagePrivate(limitSession, "voice_sent")') &&
+quotaSource.includes('incrementUsagePrivate(limitSession, "image")') &&
+quotaSource.includes('updateMutex.run(`usage:${sender.id}`, applyUsageQuota)')
+  ? ok("voice/image reservations are serialized per user")
+  : fail("voice/image quota reservations must be serialized per user");
+toolSource.includes("hasStarted: (): boolean => started !== null") &&
+toolSource.includes('if (!task.hasStarted())') &&
+toolSource.includes('await releaseReservedUsage("voice_sent")')
+  ? ok("unused and never-started tool reservations are released")
+  : fail("unused tool quota reservations must be released");
+const ttsStart = indexSource.indexOf("async function handleTTS");
+const ttsEnd = indexSource.indexOf("\nasync function handleOCR", ttsStart);
+const ttsSource = ttsStart >= 0 && ttsEnd > ttsStart ? indexSource.slice(ttsStart, ttsEnd) : "";
+ttsSource.includes('if (session.type === "private") await saveSession(session, env);')
+  ? ok("private /tts usage is persisted after successful delivery")
+  : fail("private /tts usage must be persisted after successful delivery");
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
