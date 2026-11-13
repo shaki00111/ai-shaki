@@ -10,6 +10,12 @@ export const OWNER_MENU_ITEMS = [
   { id: "admin_panel", callback: "open_admin", fa: "👑 پنل مدیریت ارشد" },
   { id: "user_dashboard", callback: "user_dashboard", fa: "🚀 داشبورد من" },
   { id: "group_settings", callback: "group_settings", fa: "👥 تنظیمات گروه" },
+  { id: "persona_nova", callback: "persona_select_nova", fa: "🤖 شخصیت شاکی" },
+  { id: "persona_lilith", callback: "persona_select_lilith", fa: "🌙 شخصیت لیلیت" },
+  { id: "persona_cypher", callback: "persona_select_cypher", fa: "🛸 شخصیت سایفر" },
+  { id: "persona_victoria", callback: "persona_select_victoria", fa: "👑 شخصیت ویکتوریا" },
+  { id: "persona_aria", callback: "persona_select_aria", fa: "✨ شخصیت آریا" },
+  { id: "persona_jax", callback: "persona_select_jax", fa: "⚡ شخصیت جکس" },
   { id: "close", callback: "home:close", fa: "✖️ بستن منو" },
 ] as const;
 
@@ -63,6 +69,11 @@ export function applyOwnerMenuPersonalization<T extends {
       if (button.web_app.url.includes("/my")) return "user_dashboard";
     }
     if (button.url?.includes("start=mydash")) return "user_dashboard";
+    const personaMatch = button.callback_data?.match(/^persona_(?:select|confirm|info)_([a-z0-9_-]+)$/);
+    if (personaMatch) {
+      const personaItemId = `persona_${personaMatch[1]}`;
+      if (ITEM_IDS.has(personaItemId)) return personaItemId as OwnerMenuItemId;
+    }
     return OWNER_MENU_ITEMS.find(item => item.callback === button.callback_data)?.id ?? null;
   };
   const buttons = keyboard.inline_keyboard.flat().map(button => {
