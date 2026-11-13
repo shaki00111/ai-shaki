@@ -14649,9 +14649,9 @@ async function executeStructuredTools(
 
     let limitSession = session;
     if(!await chatCanReceive(env.DB,chatId))throw new Error("CHAT_DELIVERY_UNAVAILABLE");
-    if (session.type !== "private" && !isVip) {
-      limitSession = await getOrCreateSession({ id: sender.id, type: "private" }, sender, env);
-    }
+    // All group usage belongs to the individual member, even when the group
+    // itself has VIP. Never charge the shared group session.
+    if (session.type !== "private") limitSession = privateUserSession;
 
     const imageCalls = calls.filter(c => c.name === "generate_image");
     // KV CONSERVATION: only host (persist) generated images to KV when they are
@@ -14668,21 +14668,29 @@ async function executeStructuredTools(
     // می‌شود. این بخش را با همان مِیوتکسِ per-user حساب‌داری سریال می‌کنیم. در پیوی
     // limit}Session === session است و مِیوتکسِ بیرونیِ chatId کافی‌ست، پس قفل لازم نیست.
     const applyUsageQuota = async () => {
-      if (imageCalls.length > 0 && !isVip) {
-        const remainingImages = Math.max(0, cfg.IMAGE_LIMIT - limitSession.dailyLimits.imagesGenerated);
-        if (imageCalls.length > remainingImages) allowedImageCount = remainingImages;
+      if (isOwner) return;
+      const personalVip = userVipActive;
+      if (imageCalls.length > 0) {
+        const permissionDenied = personalVip && privateUserSession.vipPermissions?.image === false;
+        const cap = isVip
+          ? resolveVipDailyLimit(true, limitSession.vipLimits?.image, undefined, cfg.VIP_IMAGE_LIMIT)
+          : cfg.IMAGE_LIMIT;
+        const remaining = permissionDenied ? 0 : Math.max(0, cap - limitSession.dailyLimits.imagesGenerated);
+        allowedImageCount = Math.min(imageCalls.length, remaining);
         limitSession.dailyLimits.imagesGenerated += allowedImageCount;
       }
-      if (voiceCalls.length > 0 && !isVip) {
-        const remainingVoices = Math.max(0, cfg.VOICE_LIMIT - limitSession.dailyLimits.voicesSent);
-        if (voiceCalls.length > remainingVoices) allowedVoiceCount = remainingVoices;
+      if (voiceCalls.length > 0) {
+        const permissionDenied = personalVip && privateUserSession.vipPermissions?.voice_sent === false;
+        const cap = isVip
+          ? resolveVipDailyLimit(true, limitSession.vipLimits?.voice_sent, undefined, cfg.VIP_VOICE_LIMIT)
+          : cfg.VOICE_LIMIT;
+        const remaining = permissionDenied ? 0 : Math.max(0, cap - limitSession.dailyLimits.voicesSent);
+        allowedVoiceCount = Math.min(voiceCalls.length, remaining);
         limitSession.dailyLimits.voicesSent += allowedVoiceCount;
       }
-      if ((imageCalls.length > 0 || voiceCalls.length > 0) && !isVip) {
-        await saveSession(limitSession, env);
-      }
+      if (imageCalls.length > 0 || voiceCalls.length > 0) await saveSession(limitSession, env);
     };
-    if (session.type !== "private" && !isVip && (imageCalls.length > 0 || voiceCalls.length > 0)) {
+    if (session.type !== "private" && (imageCalls.length > 0 || voiceCalls.length > 0)) {
       await updateMutex.run(`usage:${sender.id}`, applyUsageQuota);
     } else {
       await applyUsageQuota();
@@ -16906,6 +16914,9 @@ async function incrementUsageWithUser(
     });
   } else {
     incrementUsagePrivate(session, type);
+    // Private-chat counters must be written to the shared session store too;
+    // otherwise they vanish when this Worker isolate is recycled.
+    await saveSession(session, env);
   }
 }
 
