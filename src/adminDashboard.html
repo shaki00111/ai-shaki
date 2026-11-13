@@ -869,6 +869,21 @@ pre,code,.mono{overflow-wrap:anywhere;word-break:break-word}
         <div class="page-head"><h1>کارخانه اپلیکیشن</h1><p>پروژه‌های بومی Flutter، صف ساخت، اصلاح خودکار و خروجی‌های تأییدشده</p></div>
         <div class="card"><div class="section-head"><h2>ساخت‌های اخیر</h2><button class="sm" id="factoryRefresh">↻</button></div><div id="factoryBuilds" class="list"></div></div>
       </section>
+      <section class="panel" id="panel-vip" role="tabpanel" aria-labelledby="tab-vip">
+        <div class="page-head"><h1>💎 مدیریت VIP</h1><p>پیدا کردن کاربر، تنظیم اشتراک و مشاهده اعضای VIP</p></div>
+        <div class="card">
+          <div class="section-head"><h2>جستجوی کاربر برای VIP</h2><button class="sm ghost icon-btn" id="vipRefresh">↻</button></div>
+          <div class="section-body">
+            <div class="toolbar" style="padding:0"><input id="vipSearch" placeholder="شناسه، نام یا username کاربر"><button class="primary" id="vipSearchBtn">جستجو</button></div>
+            <div class="hint" style="margin-top:8px">کاربر را انتخاب کن تا اشتراک و سهمیه‌هایش را تنظیم کنی. پس از فعال‌سازی، مشخصات VIP برای خودش پیام می‌شود.</div>
+          </div>
+          <div class="list" id="vipList"><div class="status">در حال آماده‌سازی…</div></div>
+        </div>
+        <div class="card" id="vipEditorCard" hidden>
+          <div class="section-head"><h2>تنظیم اشتراک کاربر</h2><button class="sm ghost icon-btn" id="vipEditorClose">✕</button></div>
+          <div class="section-body" id="vipEditor"></div>
+        </div>
+      </section>
       <section class="panel" id="panel-users" role="tabpanel" aria-labelledby="tab-users">
         <div class="page-head"><h1>کاربران</h1><p>جستجو، بازرسی و مدیریت کاربران</p></div>
         <div class="card">
@@ -1433,6 +1448,7 @@ const NAV_GROUPS = [
   ]},
   {id:"people", label:"کاربران", tabs:[
     {id:"users", label:"کاربران"},
+    {id:"vip", label:"مدیریت VIP"},
     {id:"groups", label:"گروه‌ها"},
     {id:"broadcast", label:"پیام‌ها"},
   ]},
@@ -1486,6 +1502,7 @@ function buildNav(){
   const quickTabs = [
     {id:"overview",label:"خانه"},
     {id:"users",label:"کاربران"},
+    {id:"vip",label:"VIP"},
     {id:"groups",label:"گروه‌ها"},
     {id:"keys",label:"کلیدها"},
     {id:"system",label:"سیستم"},
@@ -1545,6 +1562,7 @@ async function loadTab(tab, force){
     else if(tab==="jobs")      ok = await loadOperationsPage("jobs");
     else if(tab==="audit")     ok = await loadOperationsPage("audit");
     else if(tab==="users")     ok = await loadUsers(true);
+    else if(tab==="vip")       ok = await loadVipUsers();
     else if(tab==="broadcast") ok = await loadBroadcast();
     else if(tab==="groups")    ok = await loadGroups();
     else if(tab==="deployments") ok = await loadDeployments();
