@@ -42,6 +42,7 @@ import { withinDeadline, fetchDeadlineResponse, classifyDeliveryFailure, nativeU
 import { chatCanReceive, noteDeliveryFailure, clearDeliveryFailure, ensureDeliverySchema, deliveryStatus, noteGroupMessage } from "./delivery";
 import { parseFallbackResults } from "./searchFallback";
 import { reserveBroadcast, settleBroadcast, cancelBroadcast } from "./broadcastState";
+import { applyOwnerMenuPersonalization, normalizeOwnerPersonalization, ownerPersonalizationPreview, DEFAULT_OWNER_PERSONALIZATION } from "./ownerPersonalization";
 
 // ── SHAKI engines & helpers ────────────────────────────────────────────────────
 import {
@@ -5607,6 +5608,34 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     const applied = await applyBotConfigChanges(normalized, env);
     (globalThis as any).__novaAdminOverviewCache = undefined;
     return json({ ok: true, applied });
+  }
+
+  // ── Owner-only home-menu personalization (same signed owner boundary as all admin routes) ──
+  if (request.method === "GET" && path === "personalization") {
+    const saved = await env.SESSIONS.get("owner_personalization", "json");
+    return json({ ok: true, settings: normalizeOwnerPersonalization(saved ?? DEFAULT_OWNER_PERSONALIZATION) });
+  }
+  if (request.method === "POST" && path === "personalization") {
+    let body: Record<string, unknown> = {};
+    try { body = await request.json() as Record<string, unknown>; }
+    catch { return json({ ok: false, error: "invalid_json" }, 400); }
+    const settings = normalizeOwnerPersonalization(body.settings);
+    await env.SESSIONS.put("owner_personalization", JSON.stringify(settings));
+    return json({ ok: true, settings });
+  }
+  if (request.method === "POST" && path === "personalization-test") {
+    let body: Record<string, unknown> = {};
+    try { body = await request.json() as Record<string, unknown>; }
+    catch { return json({ ok: false, error: "invalid_json" }, 400); }
+    const settings = normalizeOwnerPersonalization(body.settings);
+    const lines = ownerPersonalizationPreview(settings).map(label => "• " + label);
+    try {
+      await sendMessage(user.id, "👁 پیش‌نمایش منوی SHAKI\n\n" + lines.join("\n"));
+      return json({ ok: true, sent: true });
+    } catch (e) {
+      logger.warn("[admin] personalization test-send failed", e);
+      return json({ ok: false, error: "delivery_failed" }, 502);
+    }
   }
 
   // ── Direct message to a user ─────────────────────────────────────────────
@@ -26067,7 +26096,14 @@ async function buildHomeKeyboard(session: ChatSession, userId: number, env: Env)
     rows.push([btn(isFa ? "👥 تنظیمات گروه" : isAr ? "👥 إعدادات المجموعة" : "👥 Group Settings", "group_settings")]);
   }
   rows.push([btn(isFa ? "✖️ بستن منو" : isAr ? "✖️ إغلاق" : "✖️ Close", "home:close")]);
-  return { inline_keyboard: rows };
+  const keyboard = { inline_keyboard: rows };
+  if (isFa) {
+    try {
+      const saved = await env.SESSIONS.get("owner_personalization", "json");
+      return applyOwnerMenuPersonalization(keyboard, saved ?? DEFAULT_OWNER_PERSONALIZATION);
+    } catch (e) { logger.warn("[menu] personalization read failed; using defaults", e); }
+  }
+  return keyboard;
 }
 
 async function showPromptMenu(chatId: number, msgId: number, session: ChatSession, userId: number, isGroup = false): Promise<void> {
