@@ -17056,13 +17056,18 @@ function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverri
       search: ["جستجو", "search"],
     };
     const [faLabel, enLabel] = typeLabels[type];
+    const rewardHint = type === "message"
+      ? "\\n\\n🎁 هدیه روزانه ۲۰ پیام: /freebonus\\n🔗 هر دعوت موفق: ۱۰ پیام و ۲ ویس اضافه: /referral"
+      : type === "voice_sent"
+        ? "\\n\\n🔗 با هر دعوت موفق، ۲ ویس و ۱۰ پیام اضافه بگیر: /referral"
+        : "\\n\\n🔗 برای دریافت پیام و ویس اضافه با دعوت دوستان: /referral";
     const msg = isVip
       ? (lang === "fa"
-          ? `⚠️ **محدودیت روزانه VIP**\n\nامروز سقف ${limit} ${faLabel} حساب VIP شما تمام شده. این سقف فردا ریست می‌شود.`
-          : `⚠️ **VIP Daily Limit**\n\nYou've reached your VIP limit of ${limit} ${enLabel}s today. It resets tomorrow.`)
+          ? `⚠️ **محدودیت روزانه VIP**\\n\\nامروز سقف ${limit} ${faLabel} حساب VIP شما تمام شده. این سقف فردا ریست می‌شود.`
+          : `⚠️ **VIP Daily Limit**\\n\\nYou've reached your VIP limit of ${limit} ${enLabel}s today. It resets tomorrow.`)
       : (lang === "fa"
-          ? `⚠️ **محدودیت روزانه**\n\nامروز سقف مجاز ${limit} ${faLabel} را مصرف کرده‌اید.\n\n🌟 برای سقف بسیار بالاتر VIP شوید.\n👑 تماس: ${contact}`
-          : `⚠️ **Daily Limit**\n\nYou've used your limit of ${limit} ${enLabel}s today.\n\n🌟 Go VIP for a much higher limit.\n👑 Contact: ${contact}`);
+          ? `⚠️ **محدودیت روزانه**\\n\\nامروز سقف مجاز ${limit} ${faLabel} را مصرف کرده‌اید.${rewardHint}\\n\\n🌟 برای سقف بسیار بالاتر VIP شوید.\\n👑 تماس: ${contact}`
+          : `⚠️ **Daily Limit**\\n\\nYou've used your limit of ${limit} ${enLabel}s today.${rewardHint}\\n\\n🌟 Go VIP for a much higher limit.\\n👑 Contact: ${contact}`);
     return { allowed: false, message: msg };
   }
   return { allowed: true };
@@ -21082,6 +21087,7 @@ async function claimReferralReward(referred: TgUser, inviterId: number, session:
   if (inviterId === referred.id) return "self";
   const firstUsed = Number(session.statistics?.firstUsed) || 0;
   if (!firstUsed || Date.now() - firstUsed > 5 * 60_000) return "old";
+  let claimInserted = false;
   try {
     await ensureReferralSchema(env);
     const inserted = await env.DB.prepare(
@@ -21089,6 +21095,7 @@ async function claimReferralReward(referred: TgUser, inviterId: number, session:
     ).bind(referred.id, inviterId, Date.now()).run();
     const insertMeta = inserted as unknown as { meta?: { changes?: number } };
     if (Number(insertMeta.meta?.changes ?? 0) !== 1) return "duplicate";
+    claimInserted = true;
     await updateMutex.run(`referral-reward:${inviterId}`, async () => {
       const inviter = await getOrCreateSession(
         { id: inviterId, type: "private" },
@@ -21103,6 +21110,10 @@ async function claimReferralReward(referred: TgUser, inviterId: number, session:
     });
     return "credited";
   } catch (error) {
+    if (claimInserted) {
+      await env.DB.prepare("DELETE FROM shaki_referral_claims WHERE referred_user_id = ? AND inviter_user_id = ?")
+        .bind(referred.id, inviterId).run().catch(() => {});
+    }
     logger.warn(`[referral] reward failed inviter=${inviterId} referred=${referred.id}`, error);
     return "unavailable";
   }
