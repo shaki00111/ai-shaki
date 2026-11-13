@@ -5,7 +5,7 @@ import { friendlyFailure } from "../src/storageHealth.ts";
 test("free and VIP users receive safe Persian wording without provider diagnostics", () => {
   const error = new Error("CF_API [HTTP 429]: token=do-not-show");
   const message = friendlyFailure(error, "fa");
-  assert.match(message, /سرور جواب نداد عشقم/);
+  assert.match(message, /سرور فعلاً شلوغه عشقم/);
   assert.doesNotMatch(message, /CF_API|429|do-not-show/);
   assert.equal(friendlyFailure(error, "fa"), message);
 });
