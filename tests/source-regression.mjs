@@ -284,6 +284,21 @@ miniToolSource.includes("reservation.release()")
   : fail("Mini App image/voice tools must use durable atomic reservations");
 
 
+console.log("\n[11] Group panel and private required-channel access");
+indexSource.includes('case "/panel": await handlePanelCommand(msg, env); break;') &&
+indexSource.includes('btn("👤 پنل شخصی", "home:open")') &&
+indexSource.includes('btn("🛡 مدیریت گروه", "group_settings")')
+  ? ok("/panel exposes personal access and admin-only group management")
+  : fail("/panel must expose personal and permission-checked group controls");
+indexSource.includes('case "/forcejoin": await handleForceJoinCommand(msg, args, env); break;') &&
+indexSource.includes('tg("getChatMember", { chat_id: config.channelId, user_id: userId })') &&
+indexSource.includes('msg.chat.type === "private" && msg.from && msg.from.id !== cfg.BOT_OWNER_ID')
+  ? ok("required-channel membership is checked only for private users")
+  : fail("required-channel gate must verify private users against Telegram membership");
+indexSource.includes("applyOwnerPersonaLabels(keyboard, customization)")
+  ? ok("owner persona button labels are applied without changing callbacks")
+  : fail("owner persona button labels must be wired into the picker");
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);

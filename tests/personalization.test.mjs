@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   OWNER_MENU_ITEMS, normalizeOwnerPersonalization, applyOwnerMenuPersonalization,
-  ownerPersonalizationPreview,
+  ownerPersonalizationPreview, applyOwnerPersonaLabels,
 } from "../src/ownerPersonalization.ts";
 
 test("normalization only accepts known ids and bounds labels", () => {
@@ -46,4 +46,16 @@ test("welcome text is safely escaped and supports the name placeholder", async (
   const value = ownerPersonalizationWelcome({ welcomeTextFa: "سلام {name} <script>" }, "fa", "fallback", "<مالک>");
   assert.equal(value, "سلام &lt;مالک&gt; &lt;script&gt;");
   assert.equal(ownerPersonalizationWelcome({}, "fa", "fallback", "A"), "fallback");
+});
+
+test("owner can rename persona picker buttons without changing callbacks", () => {
+  const keyboard = { inline_keyboard: [[
+    { text: "🖤 Lilith — My Lady", callback_data: "persona_select_lilith" },
+    { text: "⚡ Jax — direct", callback_data: "persona_select_jax" },
+  ]] };
+  const result = applyOwnerPersonaLabels(keyboard, {
+    personaLabels: { lilith: "🖤 لیلیت ویژه", jax: "⚡ جکس جدید", unknown: "bad" },
+  });
+  assert.deepEqual(result.inline_keyboard[0].map(x => x.text), ["🖤 لیلیت ویژه", "⚡ جکس جدید"]);
+  assert.deepEqual(result.inline_keyboard[0].map(x => x.callback_data), ["persona_select_lilith", "persona_select_jax"]);
 });
