@@ -21305,10 +21305,17 @@ async function handleImg(msg: TgMessage, args: string[], env: Env): Promise<void
   const procMsg = await sendMessage(chat.id, statusText, { reply_to_message_id: msg.message_id });
 
   let success = 0;
+  let quotaMessage = "";
   const errors: string[] = [];
 
   for (let i = 0; i < cfg.AI_IMAGE_MODELS.length; i++) {
     const model = cfg.AI_IMAGE_MODELS[i];
+    const reservation = await reserveDailyUsageWithUser(session, from, "image", env);
+    if (!reservation.allowed) {
+      quotaMessage = reservation.message ?? t(lang, "img_limit");
+      break;
+    }
+    let reservationKept = false;
     await editMessageText(chat.id, procMsg.message_id,
       `${statusText}\n\n🎨 ${getShortModelName(model)} (${i + 1}/${cfg.AI_IMAGE_MODELS.length})...`,
     ).catch(() => {});
@@ -21329,17 +21336,20 @@ async function handleImg(msg: TgMessage, args: string[], env: Env): Promise<void
 
       const caption = lang === "fa" ? "بفرما، اینم عکسی که خواستی 🖤" : "Here’s the image you asked for 🖤";
   
-      await sendImageFile(chat.id, img, caption, { 
+      await sendImageFile(chat.id, img, caption, {
         reply_to_message_id: msg.message_id,
         parse_mode: "HTML"
       }, `nova_img_${generateId()}.png`);
       success++;
+      reservationKept = true;
     } catch (e) {
       const m = e instanceof Error ? e.message : String(e);
       errors.push(`• **${getShortModelName(model)}**: ${m.includes("Timeout") ? "⏱️" : "❌"} ${m.substring(0, 40)}`);
       if (m.includes("FLAGGED_PROMPT")) {
         break;
       }
+    } finally {
+      if (!reservationKept) await reservation.release().catch(() => {});
     }
 
     if (Date.now() - msg.date * 1000 > 27_000) break;
@@ -21348,6 +21358,7 @@ async function handleImg(msg: TgMessage, args: string[], env: Env): Promise<void
   let final = success > 0 ? t(lang, "img_success") : t(lang, "img_failed");
   if (translated) final += `\n\nPrompt: \`${prompt}\``;
 
+  if (quotaMessage) final += `\n\n${quotaMessage}`;
   const hasFlagged = errors.some(err => err.includes("FLAGGED_PROMPT"));
   const isOwner = from.id === cfg.BOT_OWNER_ID;
   if (hasFlagged) {
@@ -21369,7 +21380,6 @@ async function handleImg(msg: TgMessage, args: string[], env: Env): Promise<void
   await editMessageText(chat.id, procMsg.message_id, final);
 
   if (success > 0) {
-    await incrementUsageWithUser(session, from, "image", env);
     session.statistics.totalMessages++;
     saveSession(session, env).catch(() => {});
   }
@@ -25645,45 +25655,51 @@ if (data.startsWith("img_regen_")) {
     }
     await answerCb(cb.id, session.language === "fa" ? "🔄 در حال ساخت..." : "🔄 Generating...");
 
-    const limitCheck = await checkDailyLimitWithUser(session, from, "image", env);
-    if (!limitCheck.allowed) {
-        await sendMessage(chat.id, limitCheck.message!, { reply_to_message_id: message.message_id });
+    const reservation = await reserveDailyUsageWithUser(session, from, "image", env);
+    if (!reservation.allowed) {
+        await sendMessage(chat.id, reservation.message ?? t(session.language, "img_limit"), { reply_to_message_id: message.message_id });
         return;
     }
 
     const procMsg = await sendMessage(chat.id,
         session.language === "fa" ? "⏳ در حال رندر تصویر..." : "⏳ Rendering...",
         { reply_to_message_id: message.message_id });
+    let delivered = false;
     try {
         const img = await withTimeout(
             generateImageCF(savedPrompt, cfg.AI_IMAGE_MODELS[0], env),
             105_000, "Timeout"
         );
-        if (img) {
-            await incrementUsageWithUser(session, from, "image", env);
-            const newRef = `novaimg_${generateId()}`;
-            if ((await putMediaBlob(env, newRef, bytesToArrayBuffer(img), "image/png")).ok) {
-              await env.SESSIONS.put(`media_prompt:${newRef}`, savedPrompt, { expirationTtl: 7200 });
-            }
-            const caption = session.language === "fa" ? "بفرما، اینم عکسی که خواستی 🖤" : "Here’s the image you asked for 🖤";
-            const resendKb: InlineKeyboard = {
-                inline_keyboard: [[
-                    btn(session.language === "fa" ? "🔄 ساخت دوباره" : "🔄 Regenerate", `img_regen_${newRef}`),
-                    btn(session.language === "fa" ? "📎 ارسال بصورت فایل" : "📎 Send as File", `img_asfile_${newRef}`),
-                ]]
-            };
-            await sendPhoto(chat.id, img, caption, {
-                reply_to_message_id: message.message_id,
-                parse_mode: "HTML",
-                reply_markup: JSON.stringify(resendKb),
-            });
-            await deleteMessage(chat.id, procMsg.message_id).catch(() => {});
+        if (!img) {
+            await editMessageText(chat.id, procMsg.message_id,
+                session.language === "fa" ? "❌ ساخت دوباره ناموفق بود." : "❌ Regeneration failed."
+            ).catch(() => {});
+            return;
         }
+        const newRef = `novaimg_${generateId()}`;
+        const stored = await putMediaBlob(env, newRef, bytesToArrayBuffer(img), "image/png");
+        if (stored.ok) await env.SESSIONS.put(`media_prompt:${newRef}`, savedPrompt, { expirationTtl: 7200 });
+        const caption = session.language === "fa" ? "بفرما، اینم عکسی که خواستی 🖤" : "Here’s the image you asked for 🖤";
+        const resendKb: InlineKeyboard = {
+            inline_keyboard: [[
+                btn(session.language === "fa" ? "🔄 ساخت دوباره" : "🔄 Regenerate", `img_regen_${newRef}`),
+                btn(session.language === "fa" ? "📎 ارسال بصورت فایل" : "📎 Send as File", `img_asfile_${newRef}`),
+            ]]
+        };
+        await sendPhoto(chat.id, img, caption, {
+            reply_to_message_id: message.message_id,
+            parse_mode: "HTML",
+            reply_markup: JSON.stringify(resendKb),
+        });
+        delivered = true;
+        await deleteMessage(chat.id, procMsg.message_id).catch(() => {});
     } catch (e) {
         logger.warn(`img_regen failed: ${e instanceof Error ? e.message : e}`);
         await editMessageText(chat.id, procMsg.message_id,
             session.language === "fa" ? "❌ ساخت دوباره ناموفق بود." : "❌ Regeneration failed."
         ).catch(() => {});
+    } finally {
+        if (!delivered) await reservation.release().catch(() => {});
     }
     return;
 }
