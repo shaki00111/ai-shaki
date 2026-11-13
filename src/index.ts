@@ -2140,6 +2140,7 @@ interface ChatSession {
   vipStatus: boolean;
   vipExpiresAt?: number;
   vipPermissions?: Partial<Record<LimitType, boolean>>;
+  vipLimits?: Partial<Record<LimitType, number>>;
   dailyLimits: { messages: number; voicesSent: number; voicesReceived: number; imagesGenerated: number; imagesEdited: number; webapps: number; searches: number; lastReset: number };
   personaVersion?: number;
   /**
@@ -5427,7 +5428,7 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     let session: Record<string, unknown> | null = null; try { session = await peekSessionRaw(env, userId); } catch {}
     const engs = session?.engines as Record<string, any> | undefined; const engine = engs?.[String(session?.activeEngine ?? "gemini")] ?? engs?.gemini;
     const history = Array.isArray(engine?.history) ? engine.history : []; const memoryMap = session?.userMemories as Record<string, any> | undefined; const memory = memoryMap?.[String(userId)] ?? null;
-    return json({ ok: true, user: rowToUserStats(row), details: { historyTurns: history.length, memoryFacts: Array.isArray(memory?.keyFacts) ? memory.keyFacts.length : 0, relationshipEdges: Array.isArray(memory?.relationshipGraph) ? memory.relationshipGraph.length : 0, customPrompt: typeof session?.customPrompts === "object" ? ((session?.customPrompts as Record<string, unknown>)?.gemini ?? null) : null, limitOverrides: session?.limitOverrides ?? null, vipExpiresAt: Number(session?.vipExpiresAt) || null, vipPermissions: session?.vipPermissions ?? null, notes: row.notes ?? "", sessionMissing: !session } });
+    return json({ ok: true, user: rowToUserStats(row), details: { historyTurns: history.length, memoryFacts: Array.isArray(memory?.keyFacts) ? memory.keyFacts.length : 0, relationshipEdges: Array.isArray(memory?.relationshipGraph) ? memory.relationshipGraph.length : 0, customPrompt: typeof session?.customPrompts === "object" ? ((session?.customPrompts as Record<string, unknown>)?.gemini ?? null) : null, limitOverrides: session?.limitOverrides ?? null, vipExpiresAt: Number(session?.vipExpiresAt) || null, vipPermissions: session?.vipPermissions ?? null, vipLimits: session?.vipLimits ?? null, notes: row.notes ?? "", sessionMissing: !session } });
   }
   const actionMatch = path.match(/^users\/(\-?\d+)\/action$/);
   if (request.method === "POST" && actionMatch) {
@@ -5457,7 +5458,7 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
       target.vipStatus = true;
       target.vipExpiresAt = days === 0 ? undefined : (wasActive && expiry > now ? expiry : now) + days * 86400000;
       target.vipPermissions = permissions;
-      target.limitOverrides = { ...(target.limitOverrides ?? {}), ...limits };
+      target.vipLimits = limits;
       ok = await saveSession(target, env, { force: true }).then(() => true).catch(() => false);
       if (ok) { await patchUserSummary(env, userId, { vip: true }); dropSessionMemory(userId); }
     } else if (action === "vip" || action === "block") {
@@ -5465,7 +5466,7 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
       if (action === "vip") {
         const target = await getOrCreateSession({ id: userId, type: "private" }, { id: userId, is_bot: false, first_name: row.first_name || "User" }, env);
         target.vipStatus = next;
-        if (!next) { target.vipExpiresAt = undefined; target.vipPermissions = undefined; }
+        if (!next) { target.vipExpiresAt = undefined; target.vipPermissions = undefined; target.vipLimits = undefined; }
         ok = await saveSession(target, env, { force: true }).then(() => true).catch(() => false);
         if (ok) { await patchUserSummary(env, userId, { vip: next }); dropSessionMemory(userId); }
       } else {
@@ -16776,7 +16777,8 @@ function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverri
   };
 
   // پرئوزر limit override (ست‌شده از پنل ادمین) همیشه بر سقف سراسری مقدم است.
-  const override = session.limitOverrides?.[type];
+  const vipLimit = isVip ? session.vipLimits?.[type] : undefined;
+  const override = typeof vipLimit === "number" ? vipLimit : session.limitOverrides?.[type];
   const limit = typeof override === "number" && override >= 0 ? override : limits[type];
   if (usage[type] >= limit) {
     const lang = session.language;
