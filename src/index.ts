@@ -12,7 +12,7 @@ import { startRun, finishRun, operationsAPI, recordAdminAudit, cleanupOperations
 import { readJsonObject, RequestBodyError } from "./http";
 import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from "./memory";
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
-import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, ownerPersonalizationWelcome } from "./ownerPersonalization";
+import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, applyOwnerPersonaLabels, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns } from "./ttsReliability";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
@@ -3622,6 +3622,90 @@ async function isGroupEnabled(chatId: number, chatType: string, env: Env): Promi
   const gc = await getGroupConfig(chatId, env);
   return gc.enabled;
 }
+
+/** Private-chat membership gate configured by the bot owner. */
+type ForceJoinConfig = { enabled: boolean; channelId: number; title: string; inviteLink: string };
+async function getForceJoinConfig(env: Env): Promise<ForceJoinConfig | null> {
+  const value = await env.SESSIONS.get("force_join:config", "json").catch(() => null) as ForceJoinConfig | null;
+  return value?.enabled && Number.isFinite(Number(value.channelId)) && Boolean(value.inviteLink) ? value : null;
+}
+async function checkPrivateForceJoin(userId: number, env: Env): Promise<{ allowed: boolean; unavailable?: boolean; config?: ForceJoinConfig }> {
+  const config = await getForceJoinConfig(env);
+  if (!config || userId === cfg.BOT_OWNER_ID) return { allowed: true };
+  try {
+    const member = await tg("getChatMember", { chat_id: config.channelId, user_id: userId }) as { status?: string; is_member?: boolean };
+    const joined = ["creator", "administrator", "member"].includes(String(member.status)) ||
+      (member.status === "restricted" && member.is_member === true);
+    return { allowed: joined, config };
+  } catch (error) {
+    logger.warn("[force-join] membership check failed", error);
+    return { allowed: false, unavailable: true, config };
+  }
+}
+async function sendForceJoinPrompt(chatId: number, config: ForceJoinConfig, replyToMessageId?: number): Promise<void> {
+  await sendMessage(chatId,
+    `🔒 برای استفاده از AI SHAKI ابتدا باید عضو کانال زیر بشی. بعد از عضویت دوباره پیام بده.\n\n📢 ${config.title}`,
+    { ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
+      reply_markup: JSON.stringify({ inline_keyboard: [[urlBtn("📢 عضویت در کانال", config.inviteLink)]] }) });
+}
+async function handleForceJoinCommand(msg: TgMessage, args: string[], env: Env): Promise<void> {
+  if (msg.from?.id !== cfg.BOT_OWNER_ID) {
+    await sendMessage(msg.chat.id, "🚫 فقط مالک ربات می‌تواند عضویت اجباری را مدیریت کند.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  if (msg.chat.type !== "private") {
+    await sendMessage(msg.chat.id, "این دستور را در پیوی ربات اجرا کن.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  const value = (args[0] ?? "").trim();
+  if (["off", "خاموش"].includes(value.toLowerCase())) {
+    await env.SESSIONS.put("force_join:config", JSON.stringify({ enabled: false }));
+    await sendMessage(msg.chat.id, "✅ عضویت اجباری خاموش شد.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  if (!value) {
+    const current = await getForceJoinConfig(env);
+    await sendMessage(msg.chat.id, current
+      ? `🔒 عضویت اجباری فعاله.\nکانال: ${current.title}\nبرای خاموش کردن: /forcejoin off`
+      : "عضویت اجباری خاموشه. برای فعال‌سازی: /forcejoin @channel",
+      { reply_to_message_id: msg.message_id });
+    return;
+  }
+  try {
+    const channel = await tg("getChat", { chat_id: value }) as { id: number; type: string; title?: string; username?: string; invite_link?: string };
+    if (channel.type !== "channel") throw new Error("این شناسه مربوط به کانال نیست.");
+    const botId = BOT_SELF_ID || (await tg("getMe", {}) as TgUser).id;
+    const botMember = await tg("getChatMember", { chat_id: channel.id, user_id: botId }) as { status?: string };
+    if (!["administrator", "creator"].includes(String(botMember.status))) throw new Error("ربات باید در کانال ادمین باشد.");
+    let inviteLink = channel.invite_link || (channel.username ? `https://t.me/${channel.username}` : "");
+    if (!inviteLink) inviteLink = await tg("exportChatInviteLink", { chat_id: channel.id }) as string;
+    const config: ForceJoinConfig = { enabled: true, channelId: channel.id, title: channel.title || channel.username || "کانال", inviteLink };
+    await env.SESSIONS.put("force_join:config", JSON.stringify(config));
+    await sendMessage(msg.chat.id, `✅ عضویت اجباری فعال شد.\n📢 ${config.title}\nکاربران پیوی باید عضو کانال باشند.`,
+      { reply_to_message_id: msg.message_id });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "خطای ناشناخته";
+    await sendMessage(msg.chat.id, `❌ فعال‌سازی انجام نشد: ${reason}\nربات باید ادمین کانال باشد و آیدی کانال درست باشد.`,
+      { reply_to_message_id: msg.message_id });
+  }
+}
+async function handlePanelCommand(msg: TgMessage, env: Env): Promise<void> {
+  const { chat, from } = msg;
+  if (!from) return;
+  const session = await getOrCreateSession(chat, from, env);
+  if (chat.type === "private") {
+    await showHomePanel(chat.id, from, session, env);
+    return;
+  }
+  const canManage = await isUserAdmin(from.id, chat.id);
+  const rows: InlineBtn[][] = [[btn("👤 پنل شخصی", "home:open")]];
+  if (canManage) rows.push([btn("🛡 مدیریت گروه", "group_settings")]);
+  const sent = await sendMessage(chat.id,
+    canManage ? "╭━━━ ⚡ AI SHAKI ━━━╮\nپنل موردنظرت رو انتخاب کن:" : "⚡ پنل شخصی AI SHAKI",
+    { reply_to_message_id: msg.message_id, reply_markup: JSON.stringify({ inline_keyboard: rows }) });
+  if (sent?.message_id) panelOwners.set(`${chat.id}:${sent.message_id}`, { u: from.id, ts: Date.now() });
+}
+
 
 // ── Per-chat ban gate (cached) ───────────────────────────────────────────────
 // Every single group message used to pay for a `banned:<chat>:<user>` lookup,
@@ -23416,6 +23500,8 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
       }
 
       switch (command) {
+        case "/panel": await handlePanelCommand(msg, env); break;
+        case "/forcejoin": await handleForceJoinCommand(msg, args, env); break;
         case "/start": await handleStart(msg, env); break;
         case "/donate": {
           const donate = buildDonateMessage(session.language);
@@ -25326,6 +25412,15 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
   const { from, message, data } = cb;
   const chat = message.chat;
 
+  if (chat.type === "private" && from.id !== cfg.BOT_OWNER_ID) {
+    const membership = await checkPrivateForceJoin(from.id, env);
+    if (!membership.allowed) {
+      await answerCb(cb.id, membership.unavailable ? "⚠️ بررسی عضویت موقتاً در دسترس نیست." : "🔒 ابتدا باید عضو کانال اجباری بشی.", true);
+      if (membership.config && !membership.unavailable) await sendForceJoinPrompt(chat.id, membership.config).catch(() => {});
+      return;
+    }
+  }
+
   // Rate limiting for callbacks
   const now = Date.now();
   const cbLimits = callbackRateLimits.get(from.id) ?? [];
@@ -26599,6 +26694,17 @@ async function runMessageHandler(
   handler: (m: TgMessage, e: Env) => Promise<void>,
 ): Promise<void> {
   try {
+    if (msg.chat.type === "private" && msg.from && msg.from.id !== cfg.BOT_OWNER_ID) {
+      const membership = await checkPrivateForceJoin(msg.from.id, env);
+      if (!membership.allowed) {
+        if (membership.unavailable) {
+          await sendMessage(msg.chat.id, "⚠️ فعلاً بررسی عضویت ممکن نیست؛ چند لحظه دیگه دوباره تلاش کن.", { reply_to_message_id: msg.message_id }).catch(() => {});
+        } else if (membership.config) {
+          await sendForceJoinPrompt(msg.chat.id, membership.config, msg.message_id).catch(() => {});
+        }
+        return;
+      }
+    }
     const canReceive=await withinDeadline(async()=>{
       if(msg.chat.type==="private")await clearDeliveryFailure(env.DB,msg.chat.id);else await noteGroupMessage(env.DB,msg.chat.id);
       return chatCanReceive(env.DB,msg.chat.id);
