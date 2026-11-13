@@ -1807,7 +1807,7 @@ async function loadVipUsers(){
   const matches=q?found:found.filter(u=>u.vipStatus);
   list.innerHTML=matches.map(u=>{
    const exp=Number(u.vipExpiresAt||0),expired=!!(exp&&exp<=now);
-   return '<div class="item item-row"><div style="min-width:0"><b>'+esc(u.firstName||"کاربر")+' <span class="tag '+(expired?'warn':'vip')+'">'+(expired?'منقضی':'VIP فعال')+'</span></b><small class="mono">'+u.userId+(u.userName?' · @'+esc(u.userName):'')+'</small><small>'+(exp?(expired?'منقضی: ':'پایان: ')+esc(fmt(exp)):'اشتراک دائمی')+'</small></div><button class="sm primary" data-vip-open="'+u.userId+'">مدیریت</button></div>';
+   return '<div class="item item-row"><div style="min-width:0"><b>'+esc(u.firstName||"کاربر")+' <span class="tag '+(!u.vipStatus?'':' '+(expired?'warn':'vip'))+'">'+(!u.vipStatus?'عادی':expired?'منقضی':'VIP فعال')+'</span></b><small class="mono">'+u.userId+(u.userName?' · @'+esc(u.userName):'')+'</small><small>'+(exp?(expired?'منقضی: ':'پایان: ')+esc(fmt(exp)):'اشتراک دائمی')+'</small></div><button class="sm primary" data-vip-open="'+u.userId+'">مدیریت</button></div>';
   }).join("")||(q?emptyState("🔎","VIP در نتایج نیست","کاربر را با شناسه یا نام جستجو کن؛ کاربر عادی هم قابل انتخاب است."):emptyState("💎","VIP فعالی در این صفحه نیست","برای پیدا کردن هر کاربر، شناسه یا نامش را جستجو کن."));
   list.querySelectorAll("[data-vip-open]").forEach(b=>b.onclick=()=>openVipEditor(Number(b.dataset.vipOpen)));
   return true;
