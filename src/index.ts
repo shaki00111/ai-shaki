@@ -3726,7 +3726,6 @@ async function drainBackgroundTasks(maxMs = 8000): Promise<void> {
 
 const activeRequests = new Map<number, Set<{ id: string; ts: number }>>();
 const callbackRateLimits = new Map<number, number[]>();
-const sessionLoadLocks = new Map<number, Promise<ChatSession>>();
 const groupContextCache = new Map<number, { messages: GroupMessage[]; lastCleanup: number }>();
 const modelListStates = new Map<string, { page: number; perPage: number; totalPages: number }>();
 type UserSortKey = "new" | "active" | "messages";
@@ -8152,10 +8151,9 @@ async function getOrCreateSession(chat: TgChat, user: TgUser, env: Env): Promise
     return ensureUserScaffolding(cached, user);
   }
 
-  // Coalesce concurrent cold loads for the same chat onto one storage read.
-  const inFlight = sessionLoadLocks.get(chat.id);
-  if (inFlight) return inFlight.then(s => ensureUserScaffolding(s, user));
-
+  // Do not share in-flight Promises across Worker requests. A module-scope
+  // Promise can outlive its originating request and trigger
+  // handle_cross_request_promise_resolution in Cloudflare Workers.
   const load = (async (): Promise<ChatSession> => {
     const raw = await env.SESSIONS.get(cacheKey, "json");
     let session: ChatSession;
@@ -8175,17 +8173,11 @@ async function getOrCreateSession(chat: TgChat, user: TgUser, env: Env): Promise
     return session;
   })();
 
-  // Register before awaiting so peers observe the in-flight load, and always
-  // clear the entry once settled (success or failure).
-  const guarded = withTimeout(load, 10_000, "Session load timeout")
+  return withTimeout(load, 10_000, "Session load timeout")
     .catch((e) => {
       logger.warn(`Session load failed for ${chat.id}; preserving stored state`, e);
       throw e;
-    })
-    .finally(() => { sessionLoadLocks.delete(chat.id); });
-
-  sessionLoadLocks.set(chat.id, guarded);
-  return guarded;
+    });
 }
 // SECTION: SYSTEM PROMPT BUILDER
 function buildSystemPrompt(
