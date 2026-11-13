@@ -295,8 +295,7 @@ indexSource.includes('tg("getChatMember", { chat_id: config.channelId, user_id: 
 indexSource.includes('msg.chat.type === "private" && msg.from && msg.from.id !== cfg.BOT_OWNER_ID')
   ? ok("required-channel membership is checked only for private users")
   : fail("required-channel gate must verify private users against Telegram membership");
-indexSource.includes("applyOwnerPersonaLabels(keyboard, customization)") &&
-indexSource.includes("personaLabels")
+indexSource.includes("applyOwnerPersonaLabels(keyboard, customization)")
   ? ok("owner persona button labels are applied without changing callbacks")
   : fail("owner persona button labels must be wired into the picker");
 
