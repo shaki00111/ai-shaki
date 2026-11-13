@@ -14722,6 +14722,8 @@ async function executeStructuredTools(
             logger.info(`Executing tool: ${call.name}`);
 
             if (await isCancelledNow()) {
+              if (call.name === "generate_image" && imageCalls.indexOf(call) < allowedImageCount) await releaseReservedUsage("image");
+              if (call.name === "voice_response" && voiceCalls.indexOf(call) < allowedVoiceCount) await releaseReservedUsage("voice_sent");
               await taskMgr?.failTask(taskKey, lang === "fa" ? "لغو شد توسط کاربر" : "Cancelled by user");
               return { name: call.name, response: { success: false, error: "CANCELLED_BY_USER" } };
             }
@@ -14732,11 +14734,12 @@ async function executeStructuredTools(
               case "update_plan": return { name: call.name, response: runState?.updatePlan(call.args.steps) ?? { success: false, error: "Run state unavailable." } };
 case "generate_image": {
     const prompt = String(call.args.prompt ?? "").trim();
+    const imgIndex = imageCalls.indexOf(call);
     if (!prompt) {
+        if (imgIndex < allowedImageCount) await releaseReservedUsage("image");
         await taskMgr?.failTask(taskKey, lang === "fa" ? "پرامپت خالی است" : "Empty prompt");
         return { name: call.name, response: { success: false, error: "Empty prompt" } };
     }
-    const imgIndex = imageCalls.indexOf(call);
     const imageQuotaReserved = imgIndex < allowedImageCount;
     let imageQuotaReleased = false;
     const releaseImageQuota = async () => {
@@ -14752,7 +14755,13 @@ case "generate_image": {
         return { name: call.name, response: { success: false, error: "Limit exceeded" } };
     }
     await taskMgr?.startTask(taskKey, lang === "fa" ? "بهینه‌سازی پرامپت..." : "Enhancing prompt...");
-    const finalPrompt = await enhanceImagePrompt(prompt, env);
+    let finalPrompt: string;
+    try {
+      finalPrompt = await enhanceImagePrompt(prompt, env);
+    } catch (error) {
+      await releaseImageQuota();
+      throw error;
+    }
     await taskMgr?.startTask(taskKey, lang === "fa" ? "در حال رندر تصویر..." : "Rendering image...");
     let imageSuccess = false;
     let imageError = "";
@@ -15751,10 +15760,11 @@ case "host_web_app": {
 
               case "voice_response": {
                 const text = String(call.args.text ?? "").trim();
+                const voiceIndex = voiceCalls.indexOf(call);
                 if (!text) {
+                  if (voiceIndex < allowedVoiceCount) await releaseReservedUsage("voice_sent");
                   return { name: call.name, response: { success: false, error: "Empty text — no speech was produced and nothing was sent. Answer in text instead." } };
                 }
-                const voiceIndex = voiceCalls.indexOf(call);
                 const voiceQuotaReserved = voiceIndex < allowedVoiceCount;
                 let voiceQuotaReleased = false;
                 const releaseVoiceQuota = async () => {
@@ -16513,6 +16523,7 @@ case "host_web_app": {
         ct,
         /** Starts the tool on first call; later calls reuse the same promise. */
         start: (): Promise<ToolResult> => (started ??= run().then(result => ({ ...result, callKey: toolCallKey(call) }))),
+        hasStarted: (): boolean => started !== null,
       };
     });
 
@@ -16606,6 +16617,10 @@ case "host_web_app": {
       if (harvested.has(taskKey)) {
         finalResults.push(harvested.get(taskKey)!);
       } else {
+        if (!task.hasStarted()) {
+          if (task.name === "generate_image" && imageCalls.indexOf(calls[i]) < allowedImageCount) await releaseReservedUsage("image");
+          if (task.name === "voice_response" && voiceCalls.indexOf(calls[i]) < allowedVoiceCount) await releaseReservedUsage("voice_sent");
+        }
         // تغییر وضعیت تسکی که مهلت زمانی کلش تمام شده و لغو گردیده است
         await taskMgr?.failTask(taskKey, lang === "fa" ? "محدودیت زمانی (سرور شلوغ)" : "Timeout (server busy)");
         const timeoutUserMsg = lang === "fa"
