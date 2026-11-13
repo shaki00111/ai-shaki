@@ -14,6 +14,7 @@ import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from 
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns } from "./ttsReliability";
+import { readVipEntitlementSnapshot, isVipEntitlementActive } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
 import { inspectJpeg } from "./documentImages";
 // ── MERGE: cognition layer from SHAKI B, on top of SHAKI A's platform layer ──
@@ -14510,10 +14511,8 @@ async function executeStructuredTools(
     const privateUserSession = session.type === "private"
       ? session
       : await getOrCreateSession({ id: sender.id, type: "private" }, sender, env);
-    const userVipExpiry = Number(privateUserSession.vipExpiresAt) || 0;
-    const userVipActive = Boolean(
-      privateUserSession.vipStatus && (!userVipExpiry || userVipExpiry > Date.now())
-    );
+    await refreshVipEntitlementFromStore(privateUserSession, sender, env);
+    const userVipActive = isVipEntitlementActive(readVipEntitlementSnapshot(privateUserSession));
     const groupVipExpiry = Number(session.vipExpiresAt) || 0;
     const groupVipActive = Boolean(
       session.type !== "private" && session.vipStatus &&
@@ -16787,6 +16786,27 @@ async function applyBotConfigChanges(changes: BotConfigChange[], env: Env): Prom
 // SECTION: VIP & DAILY LIMITS
 type LimitType = "message" | "voice_sent" | "image" | "webapp" | "edit" | "search";
 
+/** Refresh VIP entitlement fields from the shared D1-backed session store.
+ * Worker isolates have independent in-memory caches; after an owner changes a
+ * user's VIP plan, another isolate must not keep treating that user as free for
+ * the remainder of its local cache TTL. Usage counters stay on the live object.
+ */
+async function refreshVipEntitlementFromStore(session: ChatSession, user: TgUser, env: Env): Promise<void> {
+  try {
+    const raw = await env.SESSIONS.get(`session:${user.id}`, "json") as Record<string, unknown> | null;
+    if (!raw) return;
+    const snapshot = readVipEntitlementSnapshot(raw);
+    session.vipStatus = snapshot.vipStatus;
+    session.vipExpiresAt = snapshot.vipExpiresAt;
+    session.vipPermissions = snapshot.vipPermissions as ChatSession["vipPermissions"];
+    session.vipLimits = snapshot.vipLimits as ChatSession["vipLimits"];
+    sessionCache.set(`session:${user.id}`, session, snapshot.vipStatus ? 15 * 60 * 1000 : 8 * 60 * 1000);
+  } catch (error) {
+    // A transient store read must not downgrade a known cached VIP to free.
+    logger.warn(`Fresh VIP entitlement read failed for ${user.id}; using cached state`, error);
+  }
+}
+
 async function checkDailyLimitWithUser(
   session: ChatSession,
   user: TgUser,
@@ -16800,17 +16820,18 @@ async function checkDailyLimitWithUser(
     // در گروه: مصرف روی سشن خصوصی کاربر ثبت می‌شود، اما اگر خود گروه VIP
     // باشد (/setvip)، سقف VIP به همه اعضای همان گروه اعمال می‌شود.
     const userSession = await getOrCreateSession({ id: user.id, type: "private" }, user, env);
-    const userExpiry = Number(userSession.vipExpiresAt) || 0;
-    const userVipActive = userSession.vipStatus && (!userExpiry || userExpiry > Date.now());
-    const effectiveVip = session.vipStatus || userVipActive;
-    return checkDailyLimitPrivate(userSession, type, effectiveVip);
+    await refreshVipEntitlementFromStore(userSession, user, env);
+    const userVipActive = isVipEntitlementActive(readVipEntitlementSnapshot(userSession));
+    const groupVipExpiry = Number(session.vipExpiresAt) || 0;
+    const groupVipActive = Boolean(session.vipStatus && (!groupVipExpiry || groupVipExpiry > Date.now()));
+    return checkDailyLimitPrivate(userSession, type, groupVipActive || userVipActive);
   }
+  await refreshVipEntitlementFromStore(session, user, env);
   return checkDailyLimitPrivate(session, type);
 }
 
 function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverride?: boolean): { allowed: boolean; message?: string } {
-  const expiry = Number(session.vipExpiresAt) || 0;
-  const ownVipActive = Boolean(session.vipStatus && (!expiry || expiry > Date.now()));
+  const ownVipActive = isVipEntitlementActive(readVipEntitlementSnapshot(session));
   const isVip = vipOverride ?? ownVipActive;
   if (isVip && ownVipActive && session.vipPermissions?.[type] === false) {
     const labels: Record<LimitType, string> = { message: "پیام متنی", voice_sent: "ساخت ویس", image: "ساخت تصویر", edit: "ویرایش تصویر", webapp: "وب‌اپ", search: "جستجو" };
