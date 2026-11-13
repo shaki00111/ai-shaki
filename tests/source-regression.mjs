@@ -290,6 +290,12 @@ indexSource.includes('btn("👤 پنل شخصی", "home:open")') &&
 indexSource.includes('btn("🛡 مدیریت گروه", "group_settings")')
   ? ok("/panel exposes personal access and admin-only group management")
   : fail("/panel must expose personal and permission-checked group controls");
+const panelMessageHandler = indexSource.slice(indexSource.indexOf("async function handleTextMessage"), indexSource.indexOf("\\nasync function handleMediaMessage", indexSource.indexOf("async function handleTextMessage")));
+panelMessageHandler.includes('commandProbe === "پنل"') &&
+panelMessageHandler.includes('/^(?:پنل|panel)$/i.test(text.trim())') &&
+panelMessageHandler.includes('await handlePanelCommand(msg, env)')
+  ? ok("plain پنل and panel text opens the group panel even when replies are paused")
+  : fail("plain پنل/panel group trigger is missing or blocked when group replies are paused");
 indexSource.includes('case "/forcejoin": await handleForceJoinCommand(msg, args, env); break;') &&
 indexSource.includes('tg("getChatMember", { chat_id: config.channelId, user_id: userId })') &&
 indexSource.includes('msg.chat.type === "private" && msg.from && msg.from.id !== cfg.BOT_OWNER_ID')
