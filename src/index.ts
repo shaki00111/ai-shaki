@@ -17057,17 +17057,17 @@ function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverri
     };
     const [faLabel, enLabel] = typeLabels[type];
     const rewardHint = type === "message"
-      ? "\\n\\n🎁 هدیه روزانه ۲۰ پیام: /freebonus\\n🔗 هر دعوت موفق: ۱۰ پیام و ۲ ویس اضافه: /referral"
+      ? "\n\n🎁 هدیه روزانه ۲۰ پیام: /freebonus\n🔗 هر دعوت موفق: ۱۰ پیام و ۲ ویس اضافه: /referral"
       : type === "voice_sent"
-        ? "\\n\\n🔗 با هر دعوت موفق، ۲ ویس و ۱۰ پیام اضافه بگیر: /referral"
-        : "\\n\\n🔗 برای دریافت پیام و ویس اضافه با دعوت دوستان: /referral";
+        ? "\n\n🔗 با هر دعوت موفق، ۲ ویس و ۱۰ پیام اضافه بگیر: /referral"
+        : "\n\n🔗 برای دریافت پیام و ویس اضافه با دعوت دوستان: /referral";
     const msg = isVip
       ? (lang === "fa"
-          ? `⚠️ **محدودیت روزانه VIP**\\n\\nامروز سقف ${limit} ${faLabel} حساب VIP شما تمام شده. این سقف فردا ریست می‌شود.`
-          : `⚠️ **VIP Daily Limit**\\n\\nYou've reached your VIP limit of ${limit} ${enLabel}s today. It resets tomorrow.`)
+          ? `⚠️ **محدودیت روزانه VIP**\n\nامروز سقف ${limit} ${faLabel} حساب VIP شما تمام شده. این سقف فردا ریست می‌شود.`
+          : `⚠️ **VIP Daily Limit**\n\nYou've reached your VIP limit of ${limit} ${enLabel}s today. It resets tomorrow.`)
       : (lang === "fa"
-          ? `⚠️ **محدودیت روزانه**\\n\\nامروز سقف مجاز ${limit} ${faLabel} را مصرف کرده‌اید.${rewardHint}\\n\\n🌟 برای سقف بسیار بالاتر VIP شوید.\\n👑 تماس: ${contact}`
-          : `⚠️ **Daily Limit**\\n\\nYou've used your limit of ${limit} ${enLabel}s today.${rewardHint}\\n\\n🌟 Go VIP for a much higher limit.\\n👑 Contact: ${contact}`);
+          ? `⚠️ **محدودیت روزانه**\n\nامروز سقف مجاز ${limit} ${faLabel} را مصرف کرده‌اید.${rewardHint}\n\n🌟 برای سقف بسیار بالاتر VIP شوید.\n👑 تماس: ${contact}`
+          : `⚠️ **Daily Limit**\n\nYou've used your limit of ${limit} ${enLabel}s today.${rewardHint}\n\n🌟 Go VIP for a much higher limit.\n👑 Contact: ${contact}`);
     return { allowed: false, message: msg };
   }
   return { allowed: true };
