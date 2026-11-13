@@ -14,7 +14,7 @@ import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from 
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns } from "./ttsReliability";
-import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit } from "./vipEntitlement";
+import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
 import { inspectJpeg } from "./documentImages";
 // ── MERGE: cognition layer from SHAKI B, on top of SHAKI A's platform layer ──
@@ -5518,7 +5518,7 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
       const now = Date.now(), expiry = Number(target.vipExpiresAt) || 0;
       const wasActive = target.vipStatus && (!expiry || expiry > now);
       target.vipStatus = true;
-      target.vipExpiresAt = days === 0 ? undefined : (wasActive && expiry > now ? expiry : now) + days * 86400000;
+      target.vipExpiresAt = resolveVipExpiry(wasActive, expiry || undefined, days, now);
       target.vipPermissions = permissions;
       target.vipLimits = limits;
       ok = await saveSession(target, env, { force: true }).then(() => true).catch(() => false);
