@@ -1672,12 +1672,18 @@ async function loadTab(tab, force){
 /* ── داشبورد ───────────────────────────────────────────────────────────
  */
 const PERSONAL_BUTTONS = [
-  {id:"personas",label:"🎭 انتخاب شخصیت (فقط برای من)"},
-  {id:"prompt",label:"✏️ پرامپت شخصی من"},
-  {id:"clear_memory",label:"🆕 پاک کردن حافظه من"},
+  {id:"personas",label:"🎭 تغییر شخصیت"},
+  {id:"new_chat",label:"🆕 گفتگوی جدید"},
+  {id:"prompt",label:"✏️ پرامپت سفارشی"},
+  {id:"language",label:"🌐 تغییر زبان"},
   {id:"help",label:"❓ راهنما"},
-  {id:"group_settings",label:"👥 تنظیمات گروه (مدیریت)"},
-  {id:"close",label:"✖️ بستن"},
+  {id:"vip",label:"💎 ارتقا به VIP"},
+  {id:"owner_online",label:"🟢 شاکی آنلاینم"},
+  {id:"owner_offline",label:"🌙 شاکی آفلاینم"},
+  {id:"admin_panel",label:"👑 پنل مدیریت ارشد"},
+  {id:"user_dashboard",label:"🚀 داشبورد من"},
+  {id:"group_settings",label:"👥 تنظیمات گروه"},
+  {id:"close",label:"✖️ بستن منو"},
 ];
 let personalizationState = null;
 function renderPersonalButtons(custom){
@@ -1691,7 +1697,7 @@ function renderPersonalButtons(custom){
       <input id="personal-label-${b.id}" data-personal-label value="${esc(labels[b.id]||"")}" maxlength="48" placeholder="${esc(b.label)}">
       <div class="toolbar-line">
         <label><input type="checkbox" data-personal-visible ${hidden.has(b.id)?"":"checked"} style="width:auto;min-height:0"> نمایش دکمه</label>
-        <label class="lbl" style="margin:0">ترتیب <input type="number" data-personal-order min="1" max="6" value="${i+1}" style="width:74px;min-height:34px"></label>
+        <label class="lbl" style="margin:0">ترتیب <input type="number" data-personal-order min="1" max="12" value="${i+1}" style="width:74px;min-height:34px"></label>
       </div>
     </div>`).join("");
 }
