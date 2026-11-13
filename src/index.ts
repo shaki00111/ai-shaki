@@ -25669,45 +25669,51 @@ if (data.startsWith("img_regen_")) {
     }
     await answerCb(cb.id, session.language === "fa" ? "🔄 در حال ساخت..." : "🔄 Generating...");
 
-    const limitCheck = await checkDailyLimitWithUser(session, from, "image", env);
-    if (!limitCheck.allowed) {
-        await sendMessage(chat.id, limitCheck.message!, { reply_to_message_id: message.message_id });
+    const reservation = await reserveDailyUsageWithUser(session, from, "image", env);
+    if (!reservation.allowed) {
+        await sendMessage(chat.id, reservation.message ?? t(session.language, "img_limit"), { reply_to_message_id: message.message_id });
         return;
     }
 
     const procMsg = await sendMessage(chat.id,
         session.language === "fa" ? "⏳ در حال رندر تصویر..." : "⏳ Rendering...",
         { reply_to_message_id: message.message_id });
+    let delivered = false;
     try {
         const img = await withTimeout(
             generateImageCF(savedPrompt, cfg.AI_IMAGE_MODELS[0], env),
             105_000, "Timeout"
         );
-        if (img) {
-            await incrementUsageWithUser(session, from, "image", env);
-            const newRef = `novaimg_${generateId()}`;
-            if ((await putMediaBlob(env, newRef, bytesToArrayBuffer(img), "image/png")).ok) {
-              await env.SESSIONS.put(`media_prompt:${newRef}`, savedPrompt, { expirationTtl: 7200 });
-            }
-            const caption = session.language === "fa" ? "بفرما، اینم عکسی که خواستی 🖤" : "Here’s the image you asked for 🖤";
-            const resendKb: InlineKeyboard = {
-                inline_keyboard: [[
-                    btn(session.language === "fa" ? "🔄 ساخت دوباره" : "🔄 Regenerate", `img_regen_${newRef}`),
-                    btn(session.language === "fa" ? "📎 ارسال بصورت فایل" : "📎 Send as File", `img_asfile_${newRef}`),
-                ]]
-            };
-            await sendPhoto(chat.id, img, caption, {
-                reply_to_message_id: message.message_id,
-                parse_mode: "HTML",
-                reply_markup: JSON.stringify(resendKb),
-            });
-            await deleteMessage(chat.id, procMsg.message_id).catch(() => {});
+        if (!img) {
+            await editMessageText(chat.id, procMsg.message_id,
+                session.language === "fa" ? "❌ ساخت دوباره ناموفق بود." : "❌ Regeneration failed."
+            ).catch(() => {});
+            return;
         }
+        const newRef = `novaimg_${generateId()}`;
+        const stored = await putMediaBlob(env, newRef, bytesToArrayBuffer(img), "image/png");
+        if (stored.ok) await env.SESSIONS.put(`media_prompt:${newRef}`, savedPrompt, { expirationTtl: 7200 });
+        const caption = session.language === "fa" ? "بفرما، اینم عکسی که خواستی 🖤" : "Here’s the image you asked for 🖤";
+        const resendKb: InlineKeyboard = {
+            inline_keyboard: [[
+                btn(session.language === "fa" ? "🔄 ساخت دوباره" : "🔄 Regenerate", `img_regen_${newRef}`),
+                btn(session.language === "fa" ? "📎 ارسال بصورت فایل" : "📎 Send as File", `img_asfile_${newRef}`),
+            ]]
+        };
+        await sendPhoto(chat.id, img, caption, {
+            reply_to_message_id: message.message_id,
+            parse_mode: "HTML",
+            reply_markup: JSON.stringify(resendKb),
+        });
+        delivered = true;
+        await deleteMessage(chat.id, procMsg.message_id).catch(() => {});
     } catch (e) {
         logger.warn(`img_regen failed: ${e instanceof Error ? e.message : e}`);
         await editMessageText(chat.id, procMsg.message_id,
             session.language === "fa" ? "❌ ساخت دوباره ناموفق بود." : "❌ Regeneration failed."
         ).catch(() => {});
+    } finally {
+        if (!delivered) await reservation.release().catch(() => {});
     }
     return;
 }
