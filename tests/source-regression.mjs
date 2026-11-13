@@ -174,6 +174,19 @@ s.includes("await saveSession(target, env);")
   ? ok("direct /tts usage is atomically reserved and persisted before synthesis")
   : fail("direct /tts must reserve and persist quota before synthesis, then release on failure");
 
+// ── Incoming voice quota accounting ────────────────────────────────────────
+console.log("\n[8] Incoming voice quota accounting");
+const incomingVoiceStart = indexSource.indexOf("async function handleVoiceMessage");
+const incomingVoiceEnd = indexSource.indexOf("\nasync function handleMediaMessage", incomingVoiceStart);
+const incomingVoiceSource = incomingVoiceStart >= 0 && incomingVoiceEnd > incomingVoiceStart
+  ? indexSource.slice(incomingVoiceStart, incomingVoiceEnd) : "";
+incomingVoiceSource.includes('checkDailyLimitWithUser(session, from, "message", env)') &&
+incomingVoiceSource.includes('incrementUsageWithUser(session, from, "message", env)') &&
+!incomingVoiceSource.includes('checkDailyLimitWithUser(session, from, "voice_sent", env)') &&
+!incomingVoiceSource.includes('incrementUsageWithUser(session, from, "voice_sent", env)')
+  ? ok("incoming voice transcription uses the message quota, not voice-generation quota")
+  : fail("incoming voice must not consume the voice-generation quota");
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
