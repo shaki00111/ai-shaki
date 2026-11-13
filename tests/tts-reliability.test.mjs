@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ProviderKeyCooldowns } from "../src/ttsReliability.ts";
+import { buildGeminiTtsRequest, extractGeminiTtsAudio } from "../src/geminiTtsProtocol.ts";
 
 test("TTS cooldowns are isolated per key and expire", () => {
   let now = 1_000;
@@ -30,4 +31,41 @@ test("invalid cooldown inputs are ignored", () => {
   cooldowns.disable("key", Number.NaN);
   cooldowns.disable("key", -1);
   assert.equal(cooldowns.isDisabled("key"), false);
+});
+
+ 
+test("Gemini 3.8 TTS uses the documented Interactions API payload", () => {
+  assert.deepEqual(buildGeminiTtsRequest("gemini-3.8-flash-lite-tts", "سلام", "Despina"), {
+    model: "gemini-3.8-flash-lite-tts",
+    input: [{ type: "user_input", content: [{ type: "text", text: "سلام" }] }],
+    response_format: { type: "audio" },
+    generation_config: { speech_config: [{ voice: "Despina" }] },
+  });
+});
+
+test("Gemini 3.1 preview TTS uses Interactions API text input", () => {
+  assert.deepEqual(buildGeminiTtsRequest("gemini-3.1-flash-tts-preview", "Hello", "Kore"), {
+    model: "gemini-3.1-flash-tts-preview",
+    input: "Hello",
+    response_format: { type: "audio" },
+    generation_config: { speech_config: [{ voice: "Kore" }] },
+  });
+});
+
+test("Gemini TTS extracts audio output in snake_case, camelCase, and output blocks", () => {
+  const base64 = "A".repeat(128);
+  assert.deepEqual(extractGeminiTtsAudio({ output_audio: { data: base64, mime_type: "audio/wav" } }), {
+    data: base64, mimeType: "audio/wav",
+  });
+  assert.deepEqual(extractGeminiTtsAudio({ outputAudio: { data: base64, mimeType: "audio/ogg" } }), {
+    data: base64, mimeType: "audio/ogg",
+  });
+  assert.deepEqual(extractGeminiTtsAudio({ output: [{ type: "audio", data: base64, mime_type: "audio/wav" }] }), {
+    data: base64, mimeType: "audio/wav",
+  });
+});
+
+test("Gemini TTS ignores absent or too-short audio payloads", () => {
+  assert.equal(extractGeminiTtsAudio({ output_audio: { data: "short" } }), null);
+  assert.equal(extractGeminiTtsAudio({ candidates: [{ content: { parts: [{ text: "not audio" }] } }] }), null);
 });
