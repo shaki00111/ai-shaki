@@ -119,12 +119,14 @@ ok(`scanned ${scanned} tracked text files`);
 console.log("\n[6] Mini App media and mobile layout invariants");
 const indexSource = readFileSync("src/index.ts", "utf8");
 const dashboardSource = readFileSync("src/dashboard.html", "utf8");
-indexSource.includes('putMediaBlob(env, id, bytesToArrayBuffer(audio), "audio/mpeg")')
-  ? ok("Mini App voice blobs keep their real MPEG MIME type")
-  : fail("Mini App voice blobs must use audio/mpeg for synthesized MP3 bytes");
-indexSource.includes('${requestOrigin}/app/${id}.mp3')
-  ? ok("Mini App voice URLs use the .mp3 extension")
-  : fail("Mini App voice URL extension does not match synthesized MP3 bytes");
+indexSource.includes("const detectedAudioMime = detectBinarySignature(audioBuffer)") &&
+indexSource.includes('const audioMime = detectedAudioMime === "audio/wav" || detectedAudioMime === "audio/ogg"')
+  ? ok("Mini App voice blobs preserve the actual WAV/OGG/MP3 codec")
+  : fail("Mini App voice blobs must store the detected audio MIME type");
+indexSource.includes('${requestOrigin}/app/${id}.${audioExtension}') &&
+indexSource.includes('rawPath.match(/\\.(ogg|mp3|wav)$/)')
+  ? ok("Mini App voice URLs and media route preserve the actual audio extension")
+  : fail("Mini App voice media route must serve WAV/OGG/MP3 with matching content types");
 dashboardSource.includes('#app{display:flex!important;width:100vw!important;max-width:none!important')
   ? ok("Telegram Mini App shell fills the viewport on mobile")
   : fail("Telegram Mini App shell is missing the full-width viewport fix");
@@ -248,6 +250,15 @@ const miniToolSource = miniToolStart >= 0 && miniToolEnd > miniToolStart
 const regenStart = indexSource.indexOf('if (data.startsWith("img_regen_"))');
 const regenEnd = indexSource.indexOf('if (data === "open_language")', regenStart);
 const regenSource = regenStart >= 0 && regenEnd > regenStart ? indexSource.slice(regenStart, regenEnd) : "";
+// Regeneration progress delivery is part of the quota reservation lifetime.
+const regenProgressStart = regenSource.indexOf("let procMsg: TgMessage | null = null;");
+const regenTryStart = regenSource.indexOf("try {", regenProgressStart);
+const regenSendStart = regenSource.indexOf("procMsg = await sendMessage", regenProgressStart);
+regenProgressStart >= 0 && regenTryStart >= 0 && regenSendStart > regenTryStart &&
+regenSource.includes("finally") && regenSource.includes("if (!delivered) await reservation.release()")
+  ? ok("image regeneration releases reservations even if progress delivery fails")
+  : fail("image regeneration must release reservations when progress delivery fails");
+
 regenSource.includes('reserveDailyUsageWithUser(session, from, "image", env)') &&
 regenSource.includes("reservation.release()") &&
 !regenSource.includes('incrementUsageWithUser(session, from, "image", env)')

@@ -6496,9 +6496,14 @@ async function executeToolForWebApp(call: GeminiFunctionCall, user: TgUser, env:
           if (!audio) return { response: { success: false } };
           if (turnToken?.cancelled) return { response: { success: false, error: "CANCELLED_BY_USER" } };
           const id = `voice_${generateId()}`;
-          const put = await putMediaBlob(env, id, bytesToArrayBuffer(audio), "audio/mpeg");
+          const audioBuffer = bytesToArrayBuffer(audio);
+          const detectedAudioMime = detectBinarySignature(audioBuffer);
+          const audioMime = detectedAudioMime === "audio/wav" || detectedAudioMime === "audio/ogg"
+            ? detectedAudioMime : "audio/mpeg";
+          const audioExtension = audioMime === "audio/wav" ? "wav" : audioMime === "audio/ogg" ? "ogg" : "mp3";
+          const put = await putMediaBlob(env, id, audioBuffer, audioMime);
           if (!put.ok) return { response: { success: false, error: "storage_failed" } };
-          const url = `${requestOrigin}/app/${id}.mp3`;
+          const url = `${requestOrigin}/app/${id}.${audioExtension}`;
           delivered = true;
           return { response: { success: true, url }, audioUrl: url };
         } finally {
@@ -25662,11 +25667,14 @@ if (data.startsWith("img_regen_")) {
         return;
     }
 
-    const procMsg = await sendMessage(chat.id,
-        session.language === "fa" ? "⏳ در حال رندر تصویر..." : "⏳ Rendering...",
-        { reply_to_message_id: message.message_id });
+    let procMsg: TgMessage | null = null;
     let delivered = false;
     try {
+        // Include progress delivery inside the reservation's try/finally: if
+        // Telegram cannot create the progress message, the quota must be released.
+        procMsg = await sendMessage(chat.id,
+            session.language === "fa" ? "⏳ در حال رندر تصویر..." : "⏳ Rendering...",
+            { reply_to_message_id: message.message_id });
         const img = await withTimeout(
             generateImageCF(savedPrompt, cfg.AI_IMAGE_MODELS[0], env),
             105_000, "Timeout"
@@ -25690,15 +25698,22 @@ if (data.startsWith("img_regen_")) {
         await sendPhoto(chat.id, img, caption, {
             reply_to_message_id: message.message_id,
             parse_mode: "HTML",
-            reply_markup: JSON.stringify(resendKb),
+            ...(stored.ok ? { reply_markup: JSON.stringify(resendKb) } : {}),
         });
         delivered = true;
         await deleteMessage(chat.id, procMsg.message_id).catch(() => {});
     } catch (e) {
         logger.warn(`img_regen failed: ${e instanceof Error ? e.message : e}`);
-        await editMessageText(chat.id, procMsg.message_id,
-            session.language === "fa" ? "❌ ساخت دوباره ناموفق بود." : "❌ Regeneration failed."
-        ).catch(() => {});
+        if (procMsg) {
+            await editMessageText(chat.id, procMsg.message_id,
+                session.language === "fa" ? "❌ ساخت دوباره ناموفق بود." : "❌ Regeneration failed."
+            ).catch(() => {});
+        } else {
+            await sendMessage(chat.id,
+                session.language === "fa" ? "❌ ساخت دوباره ناموفق بود." : "❌ Regeneration failed.",
+                { reply_to_message_id: message.message_id }
+            ).catch(() => {});
+        }
     } finally {
         if (!delivered) await reservation.release().catch(() => {});
     }
@@ -27007,15 +27022,17 @@ export default {
             }
           });
         }
-      } else if (rawPath.endsWith(".ogg") || rawPath.startsWith("voice_")) {
-        // Checked before the HTML branch: audio used to fall through it first and
-        // pay a pointless `app:` lookup on every single voice fetch.
-        const voiceName = rawPath.replace(".ogg", "").trim();
+      } else if (rawPath.startsWith("voice_") || /\.(?:ogg|mp3|wav)$/.test(rawPath)) {
+        // Audio extension carries the real codec because the D1-backed media
+        // shim stores bytes but does not retain an HTTP content-type header.
+        const extension = rawPath.match(/\.(ogg|mp3|wav)$/)?.[1] ?? "ogg";
+        const voiceName = rawPath.replace(/\.(?:ogg|mp3|wav)$/, "").trim();
         const voiceBuffer = await getMediaBlob(env, voiceName);
         if (voiceBuffer) {
+          const contentType = extension === "wav" ? "audio/wav" : extension === "mp3" ? "audio/mpeg" : "audio/ogg";
           return new Response(voiceBuffer, {
             headers: {
-              "Content-Type": "audio/ogg",
+              "Content-Type": contentType,
               "Cache-Control": mediaCache
             }
           });
