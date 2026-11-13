@@ -14,6 +14,7 @@ import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from 
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns } from "./ttsReliability";
+import { buildGeminiTtsRequest, extractGeminiTtsAudio } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
 import { inspectJpeg } from "./documentImages";
@@ -12239,25 +12240,8 @@ async function synthesizeVoiceGemini(
     let rotateKey = false;
     for (const model of models) {
       try {
-        const modernModel = model.startsWith("gemini-3.8-");
-        const generationConfig = modernModel
-          ? {
-              responseModalities: ["AUDIO"],
-              speechConfig: { voiceConfig: { voice: GEMINI_TTS_VOICE } },
-            }
-          : {
-              responseModalities: ["AUDIO"],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: GEMINI_TTS_VOICE },
-                },
-              },
-            };
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-        const body = {
-          contents: [{ role: "user", parts: [{ text: text.slice(0, GEMINI_TTS_TEXT_LIMIT) }] }],
-          generationConfig,
-        };
+        const url = "https://generativelanguage.googleapis.com/v1beta/interactions";
+        const body = buildGeminiTtsRequest(model, text.slice(0, GEMINI_TTS_TEXT_LIMIT), GEMINI_TTS_VOICE);
         const res = await fetchWithTimeout(url, {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-goog-api-key": key },
@@ -12289,23 +12273,23 @@ async function synthesizeVoiceGemini(
           continue;
         }
 
-        const parts = (data?.candidates ?? []).flatMap((candidate: any) => candidate?.content?.parts ?? []);
-        const inlineData = parts.find((part: any) => part?.inlineData?.data || part?.inline_data?.data);
-        const audioBase64 = inlineData?.inlineData?.data ?? inlineData?.inline_data?.data;
-        if (typeof audioBase64 !== "string" || audioBase64.length < 100) {
+        const audioOutput = extractGeminiTtsAudio(data);
+        if (!audioOutput) {
           failures.push(`${model}/key[${idx}]:no_audio_data`);
           continue;
         }
 
-        const binary = atob(audioBase64);
+        const binary = atob(audioOutput.data);
         const bytes = new Uint8Array(binary.length);
         for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
-        const mimeType = String(inlineData?.inlineData?.mimeType ?? inlineData?.inline_data?.mime_type ?? "").toLowerCase();
-        const isWav = mimeType.includes("wav") || (
-          bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 &&
-          bytes[2] === 0x46 && bytes[3] === 0x46
-        );
-        const audio = isWav ? bytes : pcmToWav(audioBase64);
+        const mimeType = audioOutput.mimeType.toLowerCase();
+        const detectedMime = detectBinarySignature(bytes.buffer);
+        const hasWavHeader = bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 &&
+          bytes[2] === 0x46 && bytes[3] === 0x46;
+        const isKnownContainer = mimeType.includes("ogg") || mimeType.includes("mpeg") ||
+          mimeType.includes("mp3") || detectedMime === "audio/ogg" || detectedMime === "audio/mpeg";
+        const audio = hasWavHeader || detectedMime === "audio/wav" || isKnownContainer
+          ? bytes : pcmToWav(audioOutput.data);
         if (audio.length < 100) {
           failures.push(`${model}/key[${idx}]:audio_too_small_${audio.length}`);
           continue;

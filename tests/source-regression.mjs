@@ -140,6 +140,19 @@ adminSource.includes("--accent:#9b7bff!important") && adminSource.includes("--ac
   : fail("Owner dashboard brand tokens do not match the Mini App");
 
 
+// ── Gemini TTS Interactions API contract ───────────────────────────────────
+console.log("\n[11] Gemini TTS Interactions API contract");
+const geminiTtsStart = indexSource.indexOf("async function synthesizeVoiceGemini");
+const geminiTtsEnd = indexSource.indexOf("\nasync function sendVoiceResponse", geminiTtsStart);
+const geminiTtsSource = geminiTtsStart >= 0 && geminiTtsEnd > geminiTtsStart
+  ? indexSource.slice(geminiTtsStart, geminiTtsEnd) : "";
+geminiTtsSource.includes("v1beta/interactions") &&
+geminiTtsSource.includes("buildGeminiTtsRequest") &&
+geminiTtsSource.includes("extractGeminiTtsAudio") &&
+!geminiTtsSource.includes(":generateContent")
+  ? ok("Gemini TTS uses the current Interactions API request and audio response")
+  : fail("Gemini TTS must use the Interactions API rather than the legacy generateContent response shape");
+
 // ── VIP tool quota invariants ─────────────────────────────────────────────
 console.log("\n[7] VIP tool quota invariants");
 const toolStart = indexSource.indexOf("async function executeStructuredTools");
