@@ -21549,8 +21549,9 @@ async function handleTTS(msg: TgMessage, args: string[], env: Env): Promise<void
   const reservation = await reserveDailyUsageWithUser(session, from, "voice_sent", env);
   if (!reservation.allowed) { await sendMessage(chat.id, reservation.message ?? "⚠️ سهمیه روزانه ویس تمام شده.", { reply_to_message_id: msg.message_id }); return; }
 
-  const loading = await sendMessage(chat.id, isFa ? "🎙️ در حال ساخت صدا..." : "🎙️ Synthesizing voice...", { reply_to_message_id: msg.message_id });
+  let loading: TgMessage | null = null;
   try {
+    loading = await sendMessage(chat.id, isFa ? "🎙️ در حال ساخت صدا..." : "🎙️ Synthesizing voice...", { reply_to_message_id: msg.message_id });
     const ok = await sendVoiceResponse(chat.id, msg.message_id, text, env);
     await deleteMessage(chat.id, loading.message_id).catch(() => {});
     if (!ok) {
@@ -21560,7 +21561,8 @@ async function handleTTS(msg: TgMessage, args: string[], env: Env): Promise<void
   } catch (e) {
     await reservation.release().catch(() => {});
     logger.error("handleTTS failed", e);
-    await editMessageText(chat.id, loading.message_id, isFa ? "❌ ساخت صدا ناموفق بود." : "❌ Voice synthesis failed.").catch(() => {});
+    if (loading) await editMessageText(chat.id, loading.message_id, isFa ? "❌ ساخت صدا ناموفق بود." : "❌ Voice synthesis failed.").catch(() => {});
+    else await sendMessage(chat.id, isFa ? "❌ ساخت صدا ناموفق بود." : "❌ Voice synthesis failed.", { reply_to_message_id: msg.message_id }).catch(() => {});
   }
 }
 
