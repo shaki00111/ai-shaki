@@ -23959,7 +23959,8 @@ async function handleVoiceMessage(msg: TgMessage, env: Env): Promise<void> {
     await editMessageText(chat.id, loadingMsg.message_id,
       lang === "fa" ? `> 🎙️ **شما گفتید:**\n> _${transcript}_\n> ⏳ در حال بررسی...` : `> 🎙️ **You said:**\n> _${transcript}_\n> ⏳ Processing...`);
 
-    await incrementUsageWithUser(session, from, "message", env);
+    // processAIRequest records the completed AI turn in the message quota.
+    // Do not increment here as well: that would charge one incoming voice twice.
     session.statistics.voicesReceived++;
     recordRequest(session);
     // Transcription is done; free the per-chat slot before the (much longer) AI
