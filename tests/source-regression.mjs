@@ -166,9 +166,15 @@ toolSource.includes('await releaseReservedUsage("voice_sent")')
 const ttsStart = indexSource.indexOf("async function handleTTS");
 const ttsEnd = indexSource.indexOf("\nasync function handleOCR", ttsStart);
 const ttsSource = ttsStart >= 0 && ttsEnd > ttsStart ? indexSource.slice(ttsStart, ttsEnd) : "";
-ttsSource.includes('if (session.type === "private") await saveSession(session, env);')
-  ? ok("private /tts usage is persisted after successful delivery")
-  : fail("private /tts usage must be persisted after successful delivery");
+const reserveStart = indexSource.indexOf("async function reserveDailyUsageWithUser");
+const reserveEnd = indexSource.indexOf("\nfunction formatConfigChangeSummary", reserveStart);
+const reserveSource = reserveStart >= 0 && reserveEnd > reserveStart ? indexSource.slice(reserveStart, reserveEnd) : "";
+ttsSource.includes('reserveDailyUsageWithUser(session, from, "voice_sent", env)') &&
+ttsSource.includes("await reservation.release()") &&
+reserveSource.includes("incrementUsagePrivate(target, type)") &&
+reserveSource.includes("await saveSession(target, env)")
+  ? ok("private /tts quota is atomically reserved, persisted, and released on failure")
+  : fail("private /tts must reserve and persist quota before synthesis and release on failure");
 
 console.log("");
 if (failures > 0) {
