@@ -5354,7 +5354,9 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     const q = url.searchParams.get("q")?.trim() || null; const rawSort = url.searchParams.get("sort") ?? "new";
     const sort = (rawSort === "active" || rawSort === "messages" ? rawSort : "new") as UserSortKey;
     const limit = Math.min(50, Math.max(5, Number(url.searchParams.get("limit") ?? 20) || 20));
-    return json({ ok: true, ...(await queryUsersCursor(env, { search: q, sortBy: sort, limit, cursor: url.searchParams.get("cursor"), last: url.searchParams.get("last") === "1" })) });
+    const page = await queryUsersCursor(env, { search: q, sortBy: sort, limit, cursor: url.searchParams.get("cursor"), last: url.searchParams.get("last") === "1" });
+    if ("error" in page && page.error) return json({ ok: false, error: "users_query_failed" }, 500);
+    return json({ ok: true, ...page });
   }
   const memMatch = path.match(/^users\/(\-?\d+)\/memory$/);
   if (request.method === "GET" && memMatch) {
@@ -14647,47 +14649,44 @@ async function executeStructuredTools(
         }
     }
 
-    let limitSession = session;
+    let limitSession = session.type === "private" ? session : privateUserSession;
     if(!await chatCanReceive(env.DB,chatId))throw new Error("CHAT_DELIVERY_UNAVAILABLE");
-    if (session.type !== "private" && !isVip) {
-      limitSession = await getOrCreateSession({ id: sender.id, type: "private" }, sender, env);
-    }
 
     const imageCalls = calls.filter(c => c.name === "generate_image");
-    // KV CONSERVATION: only host (persist) generated images to KV when they are
-    // needed for embedding into a web app being built in the same batch. Plain image
-    // requests are delivered as raw Telegram bytes with zero KV writes.
+    // KV CONSERVATION: only host generated images when needed by a web app/game.
     const needsImageHosting = calls.some(c => c.name === "host_web_app" || c.name === "create_game");
     const voiceCalls = calls.filter(c => c.name === "voice_response");
     let allowedImageCount = imageCalls.length;
     let allowedVoiceCount = voiceCalls.length;
 
-    // شمارش سهمیه‌ی تصویر/صدا یک read-modify-write روی سشن است. در گروه، limitSession
-    // سشنِ *خصوصیِ* کاربر است (نه سشنِ گروه که مِیوتکس بیرونی رویش قفل دارد)، پس اگر
-    // همان کاربر هم‌زمان در دو گروه درخواست بدهد، افزایش‌ها درهم می‌شوند و سقف دور زده
-    // می‌شود. این بخش را با همان مِیوتکسِ per-user حساب‌داری سریال می‌کنیم. در پیوی
-    // limit}Session === session است و مِیوتکسِ بیرونیِ chatId کافی‌ست، پس قفل لازم نیست.
+    // Reserve quota on the member's own session, even in groups. This keeps personal
+    // VIP caps/permissions effective and avoids charging the shared group session.
     const applyUsageQuota = async () => {
-      if (imageCalls.length > 0 && !isVip) {
-        const remainingImages = Math.max(0, cfg.IMAGE_LIMIT - limitSession.dailyLimits.imagesGenerated);
-        if (imageCalls.length > remainingImages) allowedImageCount = remainingImages;
+      if (isOwner) return;
+      if (imageCalls.length > 0) {
+        const check = checkDailyLimitPrivate(limitSession, "image", isVip);
+        const cap = isVip
+          ? resolveVipDailyLimit(true, userVipActive ? limitSession.vipLimits?.image : undefined, limitSession.limitOverrides?.image, cfg.VIP_IMAGE_LIMIT)
+          : cfg.IMAGE_LIMIT;
+        const remaining = check.allowed ? Math.max(0, cap - limitSession.dailyLimits.imagesGenerated) : 0;
+        allowedImageCount = Math.min(imageCalls.length, remaining);
         limitSession.dailyLimits.imagesGenerated += allowedImageCount;
       }
-      if (voiceCalls.length > 0 && !isVip) {
-        const remainingVoices = Math.max(0, cfg.VOICE_LIMIT - limitSession.dailyLimits.voicesSent);
-        if (voiceCalls.length > remainingVoices) allowedVoiceCount = remainingVoices;
+      if (voiceCalls.length > 0) {
+        const check = checkDailyLimitPrivate(limitSession, "voice_sent", isVip);
+        const cap = isVip
+          ? resolveVipDailyLimit(true, userVipActive ? limitSession.vipLimits?.voice_sent : undefined, limitSession.limitOverrides?.voice_sent, cfg.VIP_VOICE_LIMIT)
+          : cfg.VOICE_LIMIT;
+        const remaining = check.allowed ? Math.max(0, cap - limitSession.dailyLimits.voicesSent) : 0;
+        allowedVoiceCount = Math.min(voiceCalls.length, remaining);
         limitSession.dailyLimits.voicesSent += allowedVoiceCount;
       }
-      if ((imageCalls.length > 0 || voiceCalls.length > 0) && !isVip) {
-        await saveSession(limitSession, env);
-      }
+      if (imageCalls.length > 0 || voiceCalls.length > 0) await saveSession(limitSession, env);
     };
-    if (session.type !== "private" && !isVip && (imageCalls.length > 0 || voiceCalls.length > 0)) {
+    if (imageCalls.length > 0 || voiceCalls.length > 0) {
       await updateMutex.run(`usage:${sender.id}`, applyUsageQuota);
-    } else {
-      await applyUsageQuota();
     }
-  
+
     // A turn may legitimately build something and then act on it, so a second
     // build is allowed. What must not happen is an unbounded rebuild loop, and
     // the ToolCallLedger already suppresses an identical repeat.
@@ -16905,7 +16904,11 @@ async function incrementUsageWithUser(
       await saveSession(userSession, env);
     });
   } else {
-    incrementUsagePrivate(session, type);
+    // Persist private-chat usage; otherwise direct /tts counts vanish on isolate eviction.
+    await updateMutex.run(`usage:${user.id}`, async () => {
+      incrementUsagePrivate(session, type);
+      await saveSession(session, env);
+    });
   }
 }
 
@@ -19045,7 +19048,7 @@ async function queryUsersCursor(env: Env, opts: { sortBy?: UserSortKey; search?:
     const lastRow = rows.at(-1);
     const nextCursor = lastRow ? encodeUserCursor({ sortValue: Number(lastRow[sortColumn as keyof UserSummaryRow] ?? 0), userId: lastRow.user_id }) : null;
     return { users: rows.map(rowToUserStats), nextCursor, hasNext };
-  } catch (e) { logger.warn("queryUsersCursor failed", e); return { users: [], nextCursor: null, hasNext: false }; }
+  } catch (e) { logger.error("queryUsersCursor failed", e); return { users: [], nextCursor: null, hasNext: false, error: true }; }
 }
 
 async function patchSessionJsonField(env: Env, userId: number, path: string, value: unknown): Promise<boolean> {
