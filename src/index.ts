@@ -26492,11 +26492,25 @@ async function showHomePanel(
   const lim = { msg: cfg.MESSAGE_LIMIT, img: cfg.IMAGE_LIMIT, voice: cfg.VOICE_LIMIT };
   const isVip = session.vipStatus || isOwner;
   
-  const renderBar = (u: number, l: number) => {
-    if (isVip) return "<code>[▰▰▰▰▰▰▰▰]</code> 💎 VIP";
-    const ratio = l > 0 ? Math.min(u / l, 1) : 0;
-    const filled = Math.round(ratio * 8);
-    return `<code>[${"▰".repeat(filled)}${"▱".repeat(8 - filled)}]</code> ${u}/${l}`;
+  const quotaLimit = (type: LimitType, fallback: number): number => {
+    if (isOwner) return Number.POSITIVE_INFINITY;
+    return resolveVipDailyLimit(isVip, isVip ? session.vipLimits?.[type] : undefined, session.limitOverrides?.[type], fallback);
+  };
+  const renderQuota = (usedValue: number, cap: number): string => {
+    const usedCount = Math.max(0, Math.floor(Number(usedValue) || 0));
+    if (!Number.isFinite(cap)) return '<code>[▰▰▰▰▰▰▰▰▰▰]</code> <b>' + usedCount.toLocaleString("en-US") + '</b> مصرف امروز · <b>نامحدود</b>';
+    const safeCap = Math.max(0, Math.floor(cap));
+    const remaining = Math.max(0, safeCap - usedCount);
+    const ratio = safeCap > 0 ? Math.min(usedCount / safeCap, 1) : (usedCount > 0 ? 1 : 0);
+    const filled = Math.round(ratio * 10);
+    const bar = '<code>['+ "▰".repeat(filled) + "▱".repeat(10 - filled) + ']</code>';
+    const state = remaining === 0 ? "⛔ تکمیل" : remaining <= Math.max(1, Math.ceil(safeCap * 0.15)) ? "⚠️ رو به اتمام" : "✓ فعال";
+    return bar + ' <b>' + usedCount.toLocaleString("en-US") + '</b>/<b>' + safeCap.toLocaleString("en-US") + '</b> · مانده <b>' + remaining.toLocaleString("en-US") + '</b>  ' + state;
+  };
+  const caps = {
+    msg: quotaLimit("message", isVip ? cfg.VIP_MESSAGE_LIMIT : cfg.MESSAGE_LIMIT),
+    img: quotaLimit("image", isVip ? cfg.VIP_IMAGE_LIMIT : cfg.IMAGE_LIMIT),
+    voice: quotaLimit("voice_sent", isVip ? cfg.VIP_VOICE_LIMIT : cfg.VOICE_LIMIT),
   };
 
   const personaName = lang === "fa" ? persona.nameFA : lang === "ar" ? persona.nameFA : persona.nameEN;
@@ -26516,13 +26530,13 @@ async function showHomePanel(
            `╰━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
            `👤 <b>کاربر:</b> <code>${escapeHTML(user.first_name)}</code> (${tier})\n` +
            `${persona.emoji} <b>شخصیت فعال:</b> <b>${personaName}</b> — <i>${personaTag}</i>\n\n` +
-           `📊 <b>سهمیه و مصرف روزانه شما:</b>\n` +
-           `┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n` +
-           `💬 <b>پیام‌ها:</b>   ${renderBar(used.messages, lim.msg)}\n` +
-           `🎨 <b>تصاویر:</b>   ${renderBar(used.imagesGenerated, lim.img)}\n` +
-           `🎤 <b>ویس‌ها:</b>    ${renderBar(used.voicesSent, lim.voice)}\n` +
-           `┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n\n` +
-           `💡 <i>یکی از گزینه‌های زیر را انتخاب کنید:</i>`;
+           `╭━━━ ◈ <b>آمار و اعتبار روزانه</b> ━━━╮\n` +
+           `┃ 💬 <b>پیام متنی</b>\n┃ ${renderQuota(used.messages, caps.msg)}\n` +
+           `┃ 🎨 <b>تولید تصویر</b>\n┃ ${renderQuota(used.imagesGenerated, caps.img)}\n` +
+           `┃ 🎙 <b>ساخت ویس</b>\n┃ ${renderQuota(used.voicesSent, caps.voice)}\n` +
+           `╰━━━━━━━━━━━━━━━━━━━━━━╯\n` +
+           `${isOwner ? "👑 دسترسی مالک · بدون سقف مصرف" : isVip ? "💎 اشتراک VIP · سهمیه اختصاصی شما" : "🆓 پلن رایگان · با ارتقا سهمیه بیشتری بگیر"}\n\n` +
+           `💡 <i>یکی از گزینه‌های زیر را انتخاب کنید:</i>`;;
   } else if (lang === "ar") {
     text = `╭━━━━━━━━━━━━━━━━━━━━━╮\n` +
            `┃ 🌌 <b>AI SHAKI</b>\n` +
@@ -26530,13 +26544,12 @@ async function showHomePanel(
            `╰━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
            `👤 <b>المستخدم:</b> <code>${escapeHTML(user.first_name)}</code> (${tier})\n` +
            `${persona.emoji} <b>الشخصية النشطة:</b> <b>${personaName}</b> — <i>${personaTag}</i>\n\n` +
-           `📊 <b>استخدامك اليومي:</b>\n` +
-           `┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n` +
-           `💬 <b>الرسائل:</b>   ${renderBar(used.messages, lim.msg)}\n` +
-           `🎨 <b>الصور:</b>     ${renderBar(used.imagesGenerated, lim.img)}\n` +
-           `🎤 <b>الصوتيات:</b>  ${renderBar(used.voicesSent, lim.voice)}\n` +
-           `┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n\n` +
-           `💡 <i>اختر أحد الخيارات أدناه:</i>`;
+           `╭━━━ ◈ <b>إحصائيات الاستخدام اليومي</b> ━━━╮\n` +
+           `┃ 💬 <b>الرسائل</b>\n┃ ${renderQuota(used.messages, caps.msg)}\n` +
+           `┃ 🎨 <b>الصور</b>\n┃ ${renderQuota(used.imagesGenerated, caps.img)}\n` +
+           `┃ 🎙 <b>الصوتيات</b>\n┃ ${renderQuota(used.voicesSent, caps.voice)}\n` +
+           `╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
+           `💡 <i>اختر أحد الخيارات أدناه:</i>`;;
   } else {
     text = `╭━━━━━━━━━━━━━━━━━━━━━╮\n` +
            `┃ 🌌 <b>AI SHAKI · COMMAND CENTER</b>\n` +
@@ -26544,13 +26557,12 @@ async function showHomePanel(
            `╰━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
            `👤 <b>User:</b> <code>${escapeHTML(user.first_name)}</code> (${tier})\n` +
            `${persona.emoji} <b>Active Persona:</b> <b>${personaName}</b> — <i>${personaTag}</i>\n\n` +
-           `📊 <b>Daily Usage Quota:</b>\n` +
-           `┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n` +
-           `💬 <b>Messages:</b> ${renderBar(used.messages, lim.msg)}\n` +
-           `🎨 <b>Images:</b>   ${renderBar(used.imagesGenerated, lim.img)}\n` +
-           `🎤 <b>Voices:</b>   ${renderBar(used.voicesSent, lim.voice)}\n` +
-           `┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n\n` +
-           `💡 <i>Select an option from below:</i>`;
+           `╭━━━ ◈ <b>DAILY USAGE & CREDITS</b> ━━━╮\n` +
+           `┃ 💬 <b>Messages</b>\n┃ ${renderQuota(used.messages, caps.msg)}\n` +
+           `┃ 🎨 <b>Images</b>\n┃ ${renderQuota(used.imagesGenerated, caps.img)}\n` +
+           `┃ 🎙 <b>Voice</b>\n┃ ${renderQuota(used.voicesSent, caps.voice)}\n` +
+           `╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
+           `💡 <i>Select an option from below:</i>`;;
   }
   
   const personalization = normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null));
