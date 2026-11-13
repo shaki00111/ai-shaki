@@ -12,8 +12,28 @@ import { startRun, finishRun, operationsAPI, recordAdminAudit, cleanupOperations
 import { readJsonObject, RequestBodyError } from "./http";
 import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from "./memory";
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
-import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, ownerPersonalizationWelcome } from "./ownerPersonalization";
+import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, ownerPersonalizationWelcome, ownerPersonalizationText } from "./ownerPersonalization";
 import { ttsKeyCooldowns } from "./ttsReliability";
+
+let ownerPersonalizationCache: { value: ReturnType<typeof normalizeOwnerPersonalization>; expiresAt: number } | null = null;
+async function getOwnerPersonalization(env: Env): Promise<ReturnType<typeof normalizeOwnerPersonalization>> {
+  if (ownerPersonalizationCache && ownerPersonalizationCache.expiresAt > Date.now()) return ownerPersonalizationCache.value;
+  let raw: unknown;
+  try {
+    raw = await env.SESSIONS.get("owner_personalization", "json");
+  } catch (error) {
+    logger.warn("[personalization] KV read failed; retaining cached settings", error);
+    return ownerPersonalizationCache?.value ?? DEFAULT_OWNER_PERSONALIZATION;
+  }
+  const value = normalizeOwnerPersonalization(raw);
+  ownerPersonalizationCache = { value, expiresAt: Date.now() + 30_000 };
+  return value;
+}
+function setOwnerPersonalizationCache(value: unknown): ReturnType<typeof normalizeOwnerPersonalization> {
+  const normalized = normalizeOwnerPersonalization(value);
+  ownerPersonalizationCache = { value: normalized, expiresAt: Date.now() + 30_000 };
+  return normalized;
+}
 import { buildGeminiTtsRequest, extractGeminiTtsAudio } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
@@ -4937,7 +4957,7 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
   if (path === "personalization") {
     const key = "owner_personalization";
     const backupKey = "owner_personalization:backup";
-    const current = normalizeOwnerPersonalization(await env.SESSIONS.get(key, "json").catch(() => null));
+    const current = await getOwnerPersonalization(env);
     if (request.method === "GET") {
       return json({ ok: true, customization: current, defaults: DEFAULT_OWNER_PERSONALIZATION });
     }
@@ -4947,6 +4967,10 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     if (action === "test") {
       const testSettings = body.customization ? normalizeOwnerPersonalization(body.customization) : current;
       const sample = ownerPersonalizationWelcome(testSettings, "fa", "⚡ AI SHAKI\nپیش‌نمایش پیام خوش‌آمدگویی", "مالک");
+      const helpSample = ownerPersonalizationText(testSettings, "fa", "help", "", { name: "مالک" });
+      const quotaSample = ownerPersonalizationText(testSettings, "fa", "quota", "", {
+        limit: 50, label: "ویس", contact: cfg.VIP_CONTACT, vip: "VIP",
+      });
       try {
         const ownerSession = await getOrCreateSession({ id: user.id, type: "private" }, user, env);
         const testKeyboard = await buildHomeKeyboard(ownerSession, user.id, env, testSettings);
@@ -4954,7 +4978,9 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
           parse_mode: "HTML",
           reply_markup: JSON.stringify(validateKeyboard(testKeyboard)),
         });
-        return json({ ok: true, sent: true, keyboard: true });
+        if (helpSample) await sendMessage(user.id, helpSample);
+        if (quotaSample) await sendMessage(user.id, quotaSample);
+        return json({ ok: true, sent: true, keyboard: true, help: Boolean(helpSample), quota: Boolean(quotaSample) });
       } catch (e) {
         logger.warn("[personalization] owner test-send failed", e);
         return json({ ok: false, error: "test_send_failed" }, 502);
@@ -4965,17 +4991,21 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
       if (!backup) return json({ ok: false, error: "no_backup" }, 404);
       const restored = normalizeOwnerPersonalization(backup);
       await env.SESSIONS.put(key, JSON.stringify(restored));
+      setOwnerPersonalizationCache(restored);
       return json({ ok: true, customization: restored, restored: true });
     }
     if (action === "reset") {
       await env.SESSIONS.put(backupKey, JSON.stringify(current));
-      await env.SESSIONS.put(key, JSON.stringify(DEFAULT_OWNER_PERSONALIZATION));
-      return json({ ok: true, customization: DEFAULT_OWNER_PERSONALIZATION, reset: true });
+      const reset = normalizeOwnerPersonalization(DEFAULT_OWNER_PERSONALIZATION);
+      await env.SESSIONS.put(key, JSON.stringify(reset));
+      setOwnerPersonalizationCache(reset);
+      return json({ ok: true, customization: reset, reset: true });
     }
     if (action !== "save") return json({ ok: false, error: "unknown_action" }, 400);
     const next = normalizeOwnerPersonalization(body.customization);
     await env.SESSIONS.put(backupKey, JSON.stringify(current));
     await env.SESSIONS.put(key, JSON.stringify(next));
+    setOwnerPersonalizationCache(next);
     return json({ ok: true, customization: next, saved: true });
   }
   if (path === "factory/builds" || path === "factory/projects" || path.startsWith("factory/builds/")) {
@@ -14669,15 +14699,16 @@ async function executeStructuredTools(
     // tool calls cannot all pass against the same final remaining slot.
     const applyUsageQuota = async () => {
       if (isOwner) return;
+      const ownerUi = await getOwnerPersonalization(env);
       allowedImageCount = 0;
       allowedVoiceCount = 0;
       for (const _call of imageCalls) {
-        if (!checkDailyLimitPrivate(limitSession, "image", isVip).allowed) break;
+        if (!checkDailyLimitPrivate(limitSession, "image", isVip, ownerUi).allowed) break;
         incrementUsagePrivate(limitSession, "image");
         allowedImageCount++;
       }
       for (const _call of voiceCalls) {
-        if (!checkDailyLimitPrivate(limitSession, "voice_sent", isVip).allowed) break;
+        if (!checkDailyLimitPrivate(limitSession, "voice_sent", isVip, ownerUi).allowed) break;
         incrementUsagePrivate(limitSession, "voice_sent");
         allowedVoiceCount++;
       }
@@ -14746,7 +14777,7 @@ case "generate_image": {
     };
     if (imgIndex >= allowedImageCount) {
         await taskMgr?.failTask(taskKey, lang === "fa" ? "محدودیت روزانه تمام شد" : "Daily limit reached");
-        const quota = checkDailyLimitPrivate(limitSession, "image", isVip);
+        const quota = checkDailyLimitPrivate(limitSession, "image", isVip, await getOwnerPersonalization(env));
         await sendMessage(chatId, quota.message ?? t(lang, "img_limit"), { reply_to_message_id: replyTo });
         return { name: call.name, response: { success: false, error: "Limit exceeded" } };
     }
@@ -15777,7 +15808,7 @@ case "host_web_app": {
                   }
                 };
                 if (voiceIndex >= allowedVoiceCount) {
-                  const quota = checkDailyLimitPrivate(limitSession, "voice_sent", isVip);
+                  const quota = checkDailyLimitPrivate(limitSession, "voice_sent", isVip, await getOwnerPersonalization(env));
                   await sendMessage(
                     chatId,
                     quota.message ?? (lang === "fa" ? "⚠️ سقف ویس‌های مجاز روزانه تمام شده." : "⚠️ Daily voice limit reached."),
@@ -16888,13 +16919,18 @@ async function checkDailyLimitWithUser(
     const userVipActive = isVipEntitlementActive(readVipEntitlementSnapshot(userSession));
     const groupVipExpiry = Number(session.vipExpiresAt) || 0;
     const groupVipActive = Boolean(session.vipStatus && (!groupVipExpiry || groupVipExpiry > Date.now()));
-    return checkDailyLimitPrivate(userSession, type, groupVipActive || userVipActive);
+    return checkDailyLimitPrivate(userSession, type, groupVipActive || userVipActive, await getOwnerPersonalization(env));
   }
   await refreshVipEntitlementFromStore(session, user, env);
-  return checkDailyLimitPrivate(session, type);
+  return checkDailyLimitPrivate(session, type, undefined, await getOwnerPersonalization(env));
 }
 
-function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverride?: boolean): { allowed: boolean; message?: string } {
+function checkDailyLimitPrivate(
+  session: ChatSession,
+  type: LimitType,
+  vipOverride?: boolean,
+  personalization: ReturnType<typeof normalizeOwnerPersonalization> = DEFAULT_OWNER_PERSONALIZATION,
+): { allowed: boolean; message?: string } {
   const ownVipActive = isVipEntitlementActive(readVipEntitlementSnapshot(session));
   const isVip = vipOverride ?? ownVipActive;
   if (isVip && ownVipActive && session.vipPermissions?.[type] === false) {
@@ -16929,13 +16965,16 @@ function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverri
       search: ["جستجو", "search"],
     };
     const [faLabel, enLabel] = typeLabels[type];
-    const msg = isVip
+    const fallback = isVip
       ? (lang === "fa"
           ? `⚠️ **محدودیت روزانه VIP**\n\nامروز سقف ${limit} ${faLabel} حساب VIP شما تمام شده. این سقف فردا ریست می‌شود.`
           : `⚠️ **VIP Daily Limit**\n\nYou've reached your VIP limit of ${limit} ${enLabel}s today. It resets tomorrow.`)
       : (lang === "fa"
           ? `⚠️ **محدودیت روزانه**\n\nامروز سقف مجاز ${limit} ${faLabel} را مصرف کرده‌اید.\n\n🌟 برای سقف بسیار بالاتر VIP شوید.\n👑 تماس: ${contact}`
           : `⚠️ **Daily Limit**\n\nYou've used your limit of ${limit} ${enLabel}s today.\n\n🌟 Go VIP for a much higher limit.\n👑 Contact: ${contact}`);
+    const msg = ownerPersonalizationText(personalization, lang, "quota", fallback, {
+      limit, label: lang === "fa" ? faLabel : enLabel, contact, vip: isVip ? "VIP" : "free",
+    });
     return { allowed: false, message: msg };
   }
   return { allowed: true };
@@ -17017,7 +17056,7 @@ async function reserveDailyUsageWithUser(
     } else {
       await refreshVipEntitlementFromStore(target, user, env);
     }
-    const check = checkDailyLimitPrivate(target, type, vipOverride);
+    const check = checkDailyLimitPrivate(target, type, vipOverride, await getOwnerPersonalization(env));
     if (!check.allowed) return { allowed: false, message: check.message, release: async () => {} };
     incrementUsagePrivate(target, type);
     await saveSession(target, env);
@@ -20969,7 +21008,7 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
         `🔹 Mention SHAKI or reply to one of her messages to start chatting.\n\n` +
         `<i>Select a module below:</i>`;
 
-    const ownerUi = normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null));
+    const ownerUi = await getOwnerPersonalization(env);
     const welcomeText = ownerPersonalizationWelcome(ownerUi, glang, defaultWelcomeText, from.first_name);
     const rows: InlineBtn[][] = [
       [btn(glang === "fa" ? "🎭 انتخاب شخصیت (فقط برای من)" : "🎭 Choose Persona (just for me)", "home:personas")],
@@ -21065,9 +21104,11 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
   const session = await getOrCreateSession(chat, from, env);
   const lang = session.language;
   const isOwner = from.id === cfg.BOT_OWNER_ID;
+  const ownerUi = await getOwnerPersonalization(env);
+  const configuredHelp = ownerPersonalizationText(ownerUi, lang, "help", "", { name: from.first_name });
 
   if (chat.type !== "private") {
-    const groupHelp = lang === "fa"
+    let groupHelp = lang === "fa"
       ? `📖 *راهنمای شاکی در گروه*\n\n` +
         `• \`/start\` — منوی شخصی شما در این گروه\n` +
         `• \`/new\` — پاک کردن حافظه‌ی گفتگوی شما در این گروه\n` +
@@ -21082,6 +21123,7 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
         (lang === "ar"
           ? `💡 يمكنك استخدام \`@${BOT_INFO?.username ?? "SHAKI"} search: …\` دون إضافة البوت.`
           : `💡 Without adding SHAKI, type \`@${BOT_INFO?.username ?? "SHAKI"} search: topic\` right here to use inline mode.`);
+    if (configuredHelp) groupHelp = configuredHelp;
     const kb: InlineKeyboard = { inline_keyboard: await isUserAdmin(from.id, chat.id)
       ? [[btn(lang === "fa" ? "👥 تنظیمات گروه" : "👥 Group Settings", "group_settings")]]
       : [] };
@@ -21183,6 +21225,7 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
     }
   }
 
+  if (configuredHelp) text = configuredHelp;
   const kb: InlineKeyboard = { inline_keyboard: [
     ...(isOwner ? [[adminPanelButton("👑 Admin Panel", chat.type === "private")]] : []),
     [btn(lang === "fa" ? "🔙 بازگشت" : "🔙 Back", "home:open")],
@@ -26231,7 +26274,7 @@ async function showHomePanel(
            `💡 <i>Select an option from below:</i>`;
   }
   
-  const personalization = normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null));
+  const personalization = await getOwnerPersonalization(env);
   const customIntro = ownerPersonalizationWelcome(personalization, lang, "", user.first_name);
   if (customIntro) text = customIntro + "\n\n" + text;
   const kb = await buildHomeKeyboard(session, user.id, env);
@@ -26292,7 +26335,7 @@ async function buildHomeKeyboard(session: ChatSession, userId: number, env: Env,
   }
   rows.push([btn(isFa ? "✖️ بستن منو" : isAr ? "✖️ إغلاق" : "✖️ Close", "home:close")]);
   const personalization = personalizationOverride === undefined
-    ? normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null))
+    ? await getOwnerPersonalization(env)
     : normalizeOwnerPersonalization(personalizationOverride);
   return applyOwnerMenuPersonalization({ inline_keyboard: rows }, personalization);
 }
