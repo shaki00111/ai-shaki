@@ -15320,6 +15320,12 @@ case "search_images": {
       await taskMgr?.failTask(taskKey, "Empty query");
       return { name: call.name, response: { success: false, error: "Empty query" } };
     }
+    const searchLimitCheck = await checkDailyLimitWithUser(session, sender, "search", env);
+    if (!searchLimitCheck.allowed) {
+      await taskMgr?.failTask(taskKey, lang === "fa" ? "سقف جستجوی روزانه تمام شد" : "Daily search limit reached");
+      await sendMessage(chatId, searchLimitCheck.message ?? t(lang, "img_limit"), { reply_to_message_id: replyTo });
+      return { name: call.name, response: { success: false, error: "SEARCH_LIMIT_REACHED", user_notified: true } };
+    }
     await taskMgr?.startTask(taskKey, lang === "fa" ? `جستجوی "${query}"...` : `Searching "${query}"...`);
     try {
       const images = await searchGoogleImages(query, 6);
@@ -15355,6 +15361,7 @@ case "search_images": {
       else await sendPhoto(chatId, first, query, { reply_to_message_id: replyTo, reply_markup: JSON.stringify(kb) });
       await taskMgr?.completeTask(taskKey, lang === "fa" ? "تصویر یافت شد ✓" : "Image found ✓");
       markUserActivity(session, "search");
+      await incrementUsageWithUser(session, sender, "search", env);
       return { name: call.name, response: { success: true, count: images.length, abort_chain: true, note: "One image already sent directly with a 'search again' button. Do not describe it further." } };
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
@@ -16224,6 +16231,12 @@ case "host_web_app": {
                   await taskMgr?.failTask(taskKey, "Empty request");
                   return { name: call.name, response: { success: false, error: "Empty request" } };
                 }
+                const searchLimitCheck = await checkDailyLimitWithUser(session, sender, "search", env);
+                if (!searchLimitCheck.allowed) {
+                  await taskMgr?.failTask(taskKey, lang === "fa" ? "سقف جستجوی روزانه تمام شد" : "Daily search limit reached");
+                  await sendMessage(chatId, searchLimitCheck.message ?? t(lang, "img_limit"), { reply_to_message_id: replyTo });
+                  return { name: call.name, response: { success: false, error: "SEARCH_LIMIT_REACHED", user_notified: true } };
+                }
                 const hint = originalMsg.message_id>0?"fast":normalizeEffort(call.args.effort ?? call.args.depth);
                 await taskMgr?.startTask(taskKey, lang === "fa" ? "جست‌وجو…" : "Searching…");
                 try {
@@ -16252,6 +16265,7 @@ case "host_web_app": {
                   // can therefore send it as-is and skip a whole extra model
                   // round-trip; the payload below exists only for the cases that
                   // still go back through the model (mixed tool turns).
+                  await incrementUsageWithUser(session, sender, "search", env);
                   const deliverable = outcome.wantSources
                     ? outcome.answer + formatSourceFooter(outcome, lang)
                     : outcome.answer;
@@ -16967,10 +16981,6 @@ function markUserActivity(session: ChatSession, type: "chat" | "image" | "edit" 
   session.statistics ??= { totalMessages: 0, geminiMessages: 0, voicesReceived: 0, firstUsed: Date.now() };
   session.statistics.lastActivityType = type;
   session.statistics.lastActivityAt = Date.now();
-  if (type === "search") {
-    session.dailyLimits ??= { messages: 0, voicesSent: 0, voicesReceived: 0, imagesGenerated: 0, imagesEdited: 0, webapps: 0, searches: 0, lastReset: Date.now() };
-    session.dailyLimits.searches = (session.dailyLimits.searches ?? 0) + 1;
-  }
   const key: keyof DailyMetrics = type === "chat" ? "messages" : type === "image" ? "images" : type === "edit" ? "edits" : type === "search" ? "searches" : type === "webapp" ? "webapps" : type === "game" ? "games" : "voices";
   bumpMetric(key);
 }
