@@ -21109,9 +21109,19 @@ async function claimReferralReward(referred: TgUser, inviterId: number, session:
         env,
       );
       maybeResetDailyLimits(inviter);
-      inviter.dailyLimits.referralBonusMessages = Math.min(500, (Number(inviter.dailyLimits.referralBonusMessages) || 0) + 10);
-      inviter.dailyLimits.referralBonusVoices = Math.min(100, (Number(inviter.dailyLimits.referralBonusVoices) || 0) + 2);
-      await saveSession(inviter, env, { force: true });
+      const previousMessages = Number(inviter.dailyLimits.referralBonusMessages) || 0;
+      const previousVoices = Number(inviter.dailyLimits.referralBonusVoices) || 0;
+      try {
+        inviter.dailyLimits.referralBonusMessages = Math.min(500, previousMessages + 10);
+        inviter.dailyLimits.referralBonusVoices = Math.min(100, previousVoices + 2);
+        await saveSession(inviter, env, { force: true });
+      } catch (persistError) {
+        // Restore the in-memory cache before releasing the per-inviter lock.
+        inviter.dailyLimits.referralBonusMessages = previousMessages;
+        inviter.dailyLimits.referralBonusVoices = previousVoices;
+        await saveSession(inviter, env, { force: true }).catch(() => {});
+        throw persistError;
+      }
       await sendMessage(inviterId, "🎉 یک دعوت جدید با لینک تو وارد SHAKI شد!\n\n🎁 پاداش تو: ۱۰ پیام و ۲ ویس اضافه برای امروز.\nبرای دیدن آمار دعوت‌ها: /referral").catch(() => {});
     });
     return "credited";
