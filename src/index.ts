@@ -26054,6 +26054,9 @@ async function showHomePanel(
            `💡 <i>Select an option from below:</i>`;
   }
   
+  const personalization = normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null));
+  const customIntro = ownerPersonalizationWelcome(personalization, lang, "", user.first_name);
+  if (customIntro) text = customIntro + "\n\n" + text;
   const kb = await buildHomeKeyboard(session, user.id, env);
   const opts = { 
     reply_markup: JSON.stringify(validateKeyboard(kb)),
@@ -26111,7 +26114,8 @@ async function buildHomeKeyboard(session: ChatSession, userId: number, env: Env)
     rows.push([btn(isFa ? "👥 تنظیمات گروه" : isAr ? "👥 إعدادات المجموعة" : "👥 Group Settings", "group_settings")]);
   }
   rows.push([btn(isFa ? "✖️ بستن منو" : isAr ? "✖️ إغلاق" : "✖️ Close", "home:close")]);
-  return { inline_keyboard: rows };
+  const personalization = normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null));
+  return applyOwnerMenuPersonalization({ inline_keyboard: rows }, personalization);
 }
 
 async function showPromptMenu(chatId: number, msgId: number, session: ChatSession, userId: number, isGroup = false): Promise<void> {
