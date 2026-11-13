@@ -936,6 +936,7 @@ pre,code,.mono{overflow-wrap:anywhere;word-break:break-word}
           <div class="section-body">
             <div class="toolbar" style="padding:0"><input id="vipSearch" placeholder="شناسه، نام یا username کاربر"><button class="primary" id="vipSearchBtn">جستجو</button></div>
             <div class="hint" style="margin-top:8px">کاربر را انتخاب کن تا اشتراک و سهمیه‌هایش را تنظیم کنی. پس از فعال‌سازی، مشخصات VIP برای خودش پیام می‌شود.</div>
+            <div class="hint" id="vipListSummary" aria-live="polite" style="margin-top:6px">فهرست اعضای VIP بارگذاری می‌شود…</div>
           </div>
           <div class="list" id="vipList"><div class="status">در حال آماده‌سازی…</div></div>
         </div>
@@ -1195,7 +1196,7 @@ pre,code,.mono{overflow-wrap:anywhere;word-break:break-word}
           <div class="toolbar-line">
             <button class="sm" id="personalPreviewBtn">به‌روزرسانی پیش‌نمایش</button>
             <button class="sm primary" id="personalizationSave">ذخیره تغییرات</button>
-            <button class="sm" id="personalizationTest">ارسال آزمایشی برای مالک</button>
+            <button class="sm" id="personalizationTest">ارسال آزمایشی متن و منوی واقعی</button>
             <button class="sm" id="personalizationRestore">بازیابی نسخه قبلی</button>
             <button class="sm danger" id="personalizationReset">بازگشت به پیش‌فرض</button>
           </div>
@@ -1921,16 +1922,31 @@ const users = { q:"", sort:"new", cursor:null, nextCursor:null, hasNext:false, h
 const VIP_FEATURES=[["message","پیام متنی"],["voice_sent","ساخت ویس"],["image","ساخت تصویر"],["edit","ویرایش تصویر"],["webapp","وب‌اپ و بازی"],["search","جستجو"]];
 const VIP_DEFAULTS={message:1000,voice_sent:50,image:30,edit:20,webapp:20,search:100};
 async function loadVipUsers(){
- const list=$("vipList"),q=($("vipSearch")?.value||"").trim();
+ const list=$("vipList"),summary=$("vipListSummary"),q=($("vipSearch")?.value||"").trim();
  return section(list,async()=>{
-  const p=new URLSearchParams({limit:"20",sort:"new"});if(q)p.set("q",q);
-  const d=await api("/api/admin/users?"+p.toString()),now=Date.now(),found=d.users||[];
-  const matches=q?found:found.filter(u=>u.vipStatus);
+  const all=[];let cursor=null,hasNext=true,pages=0;const seen=new Set();
+  // The API caps each cursor page at 50. Walk every page so older VIPs are
+  // not silently omitted just because they are outside the newest 20 users.
+  while(hasNext&&pages<200){
+   const p=new URLSearchParams({limit:"50",sort:"new"});if(q)p.set("q",q);if(cursor)p.set("cursor",cursor);
+   const d=await api("/api/admin/users?"+p.toString());
+   all.push(...(d.users||[]));cursor=d.nextCursor||null;hasNext=!!(d.hasNext&&cursor);
+   if(cursor&&seen.has(cursor))break;
+   if(cursor)seen.add(cursor);
+   pages++;
+  }
+  const now=Date.now(),matches=q?all:all.filter(u=>u.vipStatus);
+  const active=matches.filter(u=>u.vipStatus&&!(Number(u.vipExpiresAt||0)&&Number(u.vipExpiresAt||0)<=now)).length;
+  const expired=matches.filter(u=>u.vipStatus&&Number(u.vipExpiresAt||0)&&Number(u.vipExpiresAt||0)<=now).length;
+  if(summary)summary.textContent=q
+   ? fmtNum(matches.length)+" نتیجهٔ جستجو · برای انتخاب و مدیریت روی دکمه بزن."
+   : fmtNum(active)+" اشتراک فعال · "+fmtNum(expired)+" اشتراک منقضی · "+fmtNum(matches.length)+" عضو VIP ثبت‌شده";
   list.innerHTML=matches.map(u=>{
-   const exp=Number(u.vipExpiresAt||0),expired=!!(exp&&exp<=now);
-   return '<div class="item item-row"><div style="min-width:0"><b>'+esc(u.firstName||"کاربر")+' <span class="tag '+(!u.vipStatus?'':' '+(expired?'warn':'vip'))+'">'+(!u.vipStatus?'عادی':expired?'منقضی':'VIP فعال')+'</span></b><small class="mono">'+u.userId+(u.userName?' · @'+esc(u.userName):'')+'</small><small>'+(exp?(expired?'منقضی: ':'پایان: ')+esc(fmt(exp)):'اشتراک دائمی')+'</small></div><button class="sm primary" data-vip-open="'+u.userId+'">مدیریت</button></div>';
-  }).join("")||(q?emptyState("🔎","VIP در نتایج نیست","کاربر را با شناسه یا نام جستجو کن؛ کاربر عادی هم قابل انتخاب است."):emptyState("💎","VIP فعالی در این صفحه نیست","برای پیدا کردن هر کاربر، شناسه یا نامش را جستجو کن."));
+   const exp=Number(u.vipExpiresAt||0),isExpired=!!(exp&&exp<=now);
+   return '<div class="item item-row"><div style="min-width:0"><b>'+esc(u.firstName||"کاربر")+' <span class="tag '+(!u.vipStatus?'':' '+(isExpired?'warn':'vip'))+'">'+(!u.vipStatus?'عادی':isExpired?'منقضی':'VIP فعال')+'</span></b><small class="mono">'+u.userId+(u.userName?' · @'+esc(u.userName):'')+'</small><small>'+(exp?(isExpired?'منقضی: ':'پایان: ')+esc(fmt(exp)):'اشتراک دائمی')+'</small></div><button class="sm primary" data-vip-open="'+u.userId+'">مدیریت</button></div>';
+  }).join("")||(q?emptyState("🔎","کاربری در نتایج نیست","شناسه، نام یا username را بررسی کن."):emptyState("💎","هنوز VIP ثبت نشده","بعد از فعال‌کردن اشتراک، عضو در همین فهرست نمایش داده می‌شود."));
   list.querySelectorAll("[data-vip-open]").forEach(b=>b.onclick=()=>openVipEditor(Number(b.dataset.vipOpen)));
+  if(hasNext&&summary)summary.textContent+=" · فهرست طولانی است؛ برای جلوگیری از بار اضافه فقط ۱۰٬۰۰۰ رکورد نخست بررسی شد.";
   return true;
  },{rows:3});
 }
