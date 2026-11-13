@@ -14738,6 +14738,13 @@ case "generate_image": {
     }
     const imgIndex = imageCalls.indexOf(call);
     const imageQuotaReserved = !isVip && imgIndex < allowedImageCount;
+    let imageQuotaReleased = false;
+    const releaseImageQuota = async () => {
+        if (imageQuotaReserved && !imageQuotaReleased) {
+            imageQuotaReleased = true;
+            await releaseReservedUsage("image");
+        }
+    };
     if (isVip) {
         const vipImageLimit = await checkDailyLimitWithUser(session, sender, "image", env);
         if (!vipImageLimit.allowed) {
@@ -14761,7 +14768,7 @@ case "generate_image": {
     const randomizedModels = [...cfg.AI_IMAGE_MODELS].sort(() => Math.random() - 0.5);
     for (const model of randomizedModels) {
         if (await isCancelledNow()) {
-            if (imageQuotaReserved) await releaseReservedUsage("image");
+            await releaseImageQuota();
             await taskMgr?.failTask(taskKey, lang === "fa" ? "لغو شد توسط کاربر" : "Cancelled by user");
             return { name: call.name, response: { success: false, error: "CANCELLED_BY_USER" } };
         }
@@ -14831,7 +14838,7 @@ case "generate_image": {
         }
     }
     if (!imageSuccess) {
-        if (imageQuotaReserved) await releaseReservedUsage("image");
+        await releaseImageQuota();
         const reason = imageError.includes("FLAGGED_PROMPT")
             ? (lang === "fa" ? "فیلتر امنیتی مسدود کرد" : "Blocked by safety filter")
             : (lang === "fa" ? "تولید تصویر ناموفق" : "Generation failed");
@@ -15756,6 +15763,13 @@ case "host_web_app": {
                 }
                 const voiceIndex = voiceCalls.indexOf(call);
                 const voiceQuotaReserved = !isVip && voiceIndex < allowedVoiceCount;
+                let voiceQuotaReleased = false;
+                const releaseVoiceQuota = async () => {
+                  if (voiceQuotaReserved && !voiceQuotaReleased) {
+                    voiceQuotaReleased = true;
+                    await releaseReservedUsage("voice_sent");
+                  }
+                };
                 if (isVip) {
                   const vipVoiceLimit = await checkDailyLimitWithUser(session, sender, "voice_sent", env);
                   if (!vipVoiceLimit.allowed) {
@@ -15789,14 +15803,14 @@ case "host_web_app": {
                     };
                   }
 
-                  if (voiceQuotaReserved) await releaseReservedUsage("voice_sent");
+                  await releaseVoiceQuota();
                   const userErr = lang === "fa"
                     ? "❌ ساخت یا ارسال ویس ناموفق بود."
                     : "❌ Failed to generate or send the voice message.";
                   await sendToolErrorMessage(chatId, replyTo, isOwner, userErr, "ElevenLabs TTS failed");
                   return { name: call.name, response: { success: false, abort_chain: true, user_notified: true, error: "TTS_FAILED" } };
                 } catch (err) {
-                  if (voiceQuotaReserved) await releaseReservedUsage("voice_sent");
+                  await releaseVoiceQuota();
                   logger.error("Voice response error", err);
                   const userErr = lang === "fa"
                     ? "❌ ساخت یا ارسال ویس ناموفق بود."
