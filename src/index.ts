@@ -222,7 +222,6 @@ import {
 } from "./intent";
 
 // TTS
-const GEMINI_TTS_MODEL = "gemini-3.1-flash-tts-preview";
 const GEMINI_TTS_VOICE = "Despina";
 const ELEVENLABS_DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
 const ELEVENLABS_DEFAULT_MODEL_ID = "eleven_v3";
@@ -5439,7 +5438,18 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     if (action === "vip_config") {
       const row = await getUserSummary(env, userId); if (!row) return json({ ok: false, error: "not_found" }, 404);
       const raw = body.config && typeof body.config === "object" ? body.config as Record<string, unknown> : {};
-      const days = Number(raw.days);
+      const normalizeAdminNumber = (value: unknown): number => {
+        const normalized = typeof value === "string"
+          ? value.trim()
+              .replace(/[۰-۹]/g, digit => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+              .replace(/[٠-٩]/g, digit => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+          : value;
+        return Number(normalized);
+      };
+      const durationValue = raw.days ?? raw.durationDays ?? raw.duration ?? body.days;
+      const days = durationValue === undefined || durationValue === null || durationValue === ""
+        ? 30
+        : normalizeAdminNumber(durationValue);
       if (!Number.isInteger(days) || days < 0 || days > 3650) return json({ ok: false, error: "invalid_vip_duration" }, 400);
       const types: LimitType[] = ["message", "voice_sent", "image", "edit", "webapp", "search"];
       const rp = raw.permissions && typeof raw.permissions === "object" ? raw.permissions as Record<string, unknown> : {};
@@ -5448,7 +5458,7 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
       const limits: Partial<Record<LimitType, number>> = {};
       for (const type of types) {
         if (typeof rp[type] !== "boolean") return json({ ok: false, error: "invalid_vip_permissions" }, 400);
-        const n = Number(rl[type]);
+        const n = normalizeAdminNumber(rl[type]);
         if (!Number.isInteger(n) || n < 0 || n > 100000) return json({ ok: false, error: "invalid_vip_limit_" + type }, 400);
         permissions[type] = rp[type] as boolean; limits[type] = n;
       }
@@ -12171,120 +12181,111 @@ async function synthesizeVoiceGemini(
   text: string,
   env: Env,
 ): Promise<Uint8Array | null> {
-  if (!cfg.GEMINI_KEYS.length) return null;
-
-  const maxAttempts = Math.min(cfg.GEMINI_KEYS.length, 3);
-
-  for (let i = 0; i < maxAttempts; i++) {
-    const idx = (geminiTtsKeyIndex + i) % cfg.GEMINI_KEYS.length;
-    const key = cfg.GEMINI_KEYS[idx];
-
-    if (await isKeyDisabled(key, env)) continue;
-
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${key}`;
-
-      const body = {
-        contents: [{ parts: [{ text: text.slice(0, GEMINI_TTS_TEXT_LIMIT) }] }],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: GEMINI_TTS_VOICE,
-              },
-            },
-          },
-        },
-      };
-
-      const res = await fetchWithTimeout(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }, GEMINI_TTS_TIMEOUT_MS);
-
-      if (res.status === 429) {
-        logger.warn(`Gemini TTS key[${idx}] rate limited (429), retrying next key`);
-        geminiTtsKeyIndex = (idx + 1) % cfg.GEMINI_KEYS.length;
-        // Brief backoff before next key attempt
-        await sleep(500 * (i + 1));
-        continue;
-      }
-
-      if (res.status === 403) {
-        logger.warn(`Gemini TTS key[${idx}] forbidden/invalid (403), disabling key`);
-        if (env_ref) disableApiKey(key, env_ref, 300_000);
-        continue;
-      }
-
-      if (res.status === 400) {
-        const badBody = await res.text().catch(() => "");
-        logger.warn(`Gemini TTS key[${idx}] bad request (400): ${badBody.slice(0, 180)}`);
-        // 400 is generally request/model/schema related, not a key failure.
-        // Move on to the next provider instead of poisoning the key pool.
-        break;
-      }
-
-      if (!res.ok) {
-        logger.warn(`Gemini TTS key[${idx}] HTTP ${res.status}`);
-        continue;
-      }
-
-      const data = await res.json() as {
-        error?: { message: string; code?: number };
-        candidates?: Array<{
-          content?: {
-            parts?: Array<{
-              inlineData?: { mimeType: string; data: string };
-            }>;
-          };
-        }>;
-      };
-
-      if (data.error) {
-        const errMsg = data.error.message.toLowerCase();
-        logger.warn(`Gemini TTS error: ${data.error.message.slice(0, 80)}`);
-        if (errMsg.includes("quota") || errMsg.includes("429") || errMsg.includes("rate")) {
-          if (env_ref) disableApiKey(key, env_ref, 300_000);
-          geminiTtsKeyIndex = (idx + 1) % cfg.GEMINI_KEYS.length;
-          await sleep(500 * (i + 1));
-          continue;
-        }
-        // Non-retryable error (safety, content, etc.)
-        break;
-      }
-
-      const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-      if (!inlineData?.data) {
-        logger.warn(`Gemini TTS key[${idx}]: no audio data in response`);
-        continue;
-      }
-
-      const wavBytes = pcmToWav(inlineData.data);
-      if (wavBytes.length < 100) {
-        logger.warn(`Gemini TTS key[${idx}]: empty audio output (${wavBytes.length} bytes)`);
-        continue;
-      }
-
-      geminiTtsKeyIndex = idx;
-      logger.info(`✅ Gemini TTS success (${(wavBytes.length / 1024).toFixed(1)}KB)`);
-      return wavBytes;
-
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      logger.warn(`Gemini TTS key[${idx}] exception: ${errMsg.slice(0, 80)}`);
-      // Network errors: brief backoff before retry
-      if (errMsg.includes("timeout") || errMsg.includes("abort")) {
-        await sleep(300 * (i + 1));
-      }
-      continue;
-    }
+  if (!cfg.GEMINI_KEYS.length) {
+    logger.error("Gemini TTS: no Gemini API keys are configured");
+    return null;
   }
 
+  // The 3.1 preview model is scheduled for retirement on 2026-11-17.
+  // Prefer current GA 3.8 models and keep 3.1 as a temporary fallback.
+  const models = ["gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts", "gemini-3.1-flash-tts-preview"];
+  const maxKeys = Math.min(cfg.GEMINI_KEYS.length, 5);
+  const failures: string[] = [];
+
+  for (let i = 0; i < maxKeys; i++) {
+    const idx = (geminiTtsKeyIndex + i) % cfg.GEMINI_KEYS.length;
+    const key = cfg.GEMINI_KEYS[idx];
+    if (await isKeyDisabled(key, env)) {
+      failures.push(`key[${idx}]:disabled`);
+      continue;
+    }
+
+    let rotateKey = false;
+    for (const model of models) {
+      try {
+        const modernModel = model.startsWith("gemini-3.8-");
+        const generationConfig = modernModel
+          ? {
+              responseModalities: ["AUDIO"],
+              speechConfig: { voiceConfig: { voice: GEMINI_TTS_VOICE } },
+            }
+          : {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: GEMINI_TTS_VOICE },
+                },
+              },
+            };
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+        const body = {
+          contents: [{ role: "user", parts: [{ text: text.slice(0, GEMINI_TTS_TEXT_LIMIT) }] }],
+          generationConfig,
+        };
+        const res = await fetchWithTimeout(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify(body),
+        }, GEMINI_TTS_TIMEOUT_MS);
+
+        const raw = await res.text().catch(() => "");
+        let data: any = null;
+        try { data = raw ? JSON.parse(raw) : null; } catch {}
+        const apiMessage = String(data?.error?.message ?? raw ?? `HTTP ${res.status}`).slice(0, 220);
+
+        if (!res.ok || data?.error) {
+          failures.push(`${model}/key[${idx}]:HTTP ${res.status} ${apiMessage}`);
+          if (res.status === 401 || res.status === 403) {
+            if (env_ref) disableApiKey(key, env_ref, 300_000);
+            rotateKey = true;
+            break;
+          }
+          if (res.status === 429 || /quota|rate.?limit|resource_exhausted/i.test(apiMessage)) {
+            geminiTtsKeyIndex = (idx + 1) % cfg.GEMINI_KEYS.length;
+            rotateKey = true;
+            break;
+          }
+          continue;
+        }
+
+        const parts = (data?.candidates ?? []).flatMap((candidate: any) => candidate?.content?.parts ?? []);
+        const inlineData = parts.find((part: any) => part?.inlineData?.data || part?.inline_data?.data);
+        const audioBase64 = inlineData?.inlineData?.data ?? inlineData?.inline_data?.data;
+        if (typeof audioBase64 !== "string" || audioBase64.length < 100) {
+          failures.push(`${model}/key[${idx}]:no_audio_data`);
+          continue;
+        }
+
+        const binary = atob(audioBase64);
+        const bytes = new Uint8Array(binary.length);
+        for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+        const mimeType = String(inlineData?.inlineData?.mimeType ?? inlineData?.inline_data?.mime_type ?? "").toLowerCase();
+        const isWav = mimeType.includes("wav") || (
+          bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 &&
+          bytes[2] === 0x46 && bytes[3] === 0x46
+        );
+        const audio = isWav ? bytes : pcmToWav(audioBase64);
+        if (audio.length < 100) {
+          failures.push(`${model}/key[${idx}]:audio_too_small_${audio.length}`);
+          continue;
+        }
+
+        geminiTtsKeyIndex = idx;
+        logger.info(`Gemini TTS success: model=${model}, keyIndex=${idx}, mime=${mimeType || "unknown"}, bytes=${audio.length}`);
+        return audio;
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        failures.push(`${model}/key[${idx}]:${message.slice(0, 180)}`);
+        logger.warn(`Gemini TTS attempt failed: model=${model}, keyIndex=${idx}, error=${message.slice(0, 180)}`);
+        if (/timeout|abort/i.test(message)) await sleep(250);
+      }
+    }
+    if (rotateKey) continue;
+  }
+
+  logger.error(`Gemini TTS exhausted all configured keys/models: ${failures.slice(-12).join(" | ")}`);
   return null;
 }
-
 async function sendVoiceResponse(
   chatId: number,
   replyTo: number,
@@ -12304,17 +12305,18 @@ async function sendVoiceResponse(
     String(chatId)
   );
 
+  const isWav = audio.length >= 12 && audio[0] === 0x52 && audio[1] === 0x49 &&
+    audio[2] === 0x46 && audio[3] === 0x46;
+  // Telegram voice notes accept OGG/OPUS, MP3 or M4A. Gemini 3.8 returns WAV,
+  // so deliver that fallback through sendAudio instead of falsely labeling WAV
+  // bytes as an MP3 voice note.
+  const uploadField = isWav ? "audio" : "voice";
+  const uploadName = isWav ? "voice.wav" : "voice.mp3";
+  const uploadType = isWav ? "audio/wav" : "audio/mpeg";
   form.append(
-    "voice",
-    new Blob(
-      [
-        bytesToArrayBuffer(audio)
-      ],
-      {
-        type: "audio/mpeg"
-      }
-    ),
-    "voice.mp3"
+    uploadField,
+    new Blob([bytesToArrayBuffer(audio)], { type: uploadType }),
+    uploadName
   );
 
   form.append(
@@ -12324,7 +12326,7 @@ async function sendVoiceResponse(
 
   try {
     const res = await fetchWithTimeout(
-      `${API_URL}/sendVoice`,
+      `${API_URL}/${isWav ? "sendAudio" : "sendVoice"}`,
       {
         method: "POST",
         body: form,
@@ -12339,8 +12341,24 @@ async function sendVoiceResponse(
 
     if (!json.ok) {
       logger.error(
-        `Telegram sendVoice failed: ${json.description ?? "unknown error"}`
+        `Telegram ${isWav ? "sendAudio" : "sendVoice"} failed: ${json.description ?? "unknown error"}`
       );
+      // WAV is not a supported Telegram voice-note codec. If Telegram also
+      // rejects it as audio, preserve the generated speech as a downloadable
+      // audio file instead of dropping the successful synthesis result.
+      if (isWav) {
+        const documentForm = new FormData();
+        documentForm.append("chat_id", String(chatId));
+        documentForm.append("document", new Blob([bytesToArrayBuffer(audio)], { type: "audio/wav" }), "voice.wav");
+        documentForm.append("reply_to_message_id", String(replyTo));
+        const documentRes = await fetchWithTimeout(`${API_URL}/sendDocument`, {
+          method: "POST",
+          body: documentForm,
+        }, 8_000);
+        const documentJson = await documentRes.json() as { ok: boolean; description?: string };
+        if (!documentJson.ok) logger.error(`Telegram WAV document fallback failed: ${documentJson.description ?? "unknown error"}`);
+        return documentJson.ok;
+      }
     }
 
     return json.ok;
