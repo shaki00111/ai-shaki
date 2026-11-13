@@ -2144,7 +2144,7 @@ interface ChatSession {
   vipExpiresAt?: number;
   vipPermissions?: Partial<Record<LimitType, boolean>>;
   vipLimits?: Partial<Record<LimitType, number>>;
-  dailyLimits: { messages: number; voicesSent: number; voicesReceived: number; imagesGenerated: number; imagesEdited: number; webapps: number; searches: number; lastReset: number };
+  dailyLimits: { messages: number; voicesSent: number; voicesReceived: number; imagesGenerated: number; imagesEdited: number; webapps: number; searches: number; lastReset: number; referralBonusMessages?: number; referralBonusVoices?: number; freeBonusClaimed?: boolean };
   personaVersion?: number;
   /**
    * Per-scope persona bookkeeping, keyed by user id in groups and `"0"` in
@@ -7613,7 +7613,7 @@ function createDefaultSession(chat: TgChat, user: TgUser): ChatSession {
       rateLimitHits: 0, errorCount: 0, lastActivityType: "", lastActivityAt: now,
     },
     vipStatus: false,
-    dailyLimits: { messages: 0, voicesSent: 0, voicesReceived: 0, imagesGenerated: 0, imagesEdited: 0, webapps: 0, searches: 0, lastReset: now },
+    dailyLimits: { messages: 0, voicesSent: 0, voicesReceived: 0, imagesGenerated: 0, imagesEdited: 0, webapps: 0, searches: 0, lastReset: now, referralBonusMessages: 0, referralBonusVoices: 0, freeBonusClaimed: false },
     personaVersion: 0,
   };
 }
@@ -7645,7 +7645,10 @@ function hydrateSession(raw: Record<string, unknown>, chat: TgChat, user: TgUser
   // این یک throw می‌داد → کل hydrate شکست می‌خورد و caller به سشن خالیِ پیش‌فرض
   // برمی‌گشت (پاک‌شدن خاموشِ کل سشن کاربر). ترتیب درست، این data-loss را می‌بندد.
   s.messageCount ??= 0;
-  s.dailyLimits ??= { messages: 0, voicesSent: 0, voicesReceived: 0, imagesGenerated: 0, imagesEdited: 0, webapps: 0, searches: 0, lastReset: Date.now() };
+  s.dailyLimits ??= { messages: 0, voicesSent: 0, voicesReceived: 0, imagesGenerated: 0, imagesEdited: 0, webapps: 0, searches: 0, lastReset: Date.now(), referralBonusMessages: 0, referralBonusVoices: 0, freeBonusClaimed: false };
+  s.dailyLimits.referralBonusMessages ??= 0;
+  s.dailyLimits.referralBonusVoices ??= 0;
+  s.dailyLimits.freeBonusClaimed ??= false;
   s.dailyLimits.webapps ??= 0;
   s.dailyLimits.imagesEdited ??= 0;
   s.dailyLimits.searches ??= 0;
@@ -8268,7 +8271,7 @@ async function refreshLanguageFromKV(session: ChatSession, env: Env): Promise<vo
 function maybeResetDailyLimits(session: ChatSession): boolean {
   const now = Date.now();
   if (now - session.dailyLimits.lastReset > 24 * 60 * 60 * 1000) {
-    session.dailyLimits = { messages: 0, voicesSent: 0, voicesReceived: 0, imagesGenerated: 0, imagesEdited: 0, webapps: 0, searches: 0, lastReset: now };
+    session.dailyLimits = { messages: 0, voicesSent: 0, voicesReceived: 0, imagesGenerated: 0, imagesEdited: 0, webapps: 0, searches: 0, lastReset: now, referralBonusMessages: 0, referralBonusVoices: 0, freeBonusClaimed: false };
     return true;
   }
   return false;
@@ -17038,7 +17041,9 @@ function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverri
   // پرئوزر limit override (ست‌شده از پنل ادمین) همیشه بر سقف سراسری مقدم است.
   const vipLimit = isVip ? session.vipLimits?.[type] : undefined;
   // A VIP plan must not inherit a stale free-tier override (especially a zero voice cap).
-  const limit = resolveVipDailyLimit(isVip, vipLimit, session.limitOverrides?.[type], limits[type]);
+  let limit = resolveVipDailyLimit(isVip, vipLimit, session.limitOverrides?.[type], limits[type]);
+  if (!isVip && type === "message") limit += Math.max(0, Number(session.dailyLimits.referralBonusMessages) || 0);
+  if (!isVip && type === "voice_sent") limit += Math.max(0, Number(session.dailyLimits.referralBonusVoices) || 0);
   if (usage[type] >= limit) {
     const lang = session.language;
     const contact = cfg.VIP_CONTACT;
@@ -21052,12 +21057,118 @@ async function rescheduleJob(env: Env, id: string, nextRunAt: number, now: numbe
 }
 
 // SECTION: COMMAND HANDLERS
+
+// ── REFERRAL REWARDS ────────────────────────────────────────────────────────
+// Additive, idempotent referral ledger. Existing KV sessions and D1 tables are
+// preserved; only one new table and one index are created lazily.
+let _referralSchemaPromise: Promise<void> | null = null;
+async function ensureReferralSchema(env: Env): Promise<void> {
+  if (_referralSchemaPromise) return _referralSchemaPromise;
+  const pending = (async () => {
+    await env.DB.prepare("CREATE TABLE IF NOT EXISTS shaki_referral_claims (referred_user_id INTEGER PRIMARY KEY, inviter_user_id INTEGER NOT NULL, created_at INTEGER NOT NULL)").run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_shaki_referrals_inviter ON shaki_referral_claims(inviter_user_id, created_at DESC)").run();
+  })();
+  _referralSchemaPromise = pending;
+  try { await pending; }
+  catch (error) { if (_referralSchemaPromise === pending) _referralSchemaPromise = null; throw error; }
+}
+function parseReferralStartPayload(value: string): number | null {
+  const match = /^r([1-9]\d{4,14})$/.exec(String(value ?? "").trim());
+  if (!match) return null;
+  const id = Number(match[1]);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+async function claimReferralReward(referred: TgUser, inviterId: number, session: ChatSession, env: Env): Promise<"credited" | "duplicate" | "self" | "old" | "unavailable"> {
+  if (inviterId === referred.id) return "self";
+  const firstUsed = Number(session.statistics?.firstUsed) || 0;
+  if (!firstUsed || Date.now() - firstUsed > 5 * 60_000) return "old";
+  try {
+    await ensureReferralSchema(env);
+    const inserted = await env.DB.prepare(
+      "INSERT OR IGNORE INTO shaki_referral_claims (referred_user_id, inviter_user_id, created_at) VALUES (?, ?, ?)"
+    ).bind(referred.id, inviterId, Date.now()).run();
+    if (Number(inserted.meta?.changes ?? 0) !== 1) return "duplicate";
+    await updateMutex.run(\`referral-reward:\${inviterId}\`, async () => {
+      const inviter = await getOrCreateSession(
+        { id: inviterId, type: "private" },
+        { id: inviterId, is_bot: false, first_name: "عضو" },
+        env,
+      );
+      maybeResetDailyLimits(inviter);
+      inviter.dailyLimits.referralBonusMessages = Math.min(500, (Number(inviter.dailyLimits.referralBonusMessages) || 0) + 10);
+      inviter.dailyLimits.referralBonusVoices = Math.min(100, (Number(inviter.dailyLimits.referralBonusVoices) || 0) + 2);
+      await saveSession(inviter, env, { force: true });
+      await sendMessage(inviterId, "🎉 یک دعوت جدید با لینک تو وارد SHAKI شد!\n\n🎁 پاداش تو: ۱۰ پیام و ۲ ویس اضافه برای امروز.\nبرای دیدن آمار دعوت‌ها: /referral").catch(() => {});
+    });
+    return "credited";
+  } catch (error) {
+    logger.warn(\`[referral] reward failed inviter=\${inviterId} referred=\${referred.id}\`, error);
+    return "unavailable";
+  }
+}
+async function handleReferralCommand(msg: TgMessage, env: Env): Promise<void> {
+  const user = msg.from;
+  if (!user) return;
+  if (msg.chat.type !== "private") {
+    await sendMessage(msg.chat.id, "🔗 برای دریافت لینک دعوت شخصی، دستور /referral را در پیوی شاکی بزن.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  if (!BOT_INFO?.username) {
+    await sendMessage(msg.chat.id, "⚠️ لینک دعوت فعلاً در دسترس نیست؛ چند لحظه دیگر دوباره امتحان کن.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  try {
+    await ensureReferralSchema(env);
+    const row = await env.DB.prepare("SELECT COUNT(*) AS total FROM shaki_referral_claims WHERE inviter_user_id = ?")
+      .bind(user.id).first<{ total: number }>();
+    const total = Math.max(0, Number(row?.total) || 0);
+    const link = \`https://t.me/\${BOT_INFO.username}?start=r\${user.id}\`;
+    await sendMessage(msg.chat.id,
+      \`🚀 <b>باشگاه دعوت AI SHAKI</b>\n━━━━━━━━━━━━━━━━━━\n\n🔗 لینک اختصاصی تو:\n<code>\${escapeHTML(link)}</code>\n\n🎁 به‌ازای هر عضو جدید و واقعی:\n• ۱۰ پیام اضافه\n• ۲ ویس اضافه\n\n👥 دعوت‌های تأییدشده: <b>\${total}</b>\n📌 پاداش‌ها به سهمیه رایگان امروز اضافه می‌شوند.\n\nلینکت رو برای دوستات بفرست؛ فقط شروع واقعی ربات با لینک تو حساب می‌شه.\`,
+      { reply_to_message_id: msg.message_id, parse_mode: "HTML", reply_markup: JSON.stringify({ inline_keyboard: [[urlBtn("📤 اشتراک‌گذاری لینک", \`https://t.me/share/url?url=\${encodeURIComponent(link)}&text=\${encodeURIComponent("به AI SHAKI سر بزن و دستیار هوشمندتو داشته باش!")}\`)]] }) }
+    );
+  } catch (error) {
+    logger.error("[referral] stats failed", error);
+    await sendMessage(msg.chat.id, "⚠️ فعلاً نتونستم آمار دعوت‌ها رو بخونم. دوباره امتحان کن.", { reply_to_message_id: msg.message_id });
+  }
+}
+async function handleFreeBonusCommand(msg: TgMessage, env: Env): Promise<void> {
+  const user = msg.from;
+  if (!user) return;
+  if (msg.chat.type !== "private") {
+    await sendMessage(msg.chat.id, "🎁 این هدیه فقط در پیوی و برای حساب خودت فعال می‌شه.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  const session = await getOrCreateSession(msg.chat, user, env);
+  await refreshVipEntitlementFromStore(session, user, env);
+  if (isVipEntitlementActive(readVipEntitlementSnapshot(session))) {
+    await sendMessage(msg.chat.id, "💎 حساب VIP تو سهمیه بالاتری داره؛ این هدیه مخصوص پلن رایگانه.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  if (session.dailyLimits.freeBonusClaimed) {
+    await sendMessage(msg.chat.id, "⏳ هدیه ۲۰ پیام امروزت رو قبلاً گرفتی. بعد از ریست سهمیه دوباره برگرد.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  session.dailyLimits.freeBonusClaimed = true;
+  session.dailyLimits.referralBonusMessages = Math.min(500, (Number(session.dailyLimits.referralBonusMessages) || 0) + 20);
+  await saveSession(session, env, { force: true });
+  await sendMessage(msg.chat.id, "🎁 <b>۲۰ پیام رایگان به سهمیه امروزت اضافه شد!</b>\nاین هدیه روزانه یک‌بار قابل دریافته.", { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+}
+
 async function handleStart(msg: TgMessage, env: Env): Promise<void> {
   const { chat, from } = msg;
   if (!from) return;
 
   const session = await getOrCreateSession(chat, from, env);
   const isGroup = chat.type !== "private";
+  if (!isGroup) {
+    const startArg = (msg.text ?? "").trim().split(/\s+/)[1] ?? "";
+    const inviterId = parseReferralStartPayload(startArg);
+    if (inviterId) {
+      const result = await claimReferralReward(from, inviterId, session, env);
+      if (result === "credited") await sendMessage(chat.id, "🎉 خوش اومدی! دعوتت با موفقیت ثبت شد. دوستت ۱۰ پیام و ۲ ویس اضافه گرفت؛ تو هم از امکانات AI SHAKI لذت ببر.", { reply_to_message_id: msg.message_id }).catch(() => {});
+    }
+  }
 
   // GROUP AVAILABILITY: groups are enabled by default.
   // If an administrator explicitly disables replies, /start only opens the
@@ -23633,6 +23744,8 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
         case "/mute":
         case "/unmute": await handleGroupModerationCommand(msg, command, args, env); break;
         case "/start": await handleStart(msg, env); break;
+        case "/referral": await handleReferralCommand(msg, env); break;
+        case "/freebonus": await handleFreeBonusCommand(msg, env); break;
         case "/donate": {
           const donate = buildDonateMessage(session.language);
           await sendMessage(chat.id, donate.text, { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
