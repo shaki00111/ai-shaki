@@ -18,7 +18,13 @@ import { ttsKeyCooldowns } from "./ttsReliability";
 let ownerPersonalizationCache: { value: ReturnType<typeof normalizeOwnerPersonalization>; expiresAt: number } | null = null;
 async function getOwnerPersonalization(env: Env): Promise<ReturnType<typeof normalizeOwnerPersonalization>> {
   if (ownerPersonalizationCache && ownerPersonalizationCache.expiresAt > Date.now()) return ownerPersonalizationCache.value;
-  const raw = await env.SESSIONS.get("owner_personalization", "json").catch(() => null);
+  let raw: unknown;
+  try {
+    raw = await env.SESSIONS.get("owner_personalization", "json");
+  } catch (error) {
+    logger.warn("[personalization] KV read failed; retaining cached settings", error);
+    return ownerPersonalizationCache?.value ?? DEFAULT_OWNER_PERSONALIZATION;
+  }
   const value = normalizeOwnerPersonalization(raw);
   ownerPersonalizationCache = { value, expiresAt: Date.now() + 30_000 };
   return value;
@@ -4982,20 +4988,23 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     if (action === "restore") {
       const backup = await env.SESSIONS.get(backupKey, "json").catch(() => null);
       if (!backup) return json({ ok: false, error: "no_backup" }, 404);
-      const restored = setOwnerPersonalizationCache(backup);
+      const restored = normalizeOwnerPersonalization(backup);
       await env.SESSIONS.put(key, JSON.stringify(restored));
+      setOwnerPersonalizationCache(restored);
       return json({ ok: true, customization: restored, restored: true });
     }
     if (action === "reset") {
       await env.SESSIONS.put(backupKey, JSON.stringify(current));
-      const reset = setOwnerPersonalizationCache(DEFAULT_OWNER_PERSONALIZATION);
+      const reset = normalizeOwnerPersonalization(DEFAULT_OWNER_PERSONALIZATION);
       await env.SESSIONS.put(key, JSON.stringify(reset));
+      setOwnerPersonalizationCache(reset);
       return json({ ok: true, customization: reset, reset: true });
     }
     if (action !== "save") return json({ ok: false, error: "unknown_action" }, 400);
-    const next = setOwnerPersonalizationCache(body.customization);
+    const next = normalizeOwnerPersonalization(body.customization);
     await env.SESSIONS.put(backupKey, JSON.stringify(current));
     await env.SESSIONS.put(key, JSON.stringify(next));
+    setOwnerPersonalizationCache(next);
     return json({ ok: true, customization: next, saved: true });
   }
   if (path === "factory/builds" || path === "factory/projects" || path.startsWith("factory/builds/")) {
