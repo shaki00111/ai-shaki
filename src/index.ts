@@ -3579,7 +3579,7 @@ const _webAppViewBuffer = new Map<string, number>();
 // Stored at KV key `groupcfg:{chatId}`. Absent settings mean enabled.
 // Explicit admin disables are preserved. `allowHeavy` permits web-app / long-code building
 // in the group. Reads are cached in-isolate so a group costs ~0 extra KV reads.
-interface GroupConfig { enabled: boolean; allowHeavy: boolean; antiLinks?: boolean; }
+interface GroupConfig { enabled: boolean; allowHeavy: boolean; antiLinks?: boolean; features?: Record<string, boolean>; }
 const _groupCfgCache = new Map<number, { cfg: GroupConfig; ts: number }>();
 const GROUP_CFG_TTL_MS = 30_000;
 const GROUP_CFG_CACHE_MAX = 1000;
@@ -3590,7 +3590,7 @@ async function getGroupConfig(chatId: number, env: Env): Promise<GroupConfig> {
   let cfgv: GroupConfig = normalizeGroupConfig(null);
   try {
     const raw = await env.SESSIONS.get(`groupcfg:${chatId}`, "json") as Partial<GroupConfig> | null;
-    cfgv = { ...normalizeGroupConfig(raw), antiLinks: raw?.antiLinks === true };
+    cfgv = { ...normalizeGroupConfig(raw), antiLinks: raw?.antiLinks === true, features: raw?.features && typeof raw.features === "object" ? raw.features : {} };
   } catch (error) {
     if(hit)return hit.cfg;
     throw error; // An unreadable explicit disable is not permission to re-enable.
@@ -3611,8 +3611,9 @@ async function setGroupConfig(chatId: number, patch: Partial<GroupConfig>, env: 
     enabled: patch.enabled ?? current.enabled,
     allowHeavy: patch.allowHeavy ?? current.allowHeavy,
     antiLinks: patch.antiLinks ?? current.antiLinks ?? false,
+    features: patch.features ? { ...(current.features ?? {}), ...patch.features } : (current.features ?? {}),
   };
-  if(current.enabled===merged.enabled&&current.allowHeavy===merged.allowHeavy&&current.antiLinks===merged.antiLinks)return current;
+  if(current.enabled===merged.enabled&&current.allowHeavy===merged.allowHeavy&&current.antiLinks===merged.antiLinks&&JSON.stringify(current.features??{})===JSON.stringify(merged.features??{}))return current;
   await env.SESSIONS.put(`groupcfg:${chatId}`, JSON.stringify(merged));
   _groupCfgCache.set(chatId, { cfg: merged, ts: Date.now() });
   return merged;
@@ -26150,6 +26151,20 @@ if (data === "open_language") {
     return;
   }
 
+  if (data.startsWith("gcat:")) {
+    if(chat.type==="private"||!await isUserAdmin(from.id,chat.id)){await answerCb(cb.id,"🚫 فقط مدیران گروه.",true);return;}
+    await answerCb(cb.id); await showGroupCategory(chat.id,message.message_id,session,env,data.slice(5)); return;
+  }
+  if (data.startsWith("gfeat:")) {
+    if(chat.type==="private"||!await isUserAdmin(from.id,chat.id)){await answerCb(cb.id,"🚫 فقط مدیران گروه.",true);return;}
+    const key=data.slice(5); const feature=GROUP_FEATURES.find(f=>f.key===key);
+    if(!feature){await answerCb(cb.id,"گزینه نامعتبر است.",true);return;}
+    const current=await getGroupConfig(chat.id,env); const nextValue=!groupFeatureEnabled(current,key);
+    await setGroupConfig(chat.id,{features:{[key]:nextValue}},env);
+    await answerCb(cb.id,nextValue?"✅ فعال شد":"خاموش شد",true);
+    await showGroupCategory(chat.id,message.message_id,session,env,feature.category); return;
+  }
+
   if (data === "gset_enabled") {
     if (chat.type === "private" || !await isUserAdmin(from.id, chat.id)) {
       await answerCb(cb.id, session.language === "fa" ? "🚫 فقط مدیران گروه مجاز هستند." : "🚫 Only group administrators can change this.", true);
@@ -26561,37 +26576,95 @@ async function showPromptMenu(chatId: number, msgId: number, session: ChatSessio
   await editMessageText(chatId, msgId, text, { reply_markup: JSON.stringify(validateKeyboard(kb)) });
 }
 
+
+// ── Group moderation feature catalog (100 configurable policies) ─────────────
+type GroupFeature = { key: string; label: string; category: string };
+const GROUP_FEATURES: GroupFeature[] = [
+  ["member","عضو تازه‌وارد","welcome"],["goodbye","خروج اعضا","welcome"],["welcome_buttons","دکمه خوشامد","welcome"],["welcome_rules","نمایش قوانین در ورود","welcome"],["welcome_captcha","تأیید ورود با کپچا","welcome"],["join_notice","اعلان ورود","welcome"],["leave_notice","اعلان خروج","welcome"],["welcome_mentions","منشن عضو تازه","welcome"],["welcome_delete","حذف پیام خوشامد قدیمی","welcome"],["welcome_private","خوشامد خصوصی","welcome"],
+  ["anti_links","حذف لینک‌ها","safety"],["anti_tg_links","لینک تلگرام","safety"],["anti_short_links","لینک کوتاه‌شده","safety"],["anti_invites","دعوت گروهی","safety"],["anti_mentions","منشن انبوه","safety"],["anti_hashtags","هشتگ‌های تبلیغاتی","safety"],["anti_email","آدرس ایمیل","safety"],["anti_phone","شماره تلفن","safety"],["anti_caps","متن تماماً بزرگ","safety"],["anti_suspicious","لینک مشکوک","safety"],
+  ["lock_photo","قفل عکس","locks"],["lock_video","قفل ویدیو","locks"],["lock_document","قفل فایل","locks"],["lock_audio","قفل موزیک","locks"],["lock_voice","قفل ویس","locks"],["lock_video_note","قفل ویدیو مسیج","locks"],["lock_sticker","قفل استیکر","locks"],["lock_gif","قفل گیف","locks"],["lock_poll","قفل نظرسنجی","locks"],["lock_forward","قفل فوروارد","locks"],
+  ["anti_flood","ضد پیام پشت‌سرهم","spam"],["anti_repeat","ضد پیام تکراری","spam"],["anti_long","ضد متن بیش‌ازحد بلند","spam"],["anti_symbols","ضد کاراکترهای تکراری","spam"],["anti_emoji","ضد سیل ایموجی","spam"],["anti_mention_flood","ضد منشن زیاد","spam"],["anti_newbie_links","ممنوعیت لینک تازه‌وارد","spam"],["anti_bot","ضد ربات‌های تبلیغاتی","spam"],["anti_copy","ضد کپی‌پیست انبوه","spam"],["anti_empty","ضد پیام بی‌محتوا","spam"],
+  ["warn_enabled","سیستم اخطار","members"],["warn_auto_mute","سکوت خودکار پس از اخطار","members"],["warn_auto_kick","اخراج پس از اخطار","members"],["ban_protection","محافظت از مدیران","members"],["admin_protection","عدم اجرای دستور روی ادمین","members"],["newbie_restrict","محدودیت عضو تازه‌وارد","members"],["repeat_offender","برخورد با متخلف تکراری","members"],["silent_actions","پیام بی‌سروصدای مدیریت","members"],["action_notice","اعلان اقدامات مدیریتی","members"],["appeal_enabled","امکان اعتراض کاربر","members"],
+  ["clean_commands","پاکسازی دستورها","cleanup"],["clean_service","پاکسازی پیام‌های سیستمی","cleanup"],["clean_join","پاکسازی پیام ورود","cleanup"],["clean_leave","پاکسازی پیام خروج","cleanup"],["clean_bot","پاکسازی پیام ربات‌ها","cleanup"],["clean_spam","پاکسازی اسپم","cleanup"],["clean_links","پاکسازی لینک‌ها","cleanup"],["clean_warns","پاکسازی پیام اخطار","cleanup"],["clean_pins","پاکسازی اعلان سنجاق","cleanup"],["clean_old","پاکسازی پیام‌های قدیمی","cleanup"],
+  ["slow_mode","حالت آهسته","chat"],["lock_chat","قفل ارسال پیام","chat"],["lock_media","قفل همه رسانه‌ها","chat"],["lock_text","قفل متن","chat"],["lock_stickers","قفل استیکر و گیف","chat"],["lock_links","قفل لینک","chat"],["lock_polls","قفل نظرسنجی","chat"],["lock_forwards","قفل فوروارد","chat"],["lock_new_members","محدودیت اعضای تازه","chat"],["lock_night","حالت شبانه","chat"],
+  ["rules_enabled","نمایش قوانین","community"],["report_enabled","گزارش تخلف با ریپلای","community"],["suggestions","پیشنهاد اعضا","community"],["faq_enabled","پاسخ به سوالات پرتکرار","community"],["auto_reply","پاسخ خودکار","community"],["topic_guard","محافظت موضوعات","community"],["pin_notice","اعلان پیام سنجاق‌شده","community"],["admin_contact","نمایش راه ارتباط با مدیر","community"],["member_count","نمایش تعداد اعضا","community"],["activity_notice","اعلان فعالیت گروه","community"],
+  ["log_actions","ثبت گزارش اقدامات","logs"],["log_deleted","ثبت حذف پیام","logs"],["log_bans","ثبت بن و آنبن","logs"],["log_mutes","ثبت سکوت و رفع سکوت","logs"],["log_warns","ثبت اخطارها","logs"],["log_links","ثبت لینک‌های حذف‌شده","logs"],["log_joins","ثبت ورود و خروج","logs"],["log_settings","ثبت تغییر تنظیمات","logs"],["log_reports","ثبت گزارش اعضا","logs"],["log_admins","ثبت فعالیت مدیران","logs"],
+  ["whitelist_enabled","لیست سفید","advanced"],["blacklist_enabled","لیست سیاه","advanced"],["trusted_links","لینک‌های مجاز","advanced"],["blocked_words","کلمات ممنوع","advanced"],["allowed_words","کلمات مجاز","advanced"],["language_filter","فیلتر زبان","advanced"],["username_filter","فیلتر نام کاربری","advanced"],["profile_filter","فیلتر پروفایل خالی","advanced"],["raid_mode","حالت مقابله با حمله","advanced"],["maintenance_group","حالت نگهداری گروه","advanced"]
+].map(([key,label,category]) => ({key,label,category})) as GroupFeature[];
+const GROUP_CATEGORIES = [
+  ["welcome","👋 ورود و خروج"],["safety","🛡 لینک و امنیت"],["locks","🔒 قفل رسانه‌ها"],["spam","🚨 ضداسپم"],["members","👥 اعضا و اخطار"],["cleanup","🧹 پاکسازی"],["chat","⚙️ کنترل چت"],["community","📌 قوانین و تعامل"],["logs","📊 گزارش و لاگ"],["advanced","🧰 ابزار پیشرفته"]
+] as const;
+function groupFeatureEnabled(config: GroupConfig, key: string): boolean { return config.features?.[key] === true; }
+async function showGroupCategory(chatId:number,msgId:number,session:ChatSession,env:Env,category:string):Promise<void>{
+  const fa=session.language==="fa"; const cfgv=await getGroupConfig(chatId,env);
+  const cat=GROUP_CATEGORIES.find(x=>x[0]===category); if(!cat){await showGroupSettings(chatId,msgId,session,env);return;}
+  const items=GROUP_FEATURES.filter(x=>x.category===category);
+  const rows:InlineBtn[][]=[];
+  for(let i=0;i<items.length;i+=2){const pair=items.slice(i,i+2);rows.push(pair.map(f=>btn((groupFeatureEnabled(cfgv,f.key)?"🟢 ":"⚪️ ")+f.label,"gfeat:"+f.key)));}
+  rows.push([btn(fa?"📚 همه دسته‌ها":"📚 All categories","group_settings"),btn(fa?"📖 راهنما":"📖 Help","gset_help")]);
+  await editMessageText(chatId,msgId, `<b>${cat[1]}</b>\n\n${fa?"برای روشن/خاموش‌کردن هر گزینه روی آن بزن. وضعیت سبز یعنی فعال.":"Tap an option to toggle it. Green means enabled."}`,{parse_mode:"HTML",reply_markup:JSON.stringify(validateKeyboard({inline_keyboard:rows}))});
+}
+
+// In-isolate flood memory; deliberately bounded and short-lived for Workers.
+const _groupRecentMessages = new Map<string,{text:string;ts:number;count:number}>();
+function getGroupPolicyViolation(msg:TgMessage, cfgv:GroupConfig):string|null {
+  const f=cfgv.features??{}; const has=(k:string)=>f[k]===true;
+  const body=(msg.text??msg.caption??"").trim();
+  const m:any=msg;
+  const mediaChecks:[string,boolean,string][]=[
+    ["lock_photo",!!m.photo,"ارسال عکس در این گروه بسته است."],
+    ["lock_video",!!m.video,"ارسال ویدیو در این گروه بسته است."],
+    ["lock_document",!!m.document,"ارسال فایل در این گروه بسته است."],
+    ["lock_audio",!!m.audio,"ارسال موزیک در این گروه بسته است."],
+    ["lock_voice",!!m.voice,"ارسال ویس در این گروه بسته است."],
+    ["lock_video_note",!!m.video_note,"ارسال ویدیو مسیج در این گروه بسته است."],
+    ["lock_sticker",!!m.sticker,"ارسال استیکر در این گروه بسته است."],
+    ["lock_gif",!!m.animation,"ارسال گیف در این گروه بسته است."],
+    ["lock_poll",!!m.poll,"ارسال نظرسنجی در این گروه بسته است."],
+    ["lock_forward",!!m.forward_origin,"ارسال پیام فورواردی در این گروه بسته است."],
+    ["lock_media",!!(m.photo||m.video||m.document||m.audio||m.voice||m.video_note||m.sticker||m.animation),"ارسال رسانه در این گروه بسته است."],
+    ["lock_chat",true,"ارسال پیام در این گروه موقتاً قفل است."],
+    ["lock_text",!!body,"ارسال متن در این گروه بسته است."]
+  ];
+  for(const [key,active,message] of mediaChecks) if(has(key)&&active)return message;
+  const link=/(?:https?:\/\/|www\.|t\.me\/|telegram\.me\/)/i.test(body);
+  if((cfgv.antiLinks||has("anti_links")||has("lock_links"))&&link)return "ارسال لینک در این گروه مجاز نیست.";
+  if(has("anti_tg_links")&&/(?:t\.me\/|telegram\.me\/|joinchat|\+[A-Za-z0-9_-]{8,})/i.test(body))return "لینک تلگرام و دعوت گروه ممنوع است.";
+  if(has("anti_short_links")&&/(?:bit\.ly|tinyurl\.com|t\.co|is\.gd|cutt\.ly)\//i.test(body))return "لینک کوتاه‌شده مجاز نیست.";
+  if(has("anti_mentions")&&(body.match(/@[\w]{3,}/g)?.length??0)>=4)return "منشن انبوه مجاز نیست.";
+  if(has("anti_mention_flood")&&(body.match(/@[\w]{3,}/g)?.length??0)>=3)return "ارسال منشن‌های زیاد ممنوع است.";
+  if(has("anti_email")&&/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/.test(body))return "ارسال آدرس ایمیل در این گروه ممنوع است.";
+  if(has("anti_phone")&&/(?:\+?\d[\d\s()-]{8,}\d)/.test(body))return "ارسال شماره تلفن در این گروه ممنوع است.";
+  if(has("anti_caps")&&body.length>12&&((body.match(/[A-Z]/g)?.length??0)/(body.match(/[A-Za-z]/g)?.length||1))>0.75)return "ارسال متن تماماً بزرگ ممنوع است.";
+  if(has("anti_long")&&body.length>1200)return "پیام بیش از حد طولانی است.";
+  if(has("anti_symbols")&&/(.)\1{11,}/u.test(body))return "تکرار بیش از حد یک کاراکتر مجاز نیست.";
+  if(has("anti_emoji")&&((body.match(/[\u{1F300}-\u{1FAFF}]/gu)?.length??0)>18))return "ارسال سیل ایموجی ممنوع است.";
+  if(has("anti_hashtags")&&(body.match(/#[\p{L}\d_]+/gu)?.length??0)>=6)return "ارسال هشتگ‌های زیاد ممنوع است.";
+  if(has("anti_empty")&&!body&&!(m.photo||m.video||m.document||m.audio||m.voice||m.sticker||m.animation))return "پیام خالی مجاز نیست.";
+  if(has("anti_repeat")||has("anti_flood")||has("anti_copy")){
+    const key=`${msg.chat.id}:${msg.from?.id??0}`; const now=Date.now(); const normalized=body.toLowerCase().replace(/\s+/g," ").slice(0,500);
+    const prev=_groupRecentMessages.get(key);
+    if(prev&&now-prev.ts<10000){
+      prev.count=prev.text===normalized?prev.count+1:1;prev.text=normalized;prev.ts=now;
+      if(has("anti_repeat")&&normalized&&prev.count>=2)return "ارسال پیام تکراری ممنوع است.";
+      if(has("anti_flood")&&prev.count>=5)return "ارسال پیام‌های پشت‌سرهم ممنوع است.";
+      if(has("anti_copy")&&normalized.length>80&&prev.count>=3)return "ارسال کپی‌پیست تکراری ممنوع است.";
+    }else _groupRecentMessages.set(key,{text:normalized,ts:now,count:1});
+    if(_groupRecentMessages.size>3000){for(const [k,v] of _groupRecentMessages)if(now-v.ts>60000)_groupRecentMessages.delete(k);if(_groupRecentMessages.size>3000)_groupRecentMessages.clear();}
+  }
+  return null;
+}
 async function showGroupSettings(chatId: number, msgId: number, session: ChatSession, env: Env): Promise<void> {
-  const lang = session.language;
-  const fa = lang === "fa";
-  const gcfg = await getGroupConfig(chatId, env);
-
-  const onTxt = (b: boolean) => b ? (fa ? "فعال ✅" : "On ✅") : (fa ? "غیرفعال ❌" : "Off ❌");
-  
-  const text = fa
-    ? `👥 *تنظیمات گروه*\n\n` +
-      `🟢 پاسخ‌گویی ربات: *${onTxt(gcfg.enabled)}*\n` +
-      `🛠️ کارهای سنگین (وب‌اپ/کد طولانی): *${onTxt(gcfg.allowHeavy)}*\n` +
-      `📢 حالت پاسخ: *فقط منشن (دائمی)*\n` +
-      `🔗 ضدلینک: *${onTxt(gcfg.antiLinks === true)}*\n\n` +
-      `_مدیریت کاربران: روی پیام کاربر ریپلای کن و از /ban، /mute 30، /unban یا /unmute استفاده کن._\n` +
-      `_گروه‌ها به‌صورت پیش‌فرض فعال‌اند. مدیران گروه می‌توانند پاسخ‌گویی را متوقف کنند._`
-    : `👥 *Group Settings*\n\n` +
-      `🟢 Bot replies: *${onTxt(gcfg.enabled)}*\n` +
-      `🛠️ Heavy tasks (web apps/long code): *${onTxt(gcfg.allowHeavy)}*\n` +
-      `📢 Reply mode: *Mention only (Permanent)*\n` +
-      `🔗 Anti-link: *${onTxt(gcfg.antiLinks === true)}*\n\n` +
-      `_Reply to a user's message and use /ban, /mute 30, /unban or /unmute to moderate._\n` +
-      `_Groups are enabled by default. Group administrators can disable replies._`;
-
-  const kb: InlineKeyboard = { inline_keyboard: [
-    [btn(`🟢 ${fa ? "پاسخ‌گویی ربات" : "Bot replies"}: ${gcfg.enabled ? (fa ? "فعال" : "On") : (fa ? "غیرفعال" : "Off")}`, "gset_enabled")],
-    [btn(`🛠️ ${fa ? "کارهای سنگین" : "Heavy Tasks"}: ${gcfg.allowHeavy ? (fa ? "مجاز" : "On") : (fa ? "غیرمجاز" : "Off")}`, "gset_heavy")],
-    [btn(`🔗 ${fa ? "ضدلینک" : "Anti-link"}: ${gcfg.antiLinks ? (fa ? "فعال" : "On") : (fa ? "خاموش" : "Off")}`, "gset_antilinks")],
-    [btn(fa ? "📖 راهنمای مدیریت گروه" : "📖 Group management guide", "gset_help")],
-    [btn(fa ? "🔙 بازگشت" : "🔙 Back", "home:open")]
-  ]};
-  await editMessageText(chatId, msgId, text, { reply_markup: JSON.stringify(validateKeyboard(kb)) });
+  const fa=session.language==="fa"; const gcfg=await getGroupConfig(chatId,env);
+  const on=(v:boolean)=>v?(fa?"روشن":"On"):(fa?"خاموش":"Off");
+  const enabledCount=GROUP_FEATURES.filter(f=>groupFeatureEnabled(gcfg,f.key)).length;
+  const rows:InlineBtn[][]=[];
+  for(let i=0;i<GROUP_CATEGORIES.length;i+=2){const pair=GROUP_CATEGORIES.slice(i,i+2);rows.push(pair.map(c=>btn(c[1],"gcat:"+c[0])));}
+  rows.push([btn(`🤖 ${fa?"پاسخ‌گویی":"Bot replies"}: ${on(gcfg.enabled)}`,"gset_enabled"),btn(`🔗 ${fa?"ضدلینک":"Anti-link"}: ${on(gcfg.antiLinks===true)}`,"gset_antilinks")]);
+  rows.push([btn(`🛠 ${fa?"کارهای سنگین":"Heavy tasks"}: ${on(gcfg.allowHeavy)}`,"gset_heavy")]);
+  rows.push([btn(fa?"📖 راهنمای کامل مدیریت گروه":"📖 Group management guide","gset_help"),btn(fa?"🔙 بازگشت":"🔙 Back","home:open")]);
+  const text=fa?`╭━━━ ✦ AI SHAKI ✦ ━━━╮\n🛡 <b>مرکز مدیریت گروه</b>\n╰━━━━━━━━━━━━━━╯\n\n📦 تعداد تنظیمات: <b>100 قابلیت</b>\n🟢 گزینه‌های فعال: <b>${enabledCount}</b>\n\nیکی از بخش‌ها رو انتخاب کن:`:`✦ AI SHAKI — GROUP CONTROL\n100 configurable controls · ${enabledCount} enabled\nChoose a category:`;
+  await editMessageText(chatId,msgId,text,{parse_mode:"HTML",reply_markup:JSON.stringify(validateKeyboard({inline_keyboard:rows}))});
 }
 // SECTION: MEMORY PRUNING (نگه‌داشتن کش‌های درون‌حافظه در محدوده)
 /**
@@ -26796,20 +26869,22 @@ async function dispatchUpdate(update: TgUpdate, env: Env): Promise<void> {
       if (!msg.from || msg.from.is_bot) return;
       if (!cfg.ALLOWED_CHAT_TYPES.includes(msg.chat.type)) return;
 
-      // Anti-link moderation applies to every group message type, including captions.
+      // Group policy engine: evaluate configured content locks and anti-spam rules
+      // before the AI handlers. Admins are exempt; deletions require bot admin rights.
       if (msg.chat.type !== "private") {
         const groupConfig = await getGroupConfig(msg.chat.id, env).catch(() => null);
-        const body = (msg.text ?? msg.caption ?? "").trim();
-        const containsLink = /(?:https?:\/\/|www\.|t\.me\/|telegram\.me\/)/i.test(body);
-        if (groupConfig?.antiLinks && containsLink && !await isUserAdmin(msg.from.id, msg.chat.id)) {
-          const botId = BOT_SELF_ID ?? BOT_INFO?.id;
-          if (botId && await isUserAdmin(botId, msg.chat.id)) {
-            await deleteMessage(msg.chat.id, msg.message_id);
-            await sendMessage(msg.chat.id, "🔗 ارسال لینک در این گروه مجاز نیست.", { reply_to_message_id: msg.message_id }).catch(() => {});
-          } else {
-            await sendMessage(msg.chat.id, "⚠️ ضدلینک فعاله، اما ربات برای حذف لینک‌ها به دسترسی ادمین نیاز داره.", { reply_to_message_id: msg.message_id }).catch(() => {});
+        if (groupConfig && !await isUserAdmin(msg.from.id, msg.chat.id)) {
+          const violation = getGroupPolicyViolation(msg, groupConfig);
+          if (violation) {
+            const botId = BOT_SELF_ID ?? BOT_INFO?.id;
+            if (botId && await isUserAdmin(botId, msg.chat.id)) {
+              await deleteMessage(msg.chat.id, msg.message_id);
+              await sendMessage(msg.chat.id, `🛡️ ${violation}`, { reply_to_message_id: msg.message_id }).catch(() => {});
+            } else {
+              await sendMessage(msg.chat.id, "⚠️ فیلتر گروه فعاله، اما ربات برای حذف پیام باید ادمین و دارای مجوز حذف پیام باشه.", { reply_to_message_id: msg.message_id }).catch(() => {});
+            }
+            return;
           }
-          return;
         }
       }
 
