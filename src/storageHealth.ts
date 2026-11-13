@@ -105,7 +105,19 @@ export function friendlyFailure(error: unknown, lang: string): string {
   const category = /storage|d1|sqlite|write.*limit/.test(text) ? "storage"
     : /quota|429|rate.?limit|busy|capacity/.test(text) ? "busy"
     : /timeout|network|connection|fetch/.test(text) ? "network" : "failed";
-  const fa: Record<string, string> = { storage: "ذخیره‌سازی موقتاً در دسترس نیست؛ کمی بعد دوباره تلاش کن.", busy: "سرویس فعلاً شلوغ است؛ کمی بعد دوباره تلاش کن.", network: "ارتباط با سرویس کامل نشد؛ دوباره تلاش کن.", failed: "این بخش از کار کامل نشد؛ می‌توانی دوباره تلاش کنی." };
-  const en: Record<string, string> = { storage: "Storage is temporarily unavailable. Please try again later.", busy: "The service is busy. Please try again shortly.", network: "The service could not be reached. Please try again.", failed: "This part of the work did not finish. Please try again." };
+  // Public-facing wording is identical for free and VIP users. Provider names,
+  // HTTP codes and raw exception details remain in owner-only diagnostics/logs.
+  const fa: Record<string, string> = {
+    storage: "ذخیره‌سازی فعلاً در دسترس نیست عشقم 😅 یه لحظه دیگه امتحان کن.",
+    busy: "سرور فعلاً شلوغه عشقم 😅 یه لحظه دیگه امتحان کن.",
+    network: "سرور جواب نداد عشقم 😅 یه لحظه دیگه امتحان کن.",
+    failed: "یه خطای موقت پیش اومد عشقم 😅 دوباره امتحان کن.",
+  };
+  const en: Record<string, string> = {
+    storage: "Storage is temporarily unavailable. Please try again shortly.",
+    busy: "The server is busy right now. Please try again shortly.",
+    network: "The server did not respond. Please try again shortly.",
+    failed: "A temporary error occurred. Please try again.",
+  };
   return (lang === "fa" ? fa : en)[category];
 }
