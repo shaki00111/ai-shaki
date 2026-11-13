@@ -666,6 +666,35 @@ html[dir="rtl"] .dpanel-body{--exp-from:14px;--exp-origin:right}
 body{background-color:#08090d}
 button:focus-visible,a:focus-visible,input:focus-visible{outline-color:#ff8a52}
 
+
+/* SHAKI GLASS LIGHT — premium surfaces without costly motion or blur */
+:root{
+  --bg:#070912;--surface-1:#101629;--surface-2:#18223a;--surface-3:#202c47;--sunken:#0b1120;
+  --border:rgba(153,145,255,.18);--border-strong:rgba(170,163,255,.32);--border-focus:#8b7cff;
+  --accent:#8879ff;--accent-soft:rgba(136,121,255,.14);--accent-2:#4ed9cb;
+  --shadow-sm:0 2px 8px rgba(0,0,0,.22);--shadow:0 10px 28px rgba(0,0,0,.28);--shadow-lg:0 18px 42px rgba(0,0,0,.34);
+}
+body{
+  background:radial-gradient(1000px 500px at 88% -12%,rgba(124,111,247,.15),transparent 62%),
+             radial-gradient(760px 420px at 0% 8%,rgba(47,211,167,.06),transparent 60%),var(--bg);
+}
+.topbar{background:rgba(12,17,31,.96);border-color:var(--border)}
+.sidebar{background:rgba(12,17,31,.82);border-color:var(--border)}
+.logo{background:linear-gradient(145deg,#8173ff,#4bcfcb);box-shadow:none}
+.card,.metric,.item{
+  background:linear-gradient(145deg,rgba(25,33,55,.96),rgba(13,19,34,.98));
+  border-color:var(--border);box-shadow:var(--shadow-sm);
+}
+.section-head{background:rgba(136,121,255,.045);border-color:var(--border)}
+.navitem[aria-current="page"]{background:rgba(136,121,255,.13);border-color:var(--border-strong)}
+.primary{background:linear-gradient(120deg,#7467ed,#4b8fbd)}
+.topbar,.card,.metric,.item,.sidebar,.drawer,.modal,.drawer .back,.modal .backdrop{
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+}
+.skeleton{animation:none!important;background:linear-gradient(145deg,#171e32,#202943)}
+*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
 </style>
 
 <style id="shaki-brand-skin">
