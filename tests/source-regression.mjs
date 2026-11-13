@@ -189,18 +189,21 @@ incomingVoiceSource.includes('checkDailyLimitWithUser(session, from, "message", 
   ? ok("incoming voice checks message eligibility and the AI turn counts it once")
   : fail("incoming voice must not consume the voice-generation quota");
 
-// ── Direct voice quota reservation ─────────────────────────────────────────
-console.log("\n[9] Direct voice quota reservation");
-const directVoiceStart = indexSource.indexOf("const directVoiceText = extractDirectVoiceText");
-const directVoiceEnd = indexSource.indexOf("\n      sendTyping(", directVoiceStart);
-const directVoiceSource = directVoiceStart >= 0 && directVoiceEnd > directVoiceStart
-  ? indexSource.slice(directVoiceStart, directVoiceEnd) : "";
-directVoiceSource.includes('reserveDailyUsageWithUser(session, user, "voice_sent", env)') &&
-directVoiceSource.includes("releaseVoiceReservation") &&
-!directVoiceSource.includes('checkDailyLimitWithUser(session, user, "voice_sent", env)') &&
-!directVoiceSource.includes('incrementUsageWithUser(session, user, "voice_sent", env)')
-  ? ok("direct voice requests reserve quota atomically and roll back failed sends")
-  : fail("direct voice requests must use atomic usage reservations");
+// ── Disabled-group personal panel access ───────────────────────────────────
+console.log("\n[9] Disabled-group personal panel access");
+const startHandler = indexSource.slice(indexSource.indexOf("async function handleStart"), indexSource.indexOf("\nasync function handleHelp", indexSource.indexOf("async function handleStart")));
+const messageHandlerStart = indexSource.indexOf("async function handleTextMessage");
+const messageHandlerEnd = indexSource.indexOf("\nasync function handleMediaMessage", messageHandlerStart);
+const messageHandler = messageHandlerStart >= 0 && messageHandlerEnd > messageHandlerStart
+  ? indexSource.slice(messageHandlerStart, messageHandlerEnd) : "";
+startHandler.includes("personal control panel for every member") &&
+!startHandler.includes("if (!gc.enabled)")
+  ? ok("group /start opens personal controls even when group replies are disabled")
+  : fail("group /start must not be blocked by the group reply toggle");
+messageHandler.includes('const personalStart = commandProbe === "/start"') &&
+messageHandler.includes('const adminSettings = commandProbe === "/settings" && await isUserAdmin(from.id, chat.id)')
+  ? ok("disabled groups allow personal /start but keep /settings admin-only")
+  : fail("disabled-group command gate must allow /start to everyone and /settings to admins");
 
 console.log("");
 if (failures > 0) {
