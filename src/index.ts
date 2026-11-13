@@ -12,6 +12,8 @@ import { startRun, finishRun, operationsAPI, recordAdminAudit, cleanupOperations
 import { readJsonObject, RequestBodyError } from "./http";
 import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from "./memory";
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
+import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, ownerPersonalizationWelcome } from "./ownerPersonalization";
+import { ttsKeyCooldowns } from "./ttsReliability";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
 import { inspectJpeg } from "./documentImages";
 // ── MERGE: cognition layer from SHAKI B, on top of SHAKI A's platform layer ──
@@ -4926,6 +4928,47 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     }
   }
   await ensureUserSchemaOnce(env);
+  // Owner-only customization is isolated from ordinary bot settings. This
+  // handler has already verified signed Telegram initData and the exact owner id.
+  if (path === "personalization") {
+    const key = "owner_personalization";
+    const backupKey = "owner_personalization:backup";
+    const current = normalizeOwnerPersonalization(await env.SESSIONS.get(key, "json").catch(() => null));
+    if (request.method === "GET") {
+      return json({ ok: true, customization: current, defaults: DEFAULT_OWNER_PERSONALIZATION });
+    }
+    if (request.method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
+    const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+    const action = String(body.action ?? "save");
+    if (action === "test") {
+      const testSettings = body.customization ? normalizeOwnerPersonalization(body.customization) : current;
+      const sample = ownerPersonalizationWelcome(testSettings, "fa", "⚡ AI SHAKI\nپیش‌نمایش پیام خوش‌آمدگویی", "مالک");
+      try {
+        await sendMessage(user.id, sample, { parse_mode: "HTML" });
+        return json({ ok: true, sent: true });
+      } catch (e) {
+        logger.warn("[personalization] owner test-send failed", e);
+        return json({ ok: false, error: "test_send_failed" }, 502);
+      }
+    }
+    if (action === "restore") {
+      const backup = await env.SESSIONS.get(backupKey, "json").catch(() => null);
+      if (!backup) return json({ ok: false, error: "no_backup" }, 404);
+      const restored = normalizeOwnerPersonalization(backup);
+      await env.SESSIONS.put(key, JSON.stringify(restored));
+      return json({ ok: true, customization: restored, restored: true });
+    }
+    if (action === "reset") {
+      await env.SESSIONS.put(backupKey, JSON.stringify(current));
+      await env.SESSIONS.put(key, JSON.stringify(DEFAULT_OWNER_PERSONALIZATION));
+      return json({ ok: true, customization: DEFAULT_OWNER_PERSONALIZATION, reset: true });
+    }
+    if (action !== "save") return json({ ok: false, error: "unknown_action" }, 400);
+    const next = normalizeOwnerPersonalization(body.customization);
+    await env.SESSIONS.put(backupKey, JSON.stringify(current));
+    await env.SESSIONS.put(key, JSON.stringify(next));
+    return json({ ok: true, customization: next, saved: true });
+  }
   if (path === "factory/builds" || path === "factory/projects" || path.startsWith("factory/builds/")) {
     if(!nativeFactoryConfigured(env))return json({ok:true,available:false,availability:{available:false,status:"disabled",targets:[],message:nativeUnavailableMessage()},builds:[],projects:[]});
     const factory = getAppFactory(env,url.origin);
@@ -10043,32 +10086,14 @@ function detectErrorType(msg: string): ErrorType {
 
 function formatError(error: Error, lang: Language, isAdmin = false): string {
   const type = detectErrorType(error.message);
-  const icons: Record<ErrorType, string> = {
-    quota: "📊", auth: "🔑", network: "🌐", timeout: "⏱️",
-    blocked: "🛡️", empty: "📭", server: "🔥", unknown: "⚠️",
-  };
-  const msgs: Record<ErrorType, [string, string]> = {
-    quota:   ["ظرفیت مدل تمام شده.", "Quota exceeded."],
-    auth:    ["مشکل در کلید API.", "Authentication failed."],
-    network: ["مشکل در اتصال به سرور.", "Connection error."],
-    timeout: ["زمان پاسخگویی تمام شد.", "Request timed out."],
-    blocked: ["محتوا توسط فیلتر امنیتی مسدود شد.", "Content blocked by safety filter."],
-    empty:   ["پاسخ خالی. سوال را تغییر دهید.", "Empty response. Please rephrase."],
-    server: [
-      "تعداد تلاش‌های این درخواست تمام شد؛ لطفاً دوباره ارسال کن.",
-      "The request attempt budget was exhausted. Please try again."
-    ],
-    unknown: ["خطای غیرمنتظره.", "Unexpected error."],
-  };
-  const icon = icons[type];
-  const [fa, en] = msgs[type];
-  const userMsg = lang === "fa" ? fa : en;
-  let out = `${icon} ${userMsg}`;
-  
-  if (isAdmin) {
-    out += `\n\n🔧 **Raw Error Details:**\n\`\`\`\n${error.message}\n\`\`\``;
-  }
-  return out;
+  // Safety blocks are useful to explain directly. All provider, quota, network,
+  // timeout and unknown failures share the same friendly wording for free/VIP.
+  const userMsg = type === "blocked"
+    ? (lang === "fa" ? "🛡️ این درخواست توسط فیلتر امنیتی متوقف شد." : "🛡️ This request was stopped by the safety filter.")
+    : friendlyFailure(error.message, lang);
+  return isAdmin
+    ? `${userMsg}\n\n🔧 **Raw Error Details:**\n\`\`\`\n${error.message}\n\`\`\``
+    : userMsg;
 }
 
 const toolErrorNotices = new NoticeGate();
@@ -10140,7 +10165,8 @@ async function notifyTurnFailure(
     _lastTurnFailureNotice.set(chatId, now);
 
     const isOwner = opts.userId !== undefined && opts.userId === cfg.BOT_OWNER_ID;
-    let text = formatError(err, opts.lang ?? cachedChatLanguage(chatId), isOwner);
+    const lang = opts.lang ?? cachedChatLanguage(chatId);
+    let text = isOwner ? formatError(err, lang, true) : friendlyFailure(err, lang);
     // Correlation id only for the owner: it is meaningless noise for everyone
     // else, but it is what makes a support report matchable to a stored
     // diagnostic row.
@@ -18173,7 +18199,9 @@ recordRequest(session);
     // cannot resurrect a half-written answer on top of it.
     await replyStreamer.stop();
 
-    const errorMsg = formatError(err, session.language, user.id === cfg.BOT_OWNER_ID);
+    const errorMsg = user.id === cfg.BOT_OWNER_ID
+      ? formatError(err, session.language, true)
+      : friendlyFailure(err, session.language);
     run.finish("failed");
     const retryKb = type !== "blocked" && type !== "auth" ? {
       inline_keyboard: [[btn("🔄 تلاش مجدد", "retry_last_msg")]]
@@ -20783,7 +20811,7 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
     const currentPersona = getPersona(currentPersonaId);
     const personaName = glang === "fa" ? currentPersona.nameFA : currentPersona.nameEN;
 
-    const welcomeText = glang === "fa"
+    const defaultWelcomeText = glang === "fa"
       ? `🟣━━━━━━━━━━━━━━━━━━━━🔵\n` +
         `⚡ <b>AI SHAKI · NEON CORE</b>\n` +
         `<i>PERSONAL CONTROL INTERFACE</i>\n` +
@@ -20803,6 +20831,8 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
         `🔹 Mention SHAKI or reply to one of her messages to start chatting.\n\n` +
         `<i>Select a module below:</i>`;
 
+    const ownerUi = normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null));
+    const welcomeText = ownerPersonalizationWelcome(ownerUi, glang, defaultWelcomeText, from.first_name);
     const rows: InlineBtn[][] = [
       [btn(glang === "fa" ? "🎭 انتخاب شخصیت (فقط برای من)" : "🎭 Choose Persona (just for me)", "home:personas")],
       [btn(glang === "fa" ? "✏️ پرامپت شخصی من" : "✏️ My Custom Prompt", "home:prompt")],
@@ -20815,11 +20845,12 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
       rows.push([btn(glang === "fa" ? "👥 تنظیمات گروه (مدیریت)" : "👥 Group Settings (Admin)", "group_settings")]);
     }
     rows.push([btn(glang === "fa" ? "✖️ بستن" : "✖️ Close", "home:close")]);
+    const personalizedKeyboard = applyOwnerMenuPersonalization({ inline_keyboard: rows }, ownerUi);
 
     const sentMsg = await sendMessage(chat.id, welcomeText, {
       reply_to_message_id: msg.message_id,
       parse_mode: "HTML",
-      reply_markup: JSON.stringify(validateKeyboard({ inline_keyboard: rows })),
+      reply_markup: JSON.stringify(validateKeyboard(personalizedKeyboard)),
     }).catch(() => null);
 
     // 🔒 قفل فوری مالکیت پنل روی همین کاربر — از همون لحظه ارسال، نه از اولین کلیک
@@ -24055,7 +24086,7 @@ const ADMIN_DASHBOARD_TABS = [
   "overview", "runs", "jobs", "audit",
   "users", "groups", "broadcast",
   "deployments", "media", "stickers", "factory",
-  "requests", "logs", "keys", "business", "system",
+  "requests", "logs", "keys", "business", "system", "personalization",
 ] as const;
 type AdminDashboardTab = (typeof ADMIN_DASHBOARD_TABS)[number];
 
@@ -26031,6 +26062,9 @@ async function showHomePanel(
            `💡 <i>Select an option from below:</i>`;
   }
   
+  const personalization = normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null));
+  const customIntro = ownerPersonalizationWelcome(personalization, lang, "", user.first_name);
+  if (customIntro) text = customIntro + "\n\n" + text;
   const kb = await buildHomeKeyboard(session, user.id, env);
   const opts = { 
     reply_markup: JSON.stringify(validateKeyboard(kb)),
@@ -26088,7 +26122,8 @@ async function buildHomeKeyboard(session: ChatSession, userId: number, env: Env)
     rows.push([btn(isFa ? "👥 تنظیمات گروه" : isAr ? "👥 إعدادات المجموعة" : "👥 Group Settings", "group_settings")]);
   }
   rows.push([btn(isFa ? "✖️ بستن منو" : isAr ? "✖️ إغلاق" : "✖️ Close", "home:close")]);
-  return { inline_keyboard: rows };
+  const personalization = normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null));
+  return applyOwnerMenuPersonalization({ inline_keyboard: rows }, personalization);
 }
 
 async function showPromptMenu(chatId: number, msgId: number, session: ChatSession, userId: number, isGroup = false): Promise<void> {
