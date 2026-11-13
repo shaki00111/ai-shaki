@@ -7954,11 +7954,7 @@ async function flushPendingSessions(env: Env, force = false, maxMs = 6000): Prom
 
 function dropSessionMemory(id: number): void {
   sessionCache.delete(`session:${id}`);
-  // Also drop any in-flight load. getOrCreateSession now returns cache hits and
-  // shares one promise per chat, so an admin action that invalidates the session
-  // must clear the pending promise too — otherwise a concurrent loader could
-  // resolve and re-seed the cache with the pre-invalidation snapshot.
-  sessionLoadLocks.delete(id);
+  // No in-flight session promises are shared across Worker requests.
   _sharedMemCache.delete(id);
   _pendingSessionFlush.delete(id);
   _lastSessionWriteHash.delete(id);
@@ -26225,12 +26221,7 @@ function pruneMemoryCaches(): void {
     if (set.size === 0) activeRequests.delete(chatId);
   }
 
-  // ۸. قفل‌های بارگذاری سشن — ورودی‌های بیش از ۵ دقیقه (مرده)
-  if (sessionLoadLocks.size > 500) {
-    // فقط اندازه را محدود کن — خودِ promiseها همیشه با finally پاک می‌شوند
-    let dropped = 0;
-    for (const k of sessionLoadLocks.keys()) { sessionLoadLocks.delete(k); if (++dropped >= 100) break; }
-  }
+  // No module-scope pending session promises need cleanup.
 
   // ۹. پنل‌های کنترل‌سنتر (مالکیت پیام) — قدیمی‌تر از ۱ ساعت
   if (panelOwners.size > 3000) {
