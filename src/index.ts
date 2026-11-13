@@ -23303,7 +23303,11 @@ async function handleGroupModerationCommand(msg: TgMessage, command: string, arg
   }
   const target = reply?.from;
   if (!target || target.is_bot || target.id === from.id || target.id === cfg.BOT_OWNER_ID) {
-    await sendMessage(chat.id, "برای این دستور باید روی پیام یک عضو عادی گروه ریپلای کنی.", { reply_to_message_id: msg.message_id });
+    await sendMessage(chat.id, "برای این دستور باید روی پیام یک عضو عادی گروه ریپلای کنی؛ هدف دستور صاحب همان پیام است.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  if (await isUserAdmin(target.id, chat.id)) {
+    await sendMessage(chat.id, "🛡️ برای جلوگیری از اقدام اشتباه، مدیران گروه قابل بن یا سکوت‌کردن با این دستور نیستند.", { reply_to_message_id: msg.message_id });
     return;
   }
   const botId = BOT_SELF_ID ?? BOT_INFO?.id;
@@ -23425,6 +23429,28 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
       groupContextCache.set(chat.id, groupCtx);
     }
 
+    // Run moderation aliases before the normal group-reply gate, so an admin
+    // can moderate by replying even when SHAKI is not being addressed.
+    if (isGroup) {
+      const pm = text.trim().replace(/[۰-۹]/g, d => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
+        .match(/^(سکوت|ساکت|رفع سکوت|آنسکوت|بن|مسدود|آنبن|رفع بن|اخراج|سیک|کیک|kick)(?:\s+(.*))?$/iu);
+      if (pm) {
+        if (!msg.reply_to_message?.from || msg.reply_to_message.from.is_bot) {
+          await sendMessage(chat.id, "برای اجرای دستور، روی پیام عضو موردنظر ریپلای کن.", { reply_to_message_id: msg.message_id });
+          return;
+        }
+        const alias = pm[1]; const rest = (pm[2] ?? "").trim();
+        const command = ["سکوت","ساکت"].includes(alias) ? "/mute"
+          : ["رفع سکوت","آنسکوت"].includes(alias) ? "/unmute"
+          : ["بن","مسدود"].includes(alias) ? "/ban"
+          : ["آنبن","رفع بن"].includes(alias) ? "/unban" : "/kick";
+        const duration = rest.match(/(\d{1,5})/u)?.[1];
+        await handleGroupModerationCommand(msg, command,
+          command === "/mute" ? [String(Math.max(1, Math.min(10080, Number(duration) || 30)))] : [], env);
+        return;
+      }
+    }
+
     if (isGroup && !text.startsWith("/") && !shouldRespondInGroup(msg, session)) return;
 
     if (await isUserBlocked(session, from, env)) {
@@ -23542,21 +23568,6 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
           await sendMessage(chat.id, formatConfigChangeSummary(applied, lang), { reply_to_message_id: msg.message_id });
           return;
         }
-      }
-    }
-
-    // Persian natural moderation aliases (reply to the target member's message).
-    if (isGroup) {
-      const pm = text.trim().replace(/[۰-۹]/g, d => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).match(/^(سکوت|ساکت|رفع سکوت|آنسکوت|بن|مسدود|آنبن|رفع بن|اخراج)(?:\s+(.*))?$/u);
-      if (pm && msg.reply_to_message?.from && !msg.reply_to_message.from.is_bot) {
-        const alias = pm[1]; const rest = (pm[2] ?? "").trim();
-        const command = ["سکوت","ساکت"].includes(alias) ? "/mute"
-          : ["رفع سکوت","آنسکوت"].includes(alias) ? "/unmute"
-          : ["بن","مسدود"].includes(alias) ? "/ban"
-          : ["آنبن","رفع بن"].includes(alias) ? "/unban" : "/kick";
-        const duration = rest.match(/(\d{1,5})/u)?.[1];
-        await handleGroupModerationCommand(msg, command, command === "/mute" ? [String(Math.max(1,Math.min(10080,Number(duration)||30)))] : [], env);
-        return;
       }
     }
 
@@ -26142,30 +26153,46 @@ if (data === "open_language") {
     await answerCb(cb.id);
     const fa = session.language === "fa";
     const guide = fa
-      ? "📖 راهنمای مدیریت گروه AI SHAKI\\n\\n"
-        + "پنل شامل ۱۰ بخش و ۱۰۰ گزینه تنظیمی است. با زدن هر دکمه وضعیت آن تغییر می‌کند؛ 🟢 یعنی روشن و ⚪️ یعنی خاموش.\\n\\n"
-        + "👋 ورود و خروج: تنظیمات خوشامد، اعلان ورود/خروج و پیام‌های اعضای تازه‌وارد.\\n"
-        + "🛡 لینک و امنیت: فیلتر لینک، لینک تلگرام، لینک کوتاه، منشن انبوه، ایمیل و شماره.\\n"
-        + "🔒 قفل رسانه‌ها: عکس، ویدیو، فایل، موزیک، ویس، ویدیو مسیج، استیکر، گیف، نظرسنجی و فوروارد.\\n"
-        + "🚨 ضداسپم: پیام تکراری، سیل پیام، متن طولانی، کاراکتر و ایموجی تکراری.\\n"
-        + "👥 اعضا: تنظیمات اخطار، محافظت مدیران و برخورد با متخلفان.\\n"
-        + "🧹 پاکسازی: تنظیمات پاکسازی پیام‌ها و پیام‌های سیستمی.\\n"
-        + "⚙️ کنترل چت: قفل متن/رسانه/چت و حالت آهسته.\\n"
-        + "📌 قوانین و تعامل: قوانین، گزارش تخلف، پیشنهادها و اعلان‌ها.\\n"
-        + "📊 گزارش و لاگ: دسته‌بندی گزارش اقدامات مدیریتی.\\n"
-        + "🧰 پیشرفته: لیست سفید/سیاه، کلمات و حالت مقابله با حمله.\\n\\n"
-        + "⚡ دستورات (حتماً روی پیام عضو ریپلای کن):\\n"
-        + "• سکوت ۱۰ دقیقه — سکوت عضو برای ۱۰ دقیقه؛ «سکوت» یعنی ۳۰ دقیقه.\\n"
-        + "• رفع سکوت — برداشتن محدودیت ارسال\\n"
-        + "• بن / آنبن — مسدودکردن یا آزادکردن عضو\\n"
-        + "• اخراج — بیرون‌کردن عضو از گروه\\n"
-        + "• /mute 10، /unmute، /ban، /unban، /kick — معادل انگلیسی دستورات\\n\\n"
-        + "⚠️ ربات باید ادمین گروه باشد و مجوز حذف پیام و محدودکردن اعضا را داشته باشد. فیلترهای رسانه، لینک و ضداسپم پایه پس از فعال‌سازی اجرا می‌شوند. گزینه‌های خوشامد، کپچا، لاگ، لیست سفید/سیاه و برخی ابزارهای پیشرفته فعلاً تنظیمات آماده‌سازی‌اند و رفتار خودکارشان هنوز تکمیل نشده است."
-      : "📖 AI SHAKI group management guide\\n\\n"
-        + "The panel contains 10 categories and 100 configurable options. Green means enabled.\\n"
-        + "Categories: Welcome/Leave, Link Safety, Media Locks, Anti-Spam, Members, Cleanup, Chat Controls, Rules/Community, Logs, Advanced.\\n"
-        + "Reply to a member: Persian commands «سکوت ۱۰ دقیقه»، «رفع سکوت»، «بن»، «آنبن»، «اخراج» or /mute 10, /unmute, /ban, /unban, /kick.\\n"
-        + "The active enforcement in this version covers core link/media locks and basic repeat/flood filters. Welcome/captcha, audit logs, whitelist/blacklist and some advanced options are configuration placeholders and do not yet run automated actions. The bot needs admin rights to delete messages and restrict members.";
+      ? "📘 راهنمای مدیریت گروه | AI SHAKI\n"
+        + "━━━━━━━━━━━━━━━━━━\n"
+        + "🔰 دسترسی\n"
+        + "فقط مالک ربات و ادمین‌های همین گروه اجازه بازکردن پنل و اجرای دستورهای مدیریتی را دارند. اعضای عادی حتی با داشتن لینک پنل نمی‌توانند تنظیمات را تغییر دهند.\n\n"
+        + "🎛 کار با پنل\n"
+        + "از صفحه مدیریت، یکی از ۱۰ دسته را انتخاب کن. دکمه 🟢 یعنی قابلیت روشن و ⚪️ یعنی خاموش؛ با لمس دکمه وضعیت عوض می‌شود.\n\n"
+        + "🛡 دستورات مدیریتی (حتماً روی پیام عضو ریپلای کن)\n"
+        + "• سکوت ۱۰ یا سکوت ۱۰ دقیقه — سکوت صاحب پیام برای ۱۰ دقیقه\n"
+        + "• سکوت — سکوت صاحب پیام برای ۳۰ دقیقه\n"
+        + "• رفع سکوت — برداشتن سکوت صاحب پیام\n"
+        + "• بن — بن‌کردن صاحب پیام\n"
+        + "• آنبن — برداشتن بن صاحب پیام\n"
+        + "• اخراج / سیک / کیک — اخراج صاحب پیام بدون بن دائمی\n"
+        + "• /mute 10، /unmute، /ban، /unban، /kick — شکل دستوری همین عملیات\n\n"
+        + "🎯 نکته مهم ریپلای\n"
+        + "ربات فقط روی فرستنده پیام ریپلای‌شده اقدام می‌کند؛ ادمینی که دستور را نوشته هدف عملیات نیست. مدیران گروه و مالک ربات از این دستورها مستثنا هستند.\n\n"
+        + "🧩 دسته‌بندی قابلیت‌ها\n"
+        + "👋 ورود و خروج: خوشامد و اعلان اعضای جدید\n"
+        + "🔗 امنیت: فیلتر لینک، منشن، ایمیل و شماره\n"
+        + "🔒 قفل‌ها: محدودیت عکس، ویدیو، فایل، ویس، استیکر و سایر رسانه‌ها\n"
+        + "🚨 ضداسپم: پیام تکراری، سیل پیام و متن‌های مزاحم\n"
+        + "👥 اعضا: کنترل تخلف و محافظت از مدیران\n"
+        + "🧹 پاکسازی: تنظیمات حذف پیام‌ها\n"
+        + "⚙️ کنترل چت: قفل متن، رسانه و ارسال پیام\n"
+        + "📌 اجتماع: قوانین، گزارش و اعلان‌ها\n"
+        + "📊 گزارش‌ها: ثبت رویدادهای مدیریتی\n"
+        + "🧰 پیشرفته: لیست مجاز/مسدود و حالت مقابله با حمله\n\n"
+        + "⚠️ پیش‌نیازها\n"
+        + "برای بن، سکوت و حذف پیام، ربات باید ادمین گروه و دارای مجوزهای مربوط باشد. روشن‌کردن هر گزینه به‌تنهایی به معنی فعال‌بودن رفتار خودکار آن نیست؛ فقط فیلترهای پیاده‌سازی‌شده اجرا می‌شوند."
+      : "📘 AI SHAKI — GROUP MANAGEMENT GUIDE\n"
+        + "━━━━━━━━━━━━━━━━━━\n"
+        + "ACCESS: Only the bot owner and administrators of this group can open or operate group management.\n\n"
+        + "Reply to a member's message before using a moderation command. The replied-to sender is the target; the admin issuing the command is never the target.\n\n"
+        + "• mute 10 / سکوت ۱۰: mute the replied-to member for 10 minutes\n"
+        + "• سکوت: mute for 30 minutes\n"
+        + "• رفع سکوت / unmute: remove mute\n"
+        + "• بن / ban: ban the replied-to member\n"
+        + "• آنبن / unban: unban the replied-to member\n"
+        + "• اخراج / سیک / kick: remove the replied-to member\n\n"
+        + "Admins and the bot owner are protected from these member actions. The bot needs the appropriate Telegram admin permissions. Some panel options are configuration-only until their automatic enforcement is implemented.";
     await editMessageText(chat.id, message.message_id, guide, {
       reply_markup: JSON.stringify({ inline_keyboard: [[btn(fa ? "🔙 بازگشت به مدیریت گروه" : "🔙 Back to group settings", "group_settings")]] })
     });
