@@ -26488,13 +26488,13 @@ async function showHomePanel(
     ? await getOrCreateSession({ id: user.id, type: "private" }, user, env)
     : session;
   
+  const quotaSession = session.type !== "private" && !session.vipStatus ? limSession : session;
   const used = limSession.dailyLimits;
-  const lim = { msg: cfg.MESSAGE_LIMIT, img: cfg.IMAGE_LIMIT, voice: cfg.VOICE_LIMIT };
-  const isVip = session.vipStatus || isOwner;
+  const isVip = Boolean(quotaSession.vipStatus || session.vipStatus || isOwner);
   
   const quotaLimit = (type: LimitType, fallback: number): number => {
     if (isOwner) return Number.POSITIVE_INFINITY;
-    return resolveVipDailyLimit(isVip, isVip ? session.vipLimits?.[type] : undefined, session.limitOverrides?.[type], fallback);
+    return resolveVipDailyLimit(isVip, isVip ? quotaSession.vipLimits?.[type] : undefined, quotaSession.limitOverrides?.[type], fallback);
   };
   const renderQuota = (usedValue: number, cap: number): string => {
     const usedCount = Math.max(0, Math.floor(Number(usedValue) || 0));
