@@ -222,7 +222,7 @@ import {
 } from "./intent";
 
 // TTS
-const GEMINI_TTS_MODEL = "gemini-3.1-flash-tts-preview";
+const GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts";
 const GEMINI_TTS_VOICE = "Despina";
 const ELEVENLABS_DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
 const ELEVENLABS_DEFAULT_MODEL_ID = "eleven_v3";
@@ -12255,20 +12255,33 @@ async function synthesizeVoiceGemini(
         break;
       }
 
-      const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+      // Gemini 3.8 unary TTS returns a complete WAV file. Older TTS
+      // models can return headerless PCM, so preserve the legacy conversion
+      // only when the response is not already a WAV.
+      const audioParts = data.candidates?.flatMap(candidate => candidate.content?.parts ?? []) ?? [];
+      const inlineData = audioParts
+        .map(part => part.inlineData ?? (part as any).inline_data)
+        .find(part => typeof part?.data === "string" && part.data.length > 100);
       if (!inlineData?.data) {
         logger.warn(`Gemini TTS key[${idx}]: no audio data in response`);
         continue;
       }
 
-      const wavBytes = pcmToWav(inlineData.data);
+      const binary = atob(inlineData.data);
+      const audioBytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+      const isWav = inlineData.mimeType?.toLowerCase().includes("wav") ||
+        (audioBytes.length >= 12 && audioBytes[0] === 0x52 && audioBytes[1] === 0x49 &&
+         audioBytes[2] === 0x46 && audioBytes[3] === 0x46 &&
+         audioBytes[8] === 0x57 && audioBytes[9] === 0x41 &&
+         audioBytes[10] === 0x56 && audioBytes[11] === 0x45);
+      const wavBytes = isWav ? audioBytes : pcmToWav(inlineData.data);
       if (wavBytes.length < 100) {
         logger.warn(`Gemini TTS key[${idx}]: empty audio output (${wavBytes.length} bytes)`);
         continue;
       }
 
-      geminiTtsKeyIndex = idx;
-      logger.info(`✅ Gemini TTS success (${(wavBytes.length / 1024).toFixed(1)}KB)`);
+      geminiTtsKeyIndex = (idx + 1) % cfg.GEMINI_KEYS.length;
+      logger.info(`✅ Gemini TTS success (${(wavBytes.length / 1024).toFixed(1)}KB, ${isWav ? "WAV" : "PCM→WAV"})`);
       return wavBytes;
 
     } catch (e) {
