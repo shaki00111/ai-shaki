@@ -222,7 +222,6 @@ import {
 } from "./intent";
 
 // TTS
-const GEMINI_TTS_MODEL = "gemini-3.1-flash-tts-preview";
 const GEMINI_TTS_VOICE = "Despina";
 const ELEVENLABS_DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
 const ELEVENLABS_DEFAULT_MODEL_ID = "eleven_v3";
