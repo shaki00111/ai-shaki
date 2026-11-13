@@ -23547,14 +23547,14 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
 
     // Persian natural moderation aliases (reply to the target member's message).
     if (isGroup) {
-      const pm = text.trim().match(/^(سکوت|ساکت|رفع سکوت|آنسکوت|بن|مسدود|آنبن|رفع بن|اخراج)(?:\\s+(.*))?$/u);
+      const pm = text.trim().replace(/[۰-۹]/g, d => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).match(/^(سکوت|ساکت|رفع سکوت|آنسکوت|بن|مسدود|آنبن|رفع بن|اخراج)(?:\s+(.*))?$/u);
       if (pm && msg.reply_to_message?.from && !msg.reply_to_message.from.is_bot) {
         const alias = pm[1]; const rest = (pm[2] ?? "").trim();
         const command = ["سکوت","ساکت"].includes(alias) ? "/mute"
           : ["رفع سکوت","آنسکوت"].includes(alias) ? "/unmute"
           : ["بن","مسدود"].includes(alias) ? "/ban"
           : ["آنبن","رفع بن"].includes(alias) ? "/unban" : "/kick";
-        const duration = rest.match(/(\\d{1,5})/u)?.[1];
+        const duration = rest.match(/(\d{1,5})/u)?.[1];
         await handleGroupModerationCommand(msg, command, command === "/mute" ? [String(Math.max(1,Math.min(10080,Number(duration)||30)))] : [], env);
         return;
       }
