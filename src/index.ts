@@ -23199,6 +23199,85 @@ Current user message:
   }
   return { parts, pendingImageBytes };
 }
+// SECTION: PRIVATE FORCE-JOIN
+interface ForceJoinConfig {
+  enabled: boolean;
+  channelId: number;
+  title: string;
+  username: string;
+  inviteUrl: string;
+}
+async function readForceJoinConfig(env: Env): Promise<ForceJoinConfig | null> {
+  try {
+    const value = await env.SESSIONS.get("force_join_config", "json") as ForceJoinConfig | null;
+    return value?.enabled && Number.isFinite(Number(value.channelId)) && value.inviteUrl
+      ? { ...value, channelId: Number(value.channelId) } : null;
+  } catch { return null; }
+}
+async function sendForceJoinPrompt(chatId: number, replyTo: number, config: ForceJoinConfig, lang: Language, checkUnavailable = false): Promise<void> {
+  const fa = lang === "fa";
+  const text = checkUnavailable
+    ? (fa ? "⚠️ فعلاً امکان بررسی عضویت وجود نداره. چند لحظه بعد دوباره تلاش کن." : "⚠️ Membership cannot be checked right now. Please retry shortly.")
+    : (fa
+      ? `🔒 <b>دسترسی به AI SHAKI محدود شده</b>\n\nبرای استفاده از ربات، اول در کانال <b>${escapeHTML(config.title || config.username || "کانال")}</b> عضو شو و بعد روی «بررسی عضویت» بزن.`
+      : `🔒 <b>AI SHAKI access is locked</b>\n\nJoin <b>${escapeHTML(config.title || config.username || "the channel")}</b> first, then tap “Check membership”.`);
+  await sendMessage(chatId, text, {
+    reply_to_message_id: replyTo,
+    parse_mode: "HTML",
+    reply_markup: JSON.stringify({ inline_keyboard: [
+      [urlBtn(fa ? "📢 عضویت در کانال" : "📢 Join channel", config.inviteUrl)],
+      [btn(fa ? "✅ بررسی عضویت" : "✅ Check membership", "forcejoin_check")],
+    ]}),
+  });
+}
+async function handleForceJoinCommand(msg: TgMessage, args: string[], env: Env): Promise<void> {
+  if (!msg.from || msg.from.id !== cfg.BOT_OWNER_ID || msg.chat.type !== "private") {
+    await sendMessage(msg.chat.id, "🚫 این دستور فقط در پیوی مالک ربات قابل استفاده است.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  const target = (args[0] ?? "").trim();
+  if (target.toLowerCase() === "off" || target.toLowerCase() === "خاموش") {
+    await env.SESSIONS.delete("force_join_config");
+    await sendMessage(msg.chat.id, "✅ عضویت اجباری خاموش شد.", { reply_to_message_id: msg.message_id });
+    return;
+  }
+  if (!target) {
+    const current = await readForceJoinConfig(env);
+    await sendMessage(msg.chat.id, current
+      ? `🔒 عضویت اجباری فعاله برای: <b>${escapeHTML(current.title)}</b>\nبرای خاموش کردن: <code>/forcejoin off</code>\nبرای تغییر کانال: <code>/forcejoin @channel</code>`
+      : "عضویت اجباری خاموشه. ربات رو در کانال ادمین کن و بعد بفرست:\n<code>/forcejoin @channel</code>",
+      { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+    return;
+  }
+  try {
+    const channel = await tg("getChat", { chat_id: target }) as { id?: number; type?: string; title?: string; username?: string };
+    if (!channel?.id || channel.type !== "channel") throw new Error("کانال پیدا نشد؛ آیدی یا یوزرنیم کانال را بررسی کن.");
+    const botId = BOT_SELF_ID ?? BOT_INFO?.id;
+    if (!botId) throw new Error("شناسه ربات هنوز آماده نیست؛ دوباره تلاش کن.");
+    const botMember = await tg("getChatMember", { chat_id: channel.id, user_id: botId }) as { status?: string };
+    if (botMember.status !== "administrator" && botMember.status !== "creator") {
+      throw new Error("اول ربات را در کانال ادمین کن و دوباره دستور را بفرست.");
+    }
+    let inviteUrl = channel.username ? `https://t.me/${channel.username}` : "";
+    if (!inviteUrl) {
+      const invite = await tg("exportChatInviteLink", { chat_id: channel.id }) as { invite_link?: string };
+      inviteUrl = invite.invite_link ?? "";
+    }
+    if (!inviteUrl) throw new Error("لینک دعوت کانال قابل دریافت نیست.");
+    const config: ForceJoinConfig = {
+      enabled: true, channelId: channel.id, title: channel.title ?? channel.username ?? String(channel.id),
+      username: channel.username ?? "", inviteUrl,
+    };
+    await env.SESSIONS.put("force_join_config", JSON.stringify(config));
+    await sendMessage(msg.chat.id,
+      `<b>✅ عضویت اجباری فعال شد</b>\nکانال: <b>${escapeHTML(config.title)}</b>\nاز این لحظه فقط چت خصوصی کاربران بررسی می‌شه؛ گروه‌ها مستثنا هستن.`,
+      { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "خطای ناشناخته";
+    await sendMessage(msg.chat.id, `❌ تنظیم کانال انجام نشد: ${escapeHTML(detail)}`, { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+  }
+}
+
 // SECTION: MESSAGE HANDLERS
 /** What an inline result stores for its "Run in private chat" deep link. */
 interface InlineHandoff {
@@ -23227,6 +23306,25 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
     ]);
     if (mc.blocked) { await sendMessage(chat.id, mc.message!, { reply_to_message_id: msg.message_id }); return; }
 
+    // Private-only force-join gate. The owner can always configure and test it.
+    if (chat.type === "private" && from.id !== cfg.BOT_OWNER_ID) {
+      const forceJoin = await readForceJoinConfig(env);
+      if (forceJoin?.enabled) {
+        const membership = await withTimeout(
+          tg("getChatMember", { chat_id: forceJoin.channelId, user_id: from.id }) as Promise<{ status?: string; is_member?: boolean }>,
+          6_000, "force-join membership check",
+        ).catch(() => null);
+        const joined = !!membership && (
+          membership.status === "creator" || membership.status === "administrator" ||
+          membership.status === "member" || (membership.status === "restricted" && membership.is_member === true)
+        );
+        if (!joined) {
+          await sendForceJoinPrompt(chat.id, msg.message_id, forceJoin, session.language, !membership);
+          return;
+        }
+      }
+    }
+
     // معرفی یک‌باره در پی‌وی خود ربات؛ پس از آن گفتگو مستقیم ادامه پیدا می‌کند.
     if (chat.type === "private") {
       const introKey = `private_intro:${from.id}`;
@@ -23243,8 +23341,9 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
     if (chat.type !== "private" && !await isGroupEnabled(chat.id, chat.type, env)) {
       const commandProbe = (text.trim().split(/\s+/)[0] ?? "").toLowerCase().split("@")[0];
       const personalStart = commandProbe === "/start";
+      const panelCommand = commandProbe === "/panel";
       const adminSettings = commandProbe === "/settings" && await isUserAdmin(from.id, chat.id);
-      if (!personalStart && !adminSettings) return;
+      if (!personalStart && !panelCommand && !adminSettings) return;
     }
 
     const isGroup = chat.type !== "private";
@@ -23417,6 +23516,20 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
 
       switch (command) {
         case "/start": await handleStart(msg, env); break;
+        case "/panel": {
+          if (!isGroup) { await handleStart(msg, env); break; }
+          const canManage = await isUserAdmin(from.id, chat.id);
+          const panelRows: InlineBtn[][] = [
+            [btn("👤 پنل شخصی", "panel_personal")],
+          ];
+          if (canManage) panelRows.push([btn("🛡️ پنل مدیریت گروه", "panel_group")]);
+          await sendMessage(chat.id,
+            "🟣 <b>AI SHAKI · GROUP CONTROL</b>\n━━━━━━━━━━━━━━━━━━\nیکی از پنل‌ها رو انتخاب کن:",
+            { reply_to_message_id: msg.message_id, parse_mode: "HTML",
+              reply_markup: JSON.stringify({ inline_keyboard: panelRows }) });
+          break;
+        }
+        case "/forcejoin": await handleForceJoinCommand(msg, args, env); break;
         case "/donate": {
           const donate = buildDonateMessage(session.language);
           await sendMessage(chat.id, donate.text, { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
@@ -25325,6 +25438,46 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
 
   const { from, message, data } = cb;
   const chat = message.chat;
+
+  // Public group panel buttons are intentionally not bound to the first clicker:
+  // each member gets their own personal panel, while group controls are re-authorized.
+  if (data === "panel_personal") {
+    await answerCb(cb.id);
+    await handleStart({ ...message, from }, env);
+    return;
+  }
+  if (data === "panel_group") {
+    if (chat.type === "private" || !await isUserAdmin(from.id, chat.id)) {
+      await answerCb(cb.id, "🚫 فقط مدیران همین گروه مجاز هستند.", true);
+      return;
+    }
+    const groupSession = await getOrCreateSession(chat, from, env);
+    await answerCb(cb.id);
+    await showGroupSettings(chat.id, message.message_id, groupSession, env);
+    return;
+  }
+  if (data === "forcejoin_check") {
+    const forceJoin = await readForceJoinConfig(env);
+    if (!forceJoin?.enabled) {
+      await answerCb(cb.id, "عضویت اجباری غیرفعال است.");
+      return;
+    }
+    const membership = await withTimeout(
+      tg("getChatMember", { chat_id: forceJoin.channelId, user_id: from.id }) as Promise<{ status?: string; is_member?: boolean }>,
+      6_000, "force-join membership check",
+    ).catch(() => null);
+    const joined = !!membership && (
+      membership.status === "creator" || membership.status === "administrator" ||
+      membership.status === "member" || (membership.status === "restricted" && membership.is_member === true)
+    );
+    if (!joined) {
+      await answerCb(cb.id, membership ? "❌ هنوز عضویتت تأیید نشده." : "⚠️ فعلاً امکان بررسی عضویت نیست؛ دوباره تلاش کن.", true);
+      return;
+    }
+    await answerCb(cb.id, "✅ عضویت تأیید شد؛ حالا پیام بده.");
+    await editMessageText(chat.id, message.message_id, "✅ عضویت کانال تأیید شد. حالا می‌تونی از AI SHAKI استفاده کنی.");
+    return;
+  }
 
   // Rate limiting for callbacks
   const now = Date.now();
