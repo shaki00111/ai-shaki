@@ -26633,9 +26633,9 @@ async function showHomePanel(
     return bar + ' <b>' + usedCount.toLocaleString("en-US") + '</b>/<b>' + safeCap.toLocaleString("en-US") + '</b> · مانده <b>' + remaining.toLocaleString("en-US") + '</b>  ' + state;
   };
   const caps = {
-    msg: quotaLimit("message", isVip ? cfg.VIP_MESSAGE_LIMIT : cfg.MESSAGE_LIMIT),
+    msg: quotaLimit("message", isVip ? cfg.VIP_MESSAGE_LIMIT : cfg.MESSAGE_LIMIT) + (!isVip ? Math.max(0, Number(used.referralBonusMessages) || 0) : 0),
     img: quotaLimit("image", isVip ? cfg.VIP_IMAGE_LIMIT : cfg.IMAGE_LIMIT),
-    voice: quotaLimit("voice_sent", isVip ? cfg.VIP_VOICE_LIMIT : cfg.VOICE_LIMIT),
+    voice: quotaLimit("voice_sent", isVip ? cfg.VIP_VOICE_LIMIT : cfg.VOICE_LIMIT) + (!isVip ? Math.max(0, Number(used.referralBonusVoices) || 0) : 0),
   };
 
   const personaName = lang === "fa" ? persona.nameFA : lang === "ar" ? persona.nameFA : persona.nameEN;
