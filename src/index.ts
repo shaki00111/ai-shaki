@@ -25423,23 +25423,7 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
   const { from, message, data } = cb;
   const chat = message.chat;
 
-  // Reachable before the normal membership gate so users can confirm joining.
-  if (data === "forcejoin:check") {
-    if (chat.type !== "private") {
-      await answerCb(cb.id, "🔒 این بررسی فقط در گفتگوی خصوصی ربات انجام می‌شود.", true);
-      return;
-    }
-    const membership = await checkPrivateForceJoin(from.id, env);
-    if (membership.allowed) {
-      await answerCb(cb.id, "✅ عضویت تأیید شد؛ حالا می‌تونی پیام بدی.");
-      await editMessageText(chat.id, message.message_id, "✅ عضویت کانال تأیید شد. حالا می‌تونی از AI SHAKI استفاده کنی.").catch(() => {});
-    } else {
-      await answerCb(cb.id, membership.unavailable ? "⚠️ بررسی عضویت موقتاً در دسترس نیست." : "❌ هنوز عضویتت تأیید نشده.", true);
-    }
-    return;
-  }
-
-  if (chat.type === "private" && from.id !== cfg.BOT_OWNER_ID) {
+  if (chat.type === "private" && from.id !== cfg.BOT_OWNER_ID && data !== "forcejoin:check") {
     const membership = await checkPrivateForceJoin(from.id, env);
     if (!membership.allowed) {
       await answerCb(cb.id, membership.unavailable ? "⚠️ بررسی عضویت موقتاً در دسترس نیست." : "🔒 ابتدا باید عضو کانال اجباری بشی.", true);
@@ -25455,6 +25439,23 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
   if (recent.length >= 15 && from.id !== cfg.BOT_OWNER_ID) { await answerCb(cb.id, "⏳ Too fast! Wait.", true); return; }
   recent.push(now);
   callbackRateLimits.set(from.id, recent);
+
+  // The confirmation action is exempt from the membership gate, but not from
+  // callback rate limiting.
+  if (data === "forcejoin:check") {
+    if (chat.type !== "private") {
+      await answerCb(cb.id, "🔒 این بررسی فقط در گفتگوی خصوصی ربات انجام می‌شود.", true);
+      return;
+    }
+    const membership = await checkPrivateForceJoin(from.id, env);
+    if (membership.allowed) {
+      await answerCb(cb.id, "✅ عضویت تأیید شد؛ حالا می‌تونی پیام بدی.");
+      await editMessageText(chat.id, message.message_id, "✅ عضویت کانال تأیید شد. حالا می‌تونی از AI SHAKI استفاده کنی.").catch(() => {});
+    } else {
+      await answerCb(cb.id, membership.unavailable ? "⚠️ بررسی عضویت موقتاً در دسترس نیست." : "❌ هنوز عضویتت تأیید نشده.", true);
+    }
+    return;
+  }
 
   // Maintenance check (skip for admin callbacks)
   if (!data.startsWith("admin_") && !data.startsWith("log_") && !data.startsWith("db_")) {
