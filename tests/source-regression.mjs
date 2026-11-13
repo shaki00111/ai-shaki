@@ -299,6 +299,18 @@ indexSource.includes("applyOwnerPersonaLabels(keyboard, customization)")
   ? ok("owner persona button labels are applied without changing callbacks")
   : fail("owner persona button labels must be wired into the picker");
 
+indexSource.includes('btn("✅ بررسی عضویت", "forcejoin:check")') &&
+indexSource.includes('if (data === "forcejoin:check")') &&
+indexSource.includes("checkPrivateForceJoin(from.id, env)")
+  ? ok("private force-join prompt provides an explicit server-verified membership check")
+  : fail("private force-join must provide an explicit membership confirmation button");
+indexSource.includes('const _excluded = data === "home:open"') &&
+indexSource.includes('if (data === "group_settings")') &&
+indexSource.includes('!await isUserAdmin(from.id, chat.id)')
+  ? ok("every group member can open their own panel while group settings remain admin-only")
+  : fail("shared group personal-panel access or admin-only group authorization is missing");
+
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
