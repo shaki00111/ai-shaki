@@ -94,5 +94,5 @@ export function ownerPersonalizationWelcome(input: unknown, language: string, fa
   const configured = language === "fa" ? settings.welcomeTextFa : settings.welcomeTextEn;
   if (!configured.trim()) return fallback;
   const escape = (value: string) => value.replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]!));
-  return escape(configured).replace(/\\{name\\}/g, escape(name));
+  return escape(configured).replace(/\{name\}/g, escape(name));
 }
