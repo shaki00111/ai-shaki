@@ -21514,6 +21514,8 @@ async function handleTTS(msg: TgMessage, args: string[], env: Env): Promise<void
     await deleteMessage(chat.id, loading.message_id).catch(() => {});
     if (ok) {
       await incrementUsageWithUser(session, from, "voice_sent", env);
+      // Private-session increments are in-memory until explicitly saved.
+      if (session.type === "private") await saveSession(session, env);
     } else {
       await sendMessage(chat.id, isFa ? "❌ ساخت صدا ناموفق بود." : "❌ Voice synthesis failed.", { reply_to_message_id: msg.message_id });
     }
