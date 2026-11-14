@@ -3109,7 +3109,12 @@ function keyCredRow(c, svc){
   // Local backoff is reported next to, never instead of, the upstream verdict:
   // "benched here but healthy upstream" is what says the backoff has expired.
   const bench = c.benchedUntil
-    ? `<small class="warn-text">⏸ در این استقرار تا ${esc(fmt(c.benchedUntil))} کنار گذاشته شده</small>`
+    ? `<small class="warn-text">⏸ محدودیت داخلی این کلید تا ${esc(fmt(c.benchedUntil))} فعال است؛ بعد از این زمان دوباره قابل انتخاب می‌شود.</small>`
+    : "";
+  // Google does not expose a reliable per-key generation-quota reset timestamp
+  // through models.list. Never present the local backoff as Google's quota reset.
+  const quotaResetNote = svc.service === "gemini" && pr && pr.status === "rate_limited"
+    ? `<small class="dim">زمان دقیق تمدید سهمیهٔ تولید از آزمون کلید قابل دریافت نیست؛ زمان بالا فقط پایان محدودیت داخلی SHAKI است.</small>`
     : "";
   return `<div class="item"><b>${esc(c.label)}${c.masked?` — <code>${esc(c.masked)}</code>`:""}</b>`+
     `<small>${verdict}</small>`+
@@ -3117,6 +3122,7 @@ function keyCredRow(c, svc){
     (pr && pr.detail?`<small class="bad-text">${esc(pr.detail)}</small>`:"")+
     (pr && pr.billed?`<small class="dim">💳 این آزمایش هزینه دارد</small>`:"")+
     bench+
+    quotaResetNote+
     `</div>`;
 }
 
