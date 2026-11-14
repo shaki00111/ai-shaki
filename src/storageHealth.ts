@@ -32,7 +32,7 @@ export class WriteGovernor {
     if (/daily.*(row.*write|write.*limit)|exceeded.*free tier|daily.*quota/.test(text)) {
       this.reason = "daily_quota";
       this.blockedUntil = Math.floor(this.now() / 86_400_000 + 1) * 86_400_000 + 60_000;
-    } else if (/d1.*(busy|overload)|sqlite_busy|too many requests|temporar|timeout/.test(text)) {
+    } else if (/d1.*(busy|overload)|d1_error.*internal error|internal error.*d1.*storage|storage caused object to be reset|sqlite_busy|too many requests|temporar|timeout/.test(text)) {
       this.reason = "transient";
       this.blockedUntil = this.now() + Math.min(60_000, 1000 * 2 ** Math.min(++this.failures, 6));
     }
