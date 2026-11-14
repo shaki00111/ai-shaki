@@ -15933,7 +15933,7 @@ case "host_web_app": {
                   const userErr = lang === "fa"
                     ? "❌ ساخت یا ارسال ویس ناموفق بود."
                     : "❌ Failed to generate or send the voice message.";
-                  await sendToolErrorMessage(chatId, replyTo, isOwner, userErr, "ElevenLabs TTS failed");
+                  await sendToolErrorMessage(chatId, replyTo, isOwner, userErr, "All TTS providers failed or Telegram rejected the audio; inspect Worker logs for provider-specific diagnostics.");
                   return { name: call.name, response: { success: false, abort_chain: true, user_notified: true, error: "TTS_FAILED" } };
                 } catch (err) {
                   await releaseVoiceQuota();
