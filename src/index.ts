@@ -6370,6 +6370,7 @@ async function callGeminiForWebApp(
         if(ct?.cancelled)throw new Error(/deadline|timeout/.test(ct.reason)?"generation timeout":"CANCELLED_BY_USER");
         const action = classifyGeminiKeyError(lastError, key, env);
         if (action === "fatal") throw lastError;
+        if (action === "nextModel") break;
       }
     }
   }
@@ -7299,6 +7300,14 @@ function classifyGeminiKeyError(
         msg.includes("unavailable") ||
         msg.includes("deadline")
     ) {
+        return "nextModel";
+    }
+
+    // An empty SSE stream is a model/transport response failure, not evidence
+    // that this API key is invalid or out of quota. Move to the alternate model
+    // first instead of burning every key in the pool on the same empty result.
+    if (msg.includes("empty response")) {
+        logger.warn("Gemini returned an empty stream; trying the alternate model without disabling the key.");
         return "nextModel";
     }
 
@@ -11695,6 +11704,9 @@ for (let offset = 0; offset < cfg.GEMINI_KEYS.length; offset++) {
         lastError = new Error(`${baseErr} [model=${targetModel}, key=${idx + 1}/${cfg.GEMINI_KEYS.length}, attempt=${offset + 1}/${cfg.GEMINI_KEYS.length}, timeoutMs=${offset === 0 ? 16000 : 10000}]`);
         const action = classifyGeminiKeyError(lastError, key, env);
         if (action === "fatal") throw lastError;
+        // Stop rotating keys for an empty/overloaded model stream and try the
+        // configured alternate model before using the plain-text fallback.
+        if (action === "nextModel") break;
         if (action === "nextKey" && lastError.message.toLowerCase().includes("gemini_quota")) {
             await sleep(120);
         }
