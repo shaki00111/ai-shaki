@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ProviderKeyCooldowns } from "../src/ttsReliability.ts";
-import { buildGeminiTtsRequest, extractGeminiTtsAudio } from "../src/geminiTtsProtocol.ts";
+import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "../src/geminiTtsProtocol.ts";
 
 test("TTS cooldowns are isolated per key and expire", () => {
   let now = 1_000;
@@ -88,4 +88,17 @@ test("Gemini TTS defaults missing REST MIME metadata to WAV", () => {
 test("Gemini TTS ignores absent or too-short audio payloads", () => {
   assert.equal(extractGeminiTtsAudio({ output_audio: { data: "short" } }), null);
   assert.equal(extractGeminiTtsAudio({ candidates: [{ content: { parts: [{ text: "not audio" }] } }] }), null);
+});
+
+
+test("Gemini TTS stops using the legacy preview model on its shutdown date", () => {
+  assert.deepEqual(getGeminiTtsModels(Date.UTC(2026, 10, 16)), [
+    "gemini-3.8-flash-lite-tts",
+    "gemini-3.8-flash-tts",
+    "gemini-3.1-flash-tts-preview",
+  ]);
+  assert.deepEqual(getGeminiTtsModels(Date.UTC(2026, 10, 17)), [
+    "gemini-3.8-flash-lite-tts",
+    "gemini-3.8-flash-tts",
+  ]);
 });
