@@ -11303,6 +11303,7 @@ async function runHeavyGeneration(
     // Quota / provider-outage fallback for complete code and web-app generation.
     // It uses the same downstream structural and quality gates as Gemini.
     const fallbackEligible =
+      providerSettings.wusrouter &&
       Boolean(env.WUSROUTER_API_KEY?.trim()) &&
       (!cfg.GEMINI_KEYS.length ||
         /quota|rate.?limit|429|resource_exhausted|overloaded|503|502|timeout|no usable gemini key/i.test(lastError.message)) &&
