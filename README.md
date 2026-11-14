@@ -399,6 +399,7 @@ npx wrangler d1 create ai-shaki-db
 # 4. Set secrets (one by one)
 npx wrangler secret put TOKEN          # Your Telegram bot token from @BotFather
 npx wrangler secret put BOT_OWNER_ID   # Your numeric Telegram ID from @userinfobot
+npx wrangler secret put WEBHOOK_SECRET  # Generate a random secret value
 npx wrangler secret put GEMINI_KEY_1   # Get from https://aistudio.google.com/apikey
 
 # 5. Deploy!
@@ -431,6 +432,7 @@ Optional:
 * Cloudflare AI (for image generation)
 * Google Custom Search API (for web/image search)
 * ElevenLabs API (for TTS fallback)
+* WusRouter API (for text/code fallback)
 
 ---
 
@@ -498,9 +500,6 @@ echo "YOUR_CF_API_TOKEN" | wrangler secret put CF_TOKEN_1
 # 🔍 Google Search — برای جستجوی وب و تصویر
 echo "YOUR_SEARCH_KEY" | wrangler secret put GOOGLE_SEARCH_API_KEY
 echo "YOUR_SEARCH_ENGINE_ID" | wrangler secret put GOOGLE_SEARCH_ENGINE_ID
-
-# 🔒 Webhook Secret — برای امنیت webhook
-echo "RANDOM_SECRET" | wrangler secret put WEBHOOK_SECRET
 
 # 🎙️ ElevenLabs TTS — کلید اول از pool (نام قدیمی هم پشتیبانی می‌شود)
 echo "YOUR_ELEVENLABS_KEY" | wrangler secret put ELEVENLABS_KEY_1
