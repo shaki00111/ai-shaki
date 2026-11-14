@@ -167,6 +167,12 @@ geminiTtsSource.includes("extractGeminiTtsAudio") &&
   ? ok("Gemini TTS uses the current Interactions API request and audio response")
   : fail("Gemini TTS must use the Interactions API rather than the legacy generateContent response shape");
 
+// The owner diagnostic must not blame ElevenLabs when Gemini or Telegram failed.
+indexSource.includes("All TTS providers failed or Telegram rejected the audio") &&
+!indexSource.includes('userErr, "ElevenLabs TTS failed"')
+  ? ok("voice failure diagnostics cover both synthesis providers and Telegram delivery")
+  : fail("voice failure diagnostics must not mislabel Gemini/Telegram failures as ElevenLabs-only");
+
 // ── VIP tool quota invariants ─────────────────────────────────────────────
 console.log("\n[7] VIP tool quota invariants");
 const toolStart = indexSource.indexOf("async function executeStructuredTools");
