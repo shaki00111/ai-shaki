@@ -34,4 +34,4 @@ jobs:
         run: npm run type-check
 
       - name: Regression tests (incl. secret-leak guard)
-        run: npm test
+        run: npm run test:repeat
