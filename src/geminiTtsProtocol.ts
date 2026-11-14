@@ -66,3 +66,11 @@ export function extractGeminiTtsAudio(response: unknown): GeminiTtsAudioOutput |
     : "audio/wav";
   return { data, mimeType: normalizedMimeType };
 }
+
+
+/** Keep the preview TTS fallback only until its announced 2026-11-17 shutdown. */
+export function getGeminiTtsModels(now = Date.now()): string[] {
+  const models = ["gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts"];
+  if (now < Date.UTC(2026, 10, 17)) models.push("gemini-3.1-flash-tts-preview");
+  return models;
+}
