@@ -84,6 +84,9 @@ const CREDENTIAL_VARS = [
   "GEMINI_KEY_1", "GEMINI_KEY_2", "GEMINI_KEY_3", "GEMINI_KEY_4", "GEMINI_KEY_5",
   "GOOGLE_SEARCH_API_KEY", "GOOGLE_SEARCH_ENGINE_ID",
   "CF_ID_1", "CF_TOKEN_1", "CF_ID_2", "CF_TOKEN_2", "CF_ID_3", "CF_TOKEN_3",
+  "WUSROUTER_API_KEY", "KEYRING_MASTER_KEY", "ELEVENLABS_API_KEY",
+  "ELEVENLABS_KEY_1", "ELEVENLABS_KEY_2", "ELEVENLABS_KEY_3",
+  "ELEVENLABS_KEY_4", "ELEVENLABS_KEY_5", "ELEVENLABS_KEY_6",
 ];
 for (const name of CREDENTIAL_VARS) {
   new RegExp(`^${name}\\s*=`, "m").test(toml)
@@ -139,6 +142,17 @@ adminSource.includes("--accent:#9b7bff!important") && adminSource.includes("--ac
   ? ok("Owner dashboard uses the same violet/blue identity")
   : fail("Owner dashboard brand tokens do not match the Mini App");
 
+
+// ── WusRouter provider toggle is authoritative ─────────────────────────────
+console.log("\\n[12] WusRouter fallback respects the owner provider toggle");
+const heavyStart = indexSource.indexOf("async function runHeavyGeneration");
+const fallbackStart = indexSource.indexOf("const fallbackEligible =", heavyStart);
+const fallbackEnd = indexSource.indexOf("if (fallbackEligible)", fallbackStart);
+const fallbackGuard = fallbackStart >= 0 && fallbackEnd > fallbackStart
+  ? indexSource.slice(fallbackStart, fallbackEnd) : "";
+fallbackGuard.includes("providerSettings.wusrouter")
+  ? ok("code-generation fallback honours the WusRouter enabled/disabled setting")
+  : fail("code-generation fallback must not use WusRouter while its owner toggle is disabled");
 
 // ── Gemini TTS Interactions API contract ───────────────────────────────────
 console.log("\n[11] Gemini TTS Interactions API contract");
