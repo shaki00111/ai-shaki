@@ -14,7 +14,7 @@ import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from 
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, applyOwnerPersonaLabels, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns } from "./ttsReliability";
-import { buildGeminiTtsRequest, extractGeminiTtsAudio } from "./geminiTtsProtocol";
+import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
 import { inspectJpeg } from "./documentImages";
@@ -12366,7 +12366,7 @@ async function synthesizeVoiceGemini(
 
   // The 3.1 preview model is scheduled for retirement on 2026-11-17.
   // Prefer current GA 3.8 models and keep 3.1 as a temporary fallback.
-  const models = ["gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts", "gemini-3.1-flash-tts-preview"];
+  const models = getGeminiTtsModels();
   const maxKeys = Math.min(cfg.GEMINI_KEYS.length, 5);
   const failures: string[] = [];
 
