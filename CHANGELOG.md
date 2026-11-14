@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-14 — Reliability and validation
+
+- Respect the owner’s WusRouter enable/disable setting during code-generation fallback.
+- Default missing Gemini TTS MIME metadata to WAV and cover it with regression tests.
+- Run the full automated test suite five consecutive times in both CI workflows.
+- Correct setup instructions for the required webhook secret and document WusRouter and the ElevenLabs key pool.
+
 ## 2026-11-08 — AI SHAKI branding and reliability
 
 - Set VIP purchase and support routing to the SHAKI owner account.
