@@ -174,17 +174,16 @@ indexSource.includes("All TTS providers failed or Telegram rejected the audio") 
   : fail("voice failure diagnostics must not mislabel Gemini/Telegram failures as ElevenLabs-only");
 
 // ── Gemini empty-stream retry and owner cooldown diagnostics ───────────────
-console.log("\\n[13] Gemini empty-stream recovery and key cooldown diagnostics");
+console.log("\n[13] Gemini empty-stream recovery and key cooldown diagnostics");
 const classifierStart = indexSource.indexOf("function classifyGeminiKeyError");
-const classifierEnd = indexSource.indexOf("\\n// SECTION: RATE LIMITING", classifierStart);
-const classifierSource = classifierStart >= 0 && classifierEnd > classifierStart
-  ? indexSource.slice(classifierStart, classifierEnd) : "";
+const classifierSource = classifierStart >= 0
+  ? indexSource.slice(classifierStart, classifierStart + 5_000) : "";
 classifierSource.includes('msg.includes("empty response")') &&
 classifierSource.includes('return "nextModel"')
   ? ok("empty Gemini streams are classified as model failures, not bad keys")
   : fail("empty Gemini streams must try the alternate model without disabling the key");
 
-const alternateModelRetryCount = (indexSource.match(/if \\(action === "nextModel"\\) break;/g) ?? []).length;
+const alternateModelRetryCount = (indexSource.match(/if \(action === "nextModel"\) break;/g) ?? []).length;
 alternateModelRetryCount >= 2
   ? ok("Telegram and Mini App retry loops stop key rotation and advance to the alternate model")
   : fail("both Telegram and Mini App retry loops must honor the nextModel decision");
