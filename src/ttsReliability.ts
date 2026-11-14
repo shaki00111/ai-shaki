@@ -24,3 +24,24 @@ export class ProviderKeyCooldowns {
   }
 }
 export const ttsKeyCooldowns = new ProviderKeyCooldowns();
+
+
+/** Independent cooldown pool for ElevenLabs; never shares Gemini key state. */
+export const elevenLabsKeyCooldowns = new ProviderKeyCooldowns();
+
+/** Parse Retry-After as seconds or an HTTP date, with bounded safe defaults. */
+export function retryAfterDurationMs(
+  value: string | null,
+  now = Date.now(),
+  fallbackMs = 90_000,
+  maxMs = 60 * 60_000,
+): number {
+  if (!value?.trim()) return fallbackMs;
+  const raw = value.trim();
+  const seconds = Number(raw);
+  const delay = Number.isFinite(seconds) && raw !== ""
+    ? seconds * 1000
+    : Date.parse(raw) - now;
+  if (!Number.isFinite(delay) || delay <= 0) return fallbackMs;
+  return Math.max(1_000, Math.min(maxMs, delay));
+}
