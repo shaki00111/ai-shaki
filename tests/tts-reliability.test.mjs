@@ -65,6 +65,16 @@ test("Gemini TTS extracts audio output in snake_case, camelCase, and output bloc
   });
 });
 
+test("Gemini TTS extracts raw REST audio from Interactions steps", () => {
+  const base64 = "A".repeat(128);
+  assert.deepEqual(extractGeminiTtsAudio({
+    steps: [
+      { type: "model_output", content: [{ type: "text", text: "ignored" }] },
+      { type: "model_output", content: [{ type: "audio", data: base64, mime_type: "audio/wav" }] },
+    ],
+  }), { data: base64, mimeType: "audio/wav" });
+});
+
 test("Gemini TTS ignores absent or too-short audio payloads", () => {
   assert.equal(extractGeminiTtsAudio({ output_audio: { data: "short" } }), null);
   assert.equal(extractGeminiTtsAudio({ candidates: [{ content: { parts: [{ text: "not audio" }] } }] }), null);
