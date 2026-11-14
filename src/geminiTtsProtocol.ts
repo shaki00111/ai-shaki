@@ -43,6 +43,23 @@ export function extractGeminiTtsAudio(response: unknown): GeminiTtsAudioOutput |
     mimeType = nested?.mime_type ?? nested?.mimeType ?? mimeType;
   }
 
+  // The current raw REST Interactions response exposes audio under
+  // steps[].content[] (the SDK's output_audio convenience field is not
+  // guaranteed to be present in REST responses).
+  if (typeof data !== "string" && Array.isArray(root.steps)) {
+    for (let i = root.steps.length - 1; i >= 0 && typeof data !== "string"; i--) {
+      const step = root.steps[i];
+      if (!Array.isArray(step?.content)) continue;
+      const block = step.content.find((item: any) =>
+        item?.type === "audio" || typeof item?.data === "string"
+      );
+      if (!block) continue;
+      const nested = block.output_audio ?? block;
+      data = nested?.data;
+      mimeType = nested?.mime_type ?? nested?.mimeType ?? mimeType;
+    }
+  }
+
   if (typeof data !== "string" || data.length < 100) return null;
-  return { data, mimeType: typeof mimeType === "string" ? mimeType : "" };
+  return { data, mimeType: typeof mimeType === "string" ? mimeType : "audio/wav" };
 }
