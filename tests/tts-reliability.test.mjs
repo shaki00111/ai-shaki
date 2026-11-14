@@ -105,14 +105,10 @@ test("Gemini TTS stops using the legacy preview model on its shutdown date", () 
 
 
 test("ElevenLabs cooldowns are isolated from Gemini cooldowns", async () => {
-  const { elevenLabsKeyCooldowns, ProviderKeyCooldowns } = await import("../src/ttsReliability.ts");
-  let now = 10_000;
-  const gemini = new ProviderKeyCooldowns(() => now);
-  const eleven = new ProviderKeyCooldowns(() => now);
-  eleven.disable("shared-test-key", 30_000);
-  assert.equal(eleven.isDisabled("shared-test-key"), true);
-  assert.equal(gemini.isDisabled("shared-test-key"), false);
-  assert.equal(elevenLabsKeyCooldowns.isDisabled("unconfigured-test-key"), false);
+  const { elevenLabsKeyCooldowns, ttsKeyCooldowns } = await import("../src/ttsReliability.ts");
+  elevenLabsKeyCooldowns.disable("shared-test-key", 30_000);
+  assert.equal(elevenLabsKeyCooldowns.isDisabled("shared-test-key"), true);
+  assert.equal(ttsKeyCooldowns.isDisabled("shared-test-key"), false);
 });
 
 test("Retry-After accepts seconds and HTTP dates and bounds invalid values", async () => {
