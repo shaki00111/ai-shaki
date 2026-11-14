@@ -102,3 +102,21 @@ test("Gemini TTS stops using the legacy preview model on its shutdown date", () 
     "gemini-3.8-flash-tts",
   ]);
 });
+
+
+test("ElevenLabs cooldowns are isolated from Gemini cooldowns", async () => {
+  const { elevenLabsKeyCooldowns, ttsKeyCooldowns } = await import("../src/ttsReliability.ts");
+  elevenLabsKeyCooldowns.disable("shared-test-key", 30_000);
+  assert.equal(elevenLabsKeyCooldowns.isDisabled("shared-test-key"), true);
+  assert.equal(ttsKeyCooldowns.isDisabled("shared-test-key"), false);
+});
+
+test("Retry-After accepts seconds and HTTP dates and bounds invalid values", async () => {
+  const { retryAfterDurationMs } = await import("../src/ttsReliability.ts");
+  const now = Date.UTC(2026, 10, 14, 12, 0, 0);
+  assert.equal(retryAfterDurationMs("12", now), 12_000);
+  assert.equal(retryAfterDurationMs(new Date(now + 45_000).toUTCString(), now), 45_000);
+  assert.equal(retryAfterDurationMs(null, now), 90_000);
+  assert.equal(retryAfterDurationMs("nonsense", now), 90_000);
+  assert.equal(retryAfterDurationMs("7200", now), 60 * 60_000);
+});

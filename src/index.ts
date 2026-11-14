@@ -13,7 +13,7 @@ import { readJsonObject, RequestBodyError } from "./http";
 import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from "./memory";
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, applyOwnerPersonaLabels, ownerPersonalizationWelcome } from "./ownerPersonalization";
-import { ttsKeyCooldowns } from "./ttsReliability";
+import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs } from "./ttsReliability";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
@@ -12135,8 +12135,8 @@ async function synthesizeVoiceElevenLabs(text: string, env: Env): Promise<Uint8A
     const index = (elevenLabsKeyIndex + attempt) % keys.length;
     const apiKey = keys[index];
 
-    if (await isKeyDisabled(apiKey, env)) {
-      logger.warn(`ElevenLabs key[${index}] is temporarily disabled; skipping`);
+    if (elevenLabsKeyCooldowns.isDisabled(apiKey)) {
+      logger.warn(`ElevenLabs key[${index}] is temporarily disabled for another ${Math.ceil(elevenLabsKeyCooldowns.remainingMs(apiKey) / 1000)}s; skipping`);
       continue;
     }
 
@@ -12186,40 +12186,27 @@ async function synthesizeVoiceElevenLabs(text: string, env: Env): Promise<Uint8A
       );
 
       if (res.status === 429) {
+        const cooldownMs = retryAfterDurationMs(res.headers.get("retry-after"), Date.now(), TTS_DISABLED_MS, 15 * 60_000);
+        elevenLabsKeyCooldowns.disable(apiKey, cooldownMs);
         elevenLabsKeyIndex = (index + 1) % keys.length;
-
-        logger.warn(
-          `ElevenLabs key[${index}] rate limited (429); rotating`
-        );
-
+        logger.warn(`ElevenLabs key[${index}] rate limited (429); cooling down for ${Math.ceil(cooldownMs / 1000)}s and rotating`);
         continue;
       }
 
       if (res.status === 401 || res.status === 403) {
-        if (env_ref) {
-          disableApiKey(
-            apiKey,
-            env_ref,
-            TTS_DISABLED_MS
-          );
-        }
-
+        const cooldownMs = res.status === 401 ? 24 * 60 * 60_000 : 5 * 60_000;
+        elevenLabsKeyCooldowns.disable(apiKey, cooldownMs);
         elevenLabsKeyIndex = (index + 1) % keys.length;
-
-        logger.warn(
-          `ElevenLabs key[${index}] rejected (${res.status}); temporarily disabled`
-        );
-
+        logger.warn(`ElevenLabs key[${index}] rejected (${res.status}); isolated cooldown applied`);
         continue;
       }
 
       if (!res.ok) {
         const body = await res.text().catch(() => "");
-
-        logger.error(
-          `ElevenLabs key[${index}] HTTP ${res.status}: ${body.slice(0, 500)}`
-        );
-
+        logger.error(`ElevenLabs key[${index}] HTTP ${res.status}: ${body.slice(0, 500)}`);
+        // These indicate a provider/configuration problem, not a bad API key.
+        // Stop burning other keys and immediately let Gemini take over.
+        if (res.status >= 500 || [400, 404, 422].includes(res.status)) break;
         continue;
       }
 
