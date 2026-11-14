@@ -61,5 +61,8 @@ export function extractGeminiTtsAudio(response: unknown): GeminiTtsAudioOutput |
   }
 
   if (typeof data !== "string" || data.length < 100) return null;
-  return { data, mimeType: typeof mimeType === "string" ? mimeType : "audio/wav" };
+  const normalizedMimeType = typeof mimeType === "string" && mimeType.trim()
+    ? mimeType.trim()
+    : "audio/wav";
+  return { data, mimeType: normalizedMimeType };
 }
