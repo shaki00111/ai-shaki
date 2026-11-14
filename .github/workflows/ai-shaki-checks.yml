@@ -17,6 +17,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm test
+      - run: npm run test:repeat
       - run: npm run type-check
       - run: npx wrangler deploy --dry-run --outdir=.wrangler/dry
