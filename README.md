@@ -10,7 +10,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Version-0.949%20Beta-blue?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/Version-1.0-blue?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/Cloudflare-Workers-orange?style=for-the-badge&logo=cloudflare" alt="Cloudflare Workers">
   <img src="https://img.shields.io/badge/TypeScript-green?style=for-the-badge&logo=typescript" alt="TypeScript">
   <img src="https://img.shields.io/badge/Gemini-AI-purple?style=for-the-badge&logo=google" alt="Gemini">
@@ -398,8 +398,8 @@ npx wrangler d1 create ai-shaki-db
 
 # 4. Set secrets (one by one)
 npx wrangler secret put TOKEN          # Your Telegram bot token from @BotFather
-nnpx wrangler secret put BOT_OWNER_ID   # Your numeric Telegram ID from @userinfobot
-nnpx wrangler secret put GEMINI_KEY_1   # Get from https://aistudio.google.com/apikey
+npx wrangler secret put BOT_OWNER_ID   # Your numeric Telegram ID from @userinfobot
+npx wrangler secret put GEMINI_KEY_1   # Get from https://aistudio.google.com/apikey
 
 # 5. Deploy!
 npm run deploy
@@ -408,9 +408,9 @@ npm run deploy
 curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<YOUR_WORKER>.workers.dev/webhook&secret_token=<WEBHOOK_SECRET>"
 ```
 
-> 💡 **نکته:** فقط ۳ متغیر TOKEN، BOT_OWNER_ID و GEMINI_KEY_1 الزامی هستند. بقیه اختیاری هستند.
+> 💡 **نکته:** چهار متغیر TOKEN، BOT_OWNER_ID، WEBHOOK_SECRET و GEMINI_KEY_1 الزامی هستند. بقیه اختیاری هستند.
 >
-> 💡 **Note:** Only TOKEN, BOT_OWNER_ID, and GEMINI_KEY_1 are required. The rest are optional.
+> 💡 **Note:** TOKEN, BOT_OWNER_ID, WEBHOOK_SECRET, and GEMINI_KEY_1 are required. The rest are optional.
 
 ---
 
@@ -484,6 +484,8 @@ echo "YOUR_ID" | wrangler secret put BOT_OWNER_ID
 
 # 🤖 Gemini API Key — از https://aistudio.google.com/apikey
 echo "YOUR_KEY" | wrangler secret put GEMINI_KEY_1
+
+echo "YOUR_RANDOM_SECRET" | wrangler secret put WEBHOOK_SECRET
 ```
 
 ### 🔧 Optional (اختیاری):
@@ -500,8 +502,11 @@ echo "YOUR_SEARCH_ENGINE_ID" | wrangler secret put GOOGLE_SEARCH_ENGINE_ID
 # 🔒 Webhook Secret — برای امنیت webhook
 echo "RANDOM_SECRET" | wrangler secret put WEBHOOK_SECRET
 
-# 🎙️ ElevenLabs TTS — جایگزین Gemini TTS
-echo "YOUR_ELEVENLABS_KEY" | wrangler secret put ELEVENLABS_API_KEY
+# 🎙️ ElevenLabs TTS — کلید اول از pool (نام قدیمی هم پشتیبانی می‌شود)
+echo "YOUR_ELEVENLABS_KEY" | wrangler secret put ELEVENLABS_KEY_1
+
+# Optional text/code fallback
+echo "YOUR_WUSROUTER_KEY" | wrangler secret put WUSROUTER_API_KEY
 ```
 
 > 💡 فقط سرویس‌هایی را تنظیم کنید که واقعاً استفاده می‌کنید.
