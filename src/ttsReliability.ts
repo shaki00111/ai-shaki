@@ -45,3 +45,30 @@ export function retryAfterDurationMs(
   if (!Number.isFinite(delay) || delay <= 0) return fallbackMs;
   return Math.max(1_000, Math.min(maxMs, delay));
 }
+
+/** Only treat a provider response as audio when it explicitly declares an audio MIME type. */
+export function isAudioContentType(value: string | null): boolean {
+  return typeof value === "string" && /^audio\/[a-z0-9.+-]+(?:\s*;|$)/i.test(value.trim());
+}
+
+export interface TelegramAudioDeliveryAttempt {
+  method: "sendVoice" | "sendAudio" | "sendDocument";
+  field: "voice" | "audio" | "document";
+  fileName: string;
+  mimeType: string;
+}
+
+/** Preferred Telegram upload followed by safe compatibility fallbacks. */
+export function getTelegramAudioDeliveryPlan(isWav: boolean): TelegramAudioDeliveryAttempt[] {
+  if (isWav) {
+    return [
+      { method: "sendAudio", field: "audio", fileName: "voice.wav", mimeType: "audio/wav" },
+      { method: "sendDocument", field: "document", fileName: "voice.wav", mimeType: "audio/wav" },
+    ];
+  }
+  return [
+    { method: "sendVoice", field: "voice", fileName: "voice.mp3", mimeType: "audio/mpeg" },
+    { method: "sendAudio", field: "audio", fileName: "voice.mp3", mimeType: "audio/mpeg" },
+    { method: "sendDocument", field: "document", fileName: "voice.mp3", mimeType: "audio/mpeg" },
+  ];
+}

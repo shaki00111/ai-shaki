@@ -13,7 +13,7 @@ import { readJsonObject, RequestBodyError } from "./http";
 import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from "./memory";
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, applyOwnerPersonaLabels, ownerPersonalizationWelcome } from "./ownerPersonalization";
-import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs } from "./ttsReliability";
+import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs, isAudioContentType, getTelegramAudioDeliveryPlan } from "./ttsReliability";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
@@ -12129,7 +12129,8 @@ async function synthesizeVoiceElevenLabs(text: string, env: Env): Promise<Uint8A
   const modelId =
     cfg.ELEVENLABS_MODEL_ID || ELEVENLABS_DEFAULT_MODEL_ID;
 
-  const maxAttempts = Math.min(keys.length, 3);
+  // Try the full configured pool (up to the six supported keys), not only the first three.
+  const maxAttempts = keys.length;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const index = (elevenLabsKeyIndex + attempt) % keys.length;
@@ -12215,16 +12216,11 @@ async function synthesizeVoiceElevenLabs(text: string, env: Env): Promise<Uint8A
        * If it returns JSON despite HTTP 2xx, capture the real error instead
        * of incorrectly reporting "unexpected audio format".
        */
-      if (
-        contentType.includes("application/json") ||
-        contentType.includes("text/json")
-      ) {
+      if (!isAudioContentType(contentType)) {
         const body = await res.text().catch(() => "");
-
         logger.error(
-          `ElevenLabs key[${index}] returned JSON instead of audio: ${body.slice(0, 1000)}`
+          `ElevenLabs key[${index}] returned a non-audio response (content-type="${contentType || "missing"}"): ${body.slice(0, 1000)}`
         );
-
         continue;
       }
 
@@ -12446,87 +12442,53 @@ async function sendVoiceResponse(
   env: Env
 ): Promise<boolean> {
   const audio = await synthesizeVoice(text, env);
-
-  if (!audio) {
-    return false;
-  }
-
-  const form = new FormData();
-
-  form.append(
-    "chat_id",
-    String(chatId)
-  );
+  if (!audio) return false;
 
   const isWav = audio.length >= 12 && audio[0] === 0x52 && audio[1] === 0x49 &&
     audio[2] === 0x46 && audio[3] === 0x46;
-  // Telegram voice notes accept OGG/OPUS, MP3 or M4A. Gemini 3.8 returns WAV,
-  // so deliver that fallback through sendAudio instead of falsely labeling WAV
-  // bytes as an MP3 voice note.
-  const uploadField = isWav ? "audio" : "voice";
-  const uploadName = isWav ? "voice.wav" : "voice.mp3";
-  const uploadType = isWav ? "audio/wav" : "audio/mpeg";
-  form.append(
-    uploadField,
-    new Blob([bytesToArrayBuffer(audio)], { type: uploadType }),
-    uploadName
-  );
 
-  form.append(
-    "reply_to_message_id",
-    String(replyTo)
-  );
-
-  try {
-    const res = await fetchWithTimeout(
-      `${API_URL}/${isWav ? "sendAudio" : "sendVoice"}`,
-      {
-        method: "POST",
-        body: form,
-      },
-      8_000
+  // Try the preferred Telegram representation first, then downgrade only after
+  // Telegram explicitly rejects it. Do not retry after a network-unknown result:
+  // Telegram may have accepted the upload before the connection was lost.
+  for (const attempt of getTelegramAudioDeliveryPlan(isWav)) {
+    const form = new FormData();
+    form.append("chat_id", String(chatId));
+    form.append(
+      attempt.field,
+      new Blob([bytesToArrayBuffer(audio)], { type: attempt.mimeType }),
+      attempt.fileName
     );
+    form.append("reply_to_message_id", String(replyTo));
 
-    const json = await res.json() as {
-      ok: boolean;
-      description?: string;
-    };
-
-    if (!json.ok) {
-      logger.error(
-        `Telegram ${isWav ? "sendAudio" : "sendVoice"} failed: ${json.description ?? "unknown error"}`
+    let outcome: "sent" | "rejected" | "unknown" = "unknown";
+    try {
+      const res = await fetchWithTimeout(
+        API_URL + "/" + attempt.method,
+        { method: "POST", body: form },
+        20_000
       );
-      // WAV is not a supported Telegram voice-note codec. If Telegram also
-      // rejects it as audio, preserve the generated speech as a downloadable
-      // audio file instead of dropping the successful synthesis result.
-      if (isWav) {
-        const documentForm = new FormData();
-        documentForm.append("chat_id", String(chatId));
-        documentForm.append("document", new Blob([bytesToArrayBuffer(audio)], { type: "audio/wav" }), "voice.wav");
-        documentForm.append("reply_to_message_id", String(replyTo));
-        const documentRes = await fetchWithTimeout(`${API_URL}/sendDocument`, {
-          method: "POST",
-          body: documentForm,
-        }, 8_000);
-        const documentJson = await documentRes.json() as { ok: boolean; description?: string };
-        if (!documentJson.ok) logger.error(`Telegram WAV document fallback failed: ${documentJson.description ?? "unknown error"}`);
-        return documentJson.ok;
+      const raw = await res.text().catch(() => "");
+      let json: { ok?: boolean; description?: string } | null = null;
+      try { json = raw ? JSON.parse(raw) as { ok?: boolean; description?: string } : null; } catch {}
+
+      if (json?.ok === true) {
+        logger.info("Telegram " + attempt.method + " delivered voice successfully");
+        return true;
       }
+
+      const description = json?.description ?? raw.slice(0, 500) ?? ("HTTP " + res.status);
+      logger.error("Telegram " + attempt.method + " failed (HTTP " + res.status + "): " + description);
+      outcome = json?.ok === false || !res.ok ? "rejected" : "unknown";
+    } catch (e) {
+      logger.error("Telegram " + attempt.method + " network error: " + (e instanceof Error ? e.message : String(e)));
+      outcome = "unknown";
     }
 
-    return json.ok;
-
-  } catch (e) {
-    logger.error(
-      `sendVoice network error: ${
-        e instanceof Error
-          ? e.message
-          : String(e)
-      }`
-    );
-
-    return false;
+    if (outcome !== "rejected") return false;
+    logger.warn("Telegram rejected " + attempt.method + "; trying the next compatible audio delivery method");
   }
+
+  return false;
 }
   
 function shouldRespondInGroup(message: TgMessage, session: ChatSession): boolean {

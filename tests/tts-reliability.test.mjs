@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ProviderKeyCooldowns } from "../src/ttsReliability.ts";
+import { ProviderKeyCooldowns, isAudioContentType, getTelegramAudioDeliveryPlan } from "../src/ttsReliability.ts";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "../src/geminiTtsProtocol.ts";
 
 test("TTS cooldowns are isolated per key and expire", () => {
@@ -119,4 +119,25 @@ test("Retry-After accepts seconds and HTTP dates and bounds invalid values", asy
   assert.equal(retryAfterDurationMs(null, now), 90_000);
   assert.equal(retryAfterDurationMs("nonsense", now), 90_000);
   assert.equal(retryAfterDurationMs("7200", now), 60 * 60_000);
+});
+
+
+test("ElevenLabs responses must explicitly identify as audio", () => {
+  assert.equal(isAudioContentType("audio/mpeg"), true);
+  assert.equal(isAudioContentType("audio/mpeg; charset=binary"), true);
+  assert.equal(isAudioContentType("audio/ogg"), true);
+  assert.equal(isAudioContentType("application/json"), false);
+  assert.equal(isAudioContentType("text/html"), false);
+  assert.equal(isAudioContentType(null), false);
+});
+
+test("Telegram voice delivery has compatible audio fallbacks", () => {
+  assert.deepEqual(getTelegramAudioDeliveryPlan(false).map(x => x.method), [
+    "sendVoice", "sendAudio", "sendDocument",
+  ]);
+  assert.deepEqual(getTelegramAudioDeliveryPlan(true).map(x => x.method), [
+    "sendAudio", "sendDocument",
+  ]);
+  assert.equal(getTelegramAudioDeliveryPlan(false)[1].field, "audio");
+  assert.equal(getTelegramAudioDeliveryPlan(true)[0].mimeType, "audio/wav");
 });
