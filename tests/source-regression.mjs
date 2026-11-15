@@ -154,6 +154,22 @@ fallbackGuard.includes("providerSettings.wusrouter")
   ? ok("code-generation fallback honours the WusRouter enabled/disabled setting")
   : fail("code-generation fallback must not use WusRouter while its owner toggle is disabled");
 
+// Mini App agent fallback must match Telegram chat: owner toggle, configured key,
+// ordinary text intent, and a second fallback attempt after Gemini exhaustion.
+const webAppAgentStart = indexSource.indexOf("async function callGeminiForWebApp");
+const webAppAgentEnd = indexSource.indexOf("\nfunction nativeFactoryConfigured", webAppAgentStart);
+const webAppAgentSource = webAppAgentStart >= 0 && webAppAgentEnd > webAppAgentStart
+  ? indexSource.slice(webAppAgentStart, webAppAgentEnd) : "";
+const directWebAppFallback = webAppAgentSource.indexOf("if (!providerSettings.gemini || !maxAttempts)");
+const exhaustedWebAppFallback = webAppAgentSource.indexOf("if (canFallbackToWusRouter())", directWebAppFallback + 1);
+webAppAgentSource.includes("classifyRequestIntent") &&
+webAppAgentSource.includes("canUseWusRouterTextFallback") &&
+webAppAgentSource.includes("providerSettings.wusrouter") &&
+webAppAgentSource.includes("callWusRouterText") &&
+directWebAppFallback >= 0 && exhaustedWebAppFallback > directWebAppFallback
+  ? ok("Mini App WusRouter fallback honours the owner toggle and only handles eligible text after Gemini exhaustion")
+  : fail("Mini App WusRouter fallback must cover direct and exhausted Gemini paths without handling tool/media intents");
+
 // ── Gemini TTS Interactions API contract ───────────────────────────────────
 console.log("\n[11] Gemini TTS Interactions API contract");
 const geminiTtsStart = indexSource.indexOf("async function synthesizeVoiceGemini");

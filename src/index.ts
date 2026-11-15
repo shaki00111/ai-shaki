@@ -14,6 +14,7 @@ import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from 
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, applyOwnerPersonaLabels, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs, isAudioContentType, getTelegramAudioDeliveryPlan } from "./ttsReliability";
+import { canUseWusRouterTextFallback } from "./providerRouting";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
@@ -6323,20 +6324,77 @@ async function callGeminiForWebApp(
   ct?: CancellationToken,
 ): Promise<GeminiResponse> {
   const providerSettings = await getAIProviderSettings(env);
-  if (!providerSettings.gemini || !cfg.GEMINI_KEYS.length) {
-    if (!providerSettings.wusrouter || !env.WUSROUTER_API_KEY?.trim()) throw new Error("No enabled AI provider is configured.");
-    if (!parts.every(p => typeof p.text === "string" && !p.inline_data && !p.functionCall && !p.functionResponse)) throw new Error("WusRouter fallback supports text-only turns.");
-    const answer = await callWusRouterText(systemPromptText, parts.map(p=>p.text??"").join("\n"), history, WUSROUTER_CHAT_MODEL, 25000, 4096);
-    return { text:answer, functionCalls:[], modelParts:[{text:answer}], finishReason:"STOP" };
-  }
-  if (!cfg.GEMINI_KEYS.length) throw new Error("Gemini keys not configured");
-  await refreshDisabledKeysFromKV(env); // همان هم‌گام‌سازی وضعیت کلیدها بین ایزوله‌ها
   const engine = session.engines.gemini;
-  const maxAttempts = cfg.GEMINI_KEYS.length; // قبلاً Math.min(..., 4) بود
-  const startIdx = engine.apiKeyIndex ?? 0;
-  let lastError: Error = new Error("quota exceeded");
+  const maxAttempts = cfg.GEMINI_KEYS.length;
   const overallStart = Date.now();
   const OVERALL_BUDGET_MS = 34_000;
+  const userPrompt = parts.map(part => part.text ?? "").join("\n");
+  const plainTextTurn = parts.length > 0 && parts.every(part =>
+    typeof part.text === "string" && !part.inline_data && !part.functionCall && !part.functionResponse
+  );
+  const plainTextHistory = history.every(item =>
+    item.parts.every(part => typeof part.text === "string" && !part.inline_data && !part.functionCall && !part.functionResponse)
+  );
+  const routing = classifyRequestIntent({ text: userPrompt, isGroup: false, isReply: false });
+  const wusRouterConfigured = Boolean(env.WUSROUTER_API_KEY?.trim());
+  const canFallbackToWusRouter = () => {
+    const remainingMs = Math.min(
+      OVERALL_BUDGET_MS - (Date.now() - overallStart),
+      run?.remainingMs ?? Infinity,
+    );
+    return canUseWusRouterTextFallback({
+      enabled: providerSettings.wusrouter,
+      configured: wusRouterConfigured,
+      plainTextTurn,
+      plainTextHistory,
+      intentCategory: routing.category,
+      remainingMs,
+      modelBudgetAvailable: !ct?.cancelled && (!run || run.modelCalls < run.maxRounds + 2),
+    });
+  };
+  // Reserve a small part of the Mini App model budget for the fallback. Without
+  // this, a full Gemini key/model rotation could consume the entire deadline
+  // before WusRouter gets a chance to answer an ordinary text turn.
+  const reserveFallbackBudget = canUseWusRouterTextFallback({
+    enabled: providerSettings.wusrouter,
+    configured: wusRouterConfigured,
+    plainTextTurn,
+    plainTextHistory,
+    intentCategory: routing.category,
+    remainingMs: 5_000,
+    modelBudgetAvailable: !ct?.cancelled && (!run || run.modelCalls < run.maxRounds + 2),
+  });
+  const geminiBudgetMs = reserveFallbackBudget ? OVERALL_BUDGET_MS - 5_000 : OVERALL_BUDGET_MS;
+
+  if (!providerSettings.gemini || !maxAttempts) {
+    if (!wusRouterConfigured || !providerSettings.wusrouter) {
+      throw new Error("No enabled AI provider is configured.");
+    }
+    if (!canFallbackToWusRouter()) {
+      throw new Error("WusRouter text fallback only supports ordinary text chat. Enable Gemini for image, file, and tool-based requests.");
+    }
+    const timeoutMs = Math.min(
+      25_000,
+      OVERALL_BUDGET_MS - (Date.now() - overallStart),
+      run?.remainingMs ?? Infinity,
+    );
+    if (run) run.modelCalls++;
+    const answer = await callWusRouterText(
+      systemPromptText,
+      userPrompt,
+      history,
+      WUSROUTER_CHAT_MODEL,
+      timeoutMs,
+      4096,
+    );
+    engine.consecutiveErrors = 0;
+    logger.info("[AI provider] Mini App Gemini disabled/unconfigured; WusRouter text fallback succeeded");
+    return { text: answer, functionCalls: [], modelParts: [{ text: answer }], finishReason: "STOP" };
+  }
+
+  await refreshDisabledKeysFromKV(env);
+  const startIdx = engine.apiKeyIndex ?? 0;
+  let lastError: Error = new Error("quota exceeded");
   const primaryModel = cfg.GEMINI_MODEL;
   const fallbackModel = cfg.GEMINI_FALLBACK_MODEL && cfg.GEMINI_FALLBACK_MODEL !== primaryModel
     ? cfg.GEMINI_FALLBACK_MODEL
@@ -6344,21 +6402,24 @@ async function callGeminiForWebApp(
   const modelsToTry = fallbackModel ? [primaryModel, fallbackModel] : [primaryModel];
 
   for (const model of modelsToTry) {
-    if (Date.now() - overallStart > OVERALL_BUDGET_MS) break;
+    if (Date.now() - overallStart >= geminiBudgetMs) break;
     for (let i = 0; i < maxAttempts; i++) {
-      if (Date.now() - overallStart > OVERALL_BUDGET_MS) break;
+      if (Date.now() - overallStart >= geminiBudgetMs) break;
       const idx = (startIdx + i) % cfg.GEMINI_KEYS.length;
       const key = cfg.GEMINI_KEYS[idx];
       if (await isKeyDisabled(key, env)) continue;
       try {
-        // The ceiling tracks the run's own generous round budget instead of a
-        // fixed 8, so a legitimate multi-step task is never cut off mid-flight.
         if (run && (run.remainingMs < 1000 || run.modelCalls >= run.maxRounds + 2)) throw new Error("agent_budget_exhausted");
         if (run) run.modelCalls++;
-        const perCallMs = Math.min(i === 0 ? 20_000 : 12_000, OVERALL_BUDGET_MS - (Date.now() - overallStart), run?.remainingMs ?? Infinity);
+        const perCallMs = Math.min(
+          i === 0 ? 20_000 : 12_000,
+          geminiBudgetMs - (Date.now() - overallStart),
+          run?.remainingMs ?? Infinity,
+        );
+        if (perCallMs < 1_000) break;
         const res = await withTimeout(
-          callGeminiWithTools(parts, model, key, history, false, systemPromptText + "\n" + AGENT_WORKFLOW + (run?.context() ?? ""), currentRole, run?.finalizing ?? false, perCallMs, undefined, false,ct,false,
-            {allow:["create_application","update_plan","calculate","get_current_time","read_web_page","edit_image","generate_image","voice_response","search_images","search","create_game","host_web_app"]}),
+          callGeminiWithTools(parts, model, key, history, false, systemPromptText + "\n" + AGENT_WORKFLOW + (run?.context() ?? ""), currentRole, run?.finalizing ?? false, perCallMs, undefined, false, ct, false,
+            { allow: ["create_application", "update_plan", "calculate", "get_current_time", "read_web_page", "edit_image", "generate_image", "voice_response", "search_images", "search", "create_game", "host_web_app"] }),
           perCallMs + 1_000,
           "timeout",
         );
@@ -6367,13 +6428,40 @@ async function callGeminiForWebApp(
         return res;
       } catch (e) {
         lastError = e instanceof Error ? e : new Error(String(e));
-        if(ct?.cancelled)throw new Error(/deadline|timeout/.test(ct.reason)?"generation timeout":"CANCELLED_BY_USER");
+        if (ct?.cancelled) throw new Error(/deadline|timeout/.test(ct.reason) ? "generation timeout" : "CANCELLED_BY_USER");
         const action = classifyGeminiKeyError(lastError, key, env);
         if (action === "fatal") throw lastError;
         if (action === "nextModel") break;
       }
     }
   }
+
+  if (canFallbackToWusRouter()) {
+    try {
+      const timeoutMs = Math.min(
+        25_000,
+        OVERALL_BUDGET_MS - (Date.now() - overallStart),
+        run?.remainingMs ?? Infinity,
+      );
+      if (run) run.modelCalls++;
+      const answer = await callWusRouterText(
+        systemPromptText,
+        userPrompt,
+        history,
+        WUSROUTER_CHAT_MODEL,
+        timeoutMs,
+        4096,
+      );
+      engine.consecutiveErrors = 0;
+      logger.info("[AI provider] Mini App Gemini exhausted; WusRouter text fallback succeeded");
+      return { text: answer, functionCalls: [], modelParts: [{ text: answer }], finishReason: "STOP" };
+    } catch (fallbackError) {
+      const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      logger.warn("[AI provider] Mini App WusRouter text fallback failed: " + fallbackMessage.slice(0, 220));
+      lastError = new Error(`${lastError.message}; WusRouter fallback: ${fallbackMessage.slice(0, 220)}`);
+    }
+  }
+
   engine.consecutiveErrors = (engine.consecutiveErrors ?? 0) + 1;
   throw lastError;
 }
