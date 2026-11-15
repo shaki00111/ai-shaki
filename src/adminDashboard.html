@@ -3139,6 +3139,9 @@ function keyCredRow(c, svc){
   const bench = c.benchedUntil
     ? `<small class="warn-text">⏸ محدودیت داخلی این کلید تا ${esc(fmt(c.benchedUntil))} فعال است؛ بعد از این زمان دوباره قابل انتخاب می‌شود.</small>`
     : "";
+  const voiceBench = c.voiceBenchedUntil
+    ? `<small class="warn-text">🎙️ محدودیت داخلی ساخت ویس (${svc.service==="elevenlabs"?"ElevenLabs":"Gemini TTS"}) تا ${esc(fmt(c.voiceBenchedUntil))} فعال است؛ بعد از این زمان دوباره قابل انتخاب می‌شود.</small>`
+    : "";
   // Google does not expose a reliable per-key generation-quota reset timestamp
   // through models.list. Never present the local backoff as Google's quota reset.
   const quotaResetNote = svc.service === "gemini" && pr && pr.status === "rate_limited"
@@ -3150,6 +3153,7 @@ function keyCredRow(c, svc){
     (pr && pr.detail?`<small class="bad-text">${esc(pr.detail)}</small>`:"")+
     (pr && pr.billed?`<small class="dim">💳 این آزمایش هزینه دارد</small>`:"")+
     bench+
+    voiceBench+
     quotaResetNote+
     `</div>`;
 }
