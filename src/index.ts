@@ -25995,7 +25995,8 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
           `✅ Priority processing\n\n` +
           `_Note: limits reset every 24h; VIP means much higher capacity, not infinite usage._\n\n` +
           `Contact to upgrade:`;
-      await editMessageText(chat.id, message.message_id, text, {
+      const displayText = text + "\n\n" + formatSubscriptionPricing(session.language);
+      await editMessageText(chat.id, message.message_id, displayText, {
         reply_markup: JSON.stringify({ inline_keyboard: [
           [urlBtn("💳 خرید / Purchase", url)],
           [btn("🔙", "home:open")],
