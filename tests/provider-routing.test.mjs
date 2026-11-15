@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canUseWusRouterTextFallback } from "../src/providerRouting.ts";
+import { canUseWusRouterTextFallback, getWusRouterModelCandidates } from "../src/providerRouting.ts";
 
 const eligible = {
   enabled: true,
@@ -35,4 +35,23 @@ test("fallback requires enough remaining time and an available model-call budget
   assert.equal(canUseWusRouterTextFallback({ ...eligible, remainingMs: 4_999 }), false);
   assert.equal(canUseWusRouterTextFallback({ ...eligible, remainingMs: Number.POSITIVE_INFINITY }), false);
   assert.equal(canUseWusRouterTextFallback({ ...eligible, modelBudgetAvailable: false }), false);
+});
+
+
+test("WusRouter fallback selects only model IDs advertised to the current key", () => {
+  const payload = { data: [
+    { id: "wusrouter/paid-large" },
+    { id: "wusrouter/qwen3-coder:free" },
+    { id: "wusrouter/qwen3.8-flash" },
+    { id: "wusrouter/llama-small" },
+  ] };
+  assert.deepEqual(
+    getWusRouterModelCandidates(payload, "wusrouter/qwen3.8-flash:free"),
+    ["wusrouter/qwen3.8-flash", "wusrouter/qwen3-coder:free", "wusrouter/llama-small", "wusrouter/paid-large"],
+  );
+  assert.deepEqual(
+    getWusRouterModelCandidates(payload, "wusrouter/qwen3-coder:free"),
+    ["wusrouter/qwen3-coder:free", "wusrouter/qwen3.8-flash", "wusrouter/llama-small", "wusrouter/paid-large"],
+  );
+  assert.deepEqual(getWusRouterModelCandidates({ data: [] }, "missing-model"), []);
 });

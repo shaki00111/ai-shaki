@@ -14,7 +14,7 @@ import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from 
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, applyOwnerPersonaLabels, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs, isAudioContentType, getTelegramAudioDeliveryPlan } from "./ttsReliability";
-import { canUseWusRouterTextFallback } from "./providerRouting";
+import { canUseWusRouterTextFallback, getWusRouterModelCandidates } from "./providerRouting";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
@@ -11024,26 +11024,64 @@ async function callWusRouterText(
   }
   messages.push({ role: "user", content: userPrompt.slice(0, 60_000) });
 
-  const response = await fetchWithTimeout(
-    WUSROUTER_BASE_URL,
-    {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        max_tokens: Math.max(256, Math.min(maxTokens, 65_536)),
-        temperature: 0.7,
-        stream: false,
-      }),
-    },
-    timeoutMs,
-  );
+  // Resolve against the catalogue exposed to THIS key. A healthy key may not
+  // be entitled to the hard-coded :free alias used by older deployments.
+  let candidates: string[] = [];
+  try {
+    const catalogue = await fetchWithTimeout(
+      "https://wusrouter.com/v1/models",
+      { headers: { "Authorization": `Bearer ${apiKey}`, "Accept": "application/json" } },
+      Math.min(5_000, timeoutMs),
+    );
+    if (catalogue.ok) {
+      const listed = await catalogue.json().catch(() => null);
+      candidates = getWusRouterModelCandidates(listed, model);
+    }
+  } catch (catalogueError) {
+    logger.warn("[AI provider] WusRouter model discovery unavailable; trying configured model");
+  }
+  if (!candidates.length) candidates = [model];
 
+  let response: Response | null = null;
+  let lastModelError = "";
+  for (const candidate of candidates) {
+    const attempt = await fetchWithTimeout(
+      WUSROUTER_BASE_URL,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({
+          model: candidate,
+          messages,
+          max_tokens: Math.max(256, Math.min(maxTokens, 65_536)),
+          temperature: 0.7,
+          stream: false,
+        }),
+      },
+      timeoutMs,
+    );
+    if (attempt.ok) { response = attempt; break; }
+    const attemptRaw = await attempt.text().catch(() => "");
+    let attemptPayload: any = null;
+    try { attemptPayload = attemptRaw ? JSON.parse(attemptRaw) : null; } catch {}
+    const providerMessage = String(attemptPayload?.error?.message ?? attemptPayload?.message ?? attemptRaw ?? "Unknown provider error").slice(0, 700);
+    if (attempt.status === 403 && /model|not permitted|permission/i.test(providerMessage)) {
+      lastModelError = providerMessage;
+      logger.warn("[AI provider] WusRouter model not permitted; trying next advertised model");
+      continue;
+    }
+    if (attempt.status === 429) throw new Error(`WUSROUTER_QUOTA|429|${providerMessage}`);
+    if (attempt.status === 402) throw new Error(`WUSROUTER_CREDITS|402|${providerMessage}`);
+    if (attempt.status === 401 || attempt.status === 403) throw new Error(`WUSROUTER_AUTH|${attempt.status}|${providerMessage}`);
+    throw new Error(`WUSROUTER_HTTP|${attempt.status}|${providerMessage}`);
+  }
+  if (!response) {
+    throw new Error(`WUSROUTER_AUTH|403|${lastModelError || "No advertised WusRouter model is permitted for this key"}`);
+  }
   const raw = await response.text().catch(() => "");
   let payload: any = null;
   try { payload = raw ? JSON.parse(raw) : null; } catch { /* handled below */ }
