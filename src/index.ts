@@ -15,7 +15,7 @@ import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, applyOwnerPersonaLabels, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs, isAudioContentType, getTelegramAudioDeliveryPlan } from "./ttsReliability";
 import { canUseWusRouterTextFallback, getWusRouterModelCandidates } from "./providerRouting";
-import { selectGeminiKeyIndex } from "./geminiKeySelection";
+import { selectGeminiKeyIndex, isGeminiFreeTierProjectUnavailable } from "./geminiKeySelection";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
@@ -6432,6 +6432,7 @@ async function callGeminiForWebApp(
         if (ct?.cancelled) throw new Error(/deadline|timeout/.test(ct.reason) ? "generation timeout" : "CANCELLED_BY_USER");
         const action = classifyGeminiKeyError(lastError, key, env);
         if (action === "fatal") throw lastError;
+        if (action === "nextKey" && isGeminiFreeTierProjectUnavailable(lastError.message)) await sleep(5_000);
         if (action === "nextModel") break;
       }
     }
@@ -7311,6 +7312,14 @@ function classifyGeminiKeyError(
     env: Env
 ): GeminiErrorAction {
     const msg = err.message.toLowerCase();
+
+    // This is a project/key eligibility failure, not an unavailable model.
+    // Handle it before the generic "unavailable" classification below.
+    if (isGeminiFreeTierProjectUnavailable(msg)) {
+        disableApiKey(key, env, 6 * 60 * 60 * 1000);
+        logger.warn("Gemini project is not eligible for Free Tier; isolating this key for 6h and rotating.");
+        return "nextKey";
+    }
 
     // ── بلاک امنیتی: محتوا مشکل داره، نه کلید ──
     if (msg.includes("blocked") || msg.includes("safety")) {
@@ -11454,6 +11463,7 @@ async function runHeavyGeneration(
         if (action === "fatal") {
           throw lastError;
         }
+        if (action === "nextKey" && isGeminiFreeTierProjectUnavailable(err.message) && generationDeadline - Date.now() > 5_500) await sleep(5_000);
 
         continue;
       }
@@ -11465,7 +11475,7 @@ async function runHeavyGeneration(
       providerSettings.wusrouter &&
       Boolean(env.WUSROUTER_API_KEY?.trim()) &&
       (!cfg.GEMINI_KEYS.length ||
-        /quota|rate.?limit|429|resource_exhausted|overloaded|503|502|timeout|no usable gemini key/i.test(lastError.message)) &&
+        /quota|rate.?limit|429|resource_exhausted|overloaded|503|502|timeout|no usable gemini key|free tier is not available for this project|free tier is unavailable for this project|project is not eligible for the free tier|project does not have access to the free tier/i.test(lastError.message)) &&
       !await ct.shouldAbort() &&
       generationDeadline - Date.now() >= HEAVY_GEN_MIN_ATTEMPT_MS;
 
@@ -11855,6 +11865,7 @@ for (let offset = 0; offset < cfg.GEMINI_KEYS.length; offset++) {
         lastError = new Error(`${baseErr} [model=${targetModel}, key=${idx + 1}/${cfg.GEMINI_KEYS.length}, attempt=${offset + 1}/${cfg.GEMINI_KEYS.length}, timeoutMs=${offset === 0 ? 16000 : 10000}]`);
         const action = classifyGeminiKeyError(lastError, key, env);
         if (action === "fatal") throw lastError;
+        if (action === "nextKey" && isGeminiFreeTierProjectUnavailable(lastError.message)) await sleep(5_000);
         // Stop rotating keys for an empty/overloaded model stream and try the
         // configured alternate model before using the plain-text fallback.
         if (action === "nextModel") break;
@@ -12568,13 +12579,11 @@ async function sendVoiceResponse(
   const audio = await synthesizeVoice(text, env);
   if (!audio) return false;
 
-  const isWav = audio.length >= 12 && audio[0] === 0x52 && audio[1] === 0x49 &&
-    audio[2] === 0x46 && audio[3] === 0x46;
+  const detectedAudioMime = detectBinarySignature(bytesToArrayBuffer(audio)) ?? "audio/mpeg";
 
-  // Try the preferred Telegram representation first, then downgrade only after
-  // Telegram explicitly rejects it. Do not retry after a network-unknown result:
-  // Telegram may have accepted the upload before the connection was lost.
-  for (const attempt of getTelegramAudioDeliveryPlan(isWav)) {
+  // OGG keeps its container and MIME type for Telegram voice notes. MP3 is
+  // sent as audio, never mislabeled as OGG/voice; WAV is sent as audio.
+  for (const attempt of getTelegramAudioDeliveryPlan(detectedAudioMime)) {
     const form = new FormData();
     form.append("chat_id", String(chatId));
     form.append(
@@ -13223,7 +13232,8 @@ function makeSearchDeps(
           const err = e instanceof Error ? e : new Error(String(e));
           if(opts?.signal?.aborted)return "";
           logger.warn(`[search] model stage failed on a key: ${err.message.slice(0, 120)}`);
-          classifyGeminiKeyError(err, key, env);
+          const action = classifyGeminiKeyError(err, key, env);
+          if (action === "nextKey" && isGeminiFreeTierProjectUnavailable(err.message) && deadline - Date.now() > 5_500) await sleep(5_000);
           continue;
         }
       }

@@ -59,15 +59,23 @@ export interface TelegramAudioDeliveryAttempt {
 }
 
 /** Preferred Telegram upload followed by safe compatibility fallbacks. */
-export function getTelegramAudioDeliveryPlan(isWav: boolean): TelegramAudioDeliveryAttempt[] {
-  if (isWav) {
+export function getTelegramAudioDeliveryPlan(audioMime: string): TelegramAudioDeliveryAttempt[] {
+  const mime = String(audioMime || "audio/mpeg").split(";", 1)[0].trim().toLowerCase();
+  if (mime === "audio/ogg" || mime === "application/ogg") {
+    return [
+      { method: "sendVoice", field: "voice", fileName: "voice.ogg", mimeType: "audio/ogg" },
+      { method: "sendAudio", field: "audio", fileName: "voice.ogg", mimeType: "audio/ogg" },
+      { method: "sendDocument", field: "document", fileName: "voice.ogg", mimeType: "audio/ogg" },
+    ];
+  }
+  if (mime === "audio/wav" || mime === "audio/x-wav" || mime === "audio/wave") {
     return [
       { method: "sendAudio", field: "audio", fileName: "voice.wav", mimeType: "audio/wav" },
       { method: "sendDocument", field: "document", fileName: "voice.wav", mimeType: "audio/wav" },
     ];
   }
+  // MP3 and unknown audio containers are audio files, not Telegram voice notes.
   return [
-    { method: "sendVoice", field: "voice", fileName: "voice.mp3", mimeType: "audio/mpeg" },
     { method: "sendAudio", field: "audio", fileName: "voice.mp3", mimeType: "audio/mpeg" },
     { method: "sendDocument", field: "document", fileName: "voice.mp3", mimeType: "audio/mpeg" },
   ];
