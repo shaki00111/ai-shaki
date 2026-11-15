@@ -15,6 +15,7 @@ import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, applyOwnerPersonaLabels, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs, isAudioContentType, getTelegramAudioDeliveryPlan } from "./ttsReliability";
 import { canUseWusRouterTextFallback, getWusRouterModelCandidates } from "./providerRouting";
+import { selectGeminiKeyIndex } from "./geminiKeySelection";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
@@ -11936,19 +11937,9 @@ function getGeminiKeyIndex(preferredStart?: number): number {
   }
 
   if (bestIndex < 0) {
-    let soonestIndex = -1;
-    let soonestUnlock = Infinity;
-
-    for (let i = 0; i < keys.length; i++) {
-      const unlock = globalDisabledKeys[keys[i]] ?? 0;
-
-      if (unlock < soonestUnlock) {
-        soonestUnlock = unlock;
-        soonestIndex = i;
-      }
-    }
-
-    return soonestIndex;
+    // All configured keys are cooling down. Do not bypass their cooldown by
+    // retrying the soonest-disabled key; the caller can use its safe fallback.
+    return -1;
   }
 
   geminiRoundRobinIndex = (bestIndex + 1) % keys.length;
