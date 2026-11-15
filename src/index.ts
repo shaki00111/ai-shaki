@@ -21731,7 +21731,10 @@ async function handleImg(msg: TgMessage, args: string[], env: Env): Promise<void
       ? `🛡️ **ساخت تصویر متوقف شد:** پرامپت ارسالی شما قوانین اخلاقی/امنیتی سرور را نقض کرده است.`
       : `🛡️ **Generation stopped:** Your prompt violated safety filters.`;
   } else if (errors.length) {
-    if (isOwner) {
+    if (chat.type !== "private") {
+      await notifyOwnerPrivateGroupError(chat.id, from.id, errors.join("\n"), "ساخت تصویر");
+      final += `\n\n${GROUP_SERVER_STUCK_NOTICE}`;
+    } else if (isOwner) {
       final += `\n\n⚠️ **جزئیات کامل خطاها (فقط برای مالک):**\n${errors.join("\n")}`;
     } else if (success === 0) {
       final += lang === "fa"
@@ -21847,13 +21850,20 @@ async function handleSuperSearch(msg: TgMessage, args: string[], env: Env): Prom
     logger.error("handleSuperSearch failed", e);
     const errMsg = e instanceof Error ? e.message : String(e);
     if (errMsg === "CANCELLED_BY_USER") return;
-    const debugSuffix = isOwner ? `\n\n🔧 \`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
-    const userErr = (lang === "fa"
-      ? "❌ تحقیق ناتمام ماند. یک‌بار دیگر امتحان کن یا موضوع را کمی محدودتر کن."
-      : "❌ The research could not be completed. Try again, or narrow the topic a little.") + debugSuffix;
-    await editMessageText(chat.id, progress.message_id, userErr).catch(() => {
-      sendMessage(chat.id, userErr, { reply_to_message_id: msg.message_id }).catch(() => {});
-    });
+    if (chat.type !== "private") {
+      await notifyOwnerPrivateGroupError(chat.id, from.id, e, "تحقیق عمیق");
+      await editMessageText(chat.id, progress.message_id, GROUP_SERVER_STUCK_NOTICE).catch(() => {
+        sendMessage(chat.id, GROUP_SERVER_STUCK_NOTICE, { reply_to_message_id: msg.message_id }).catch(() => {});
+      });
+    } else {
+      const debugSuffix = isOwner ? `\n\n🔧 \`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
+      const userErr = (lang === "fa"
+        ? "❌ تحقیق ناتمام ماند. یک‌بار دیگر امتحان کن یا موضوع را کمی محدودتر کن."
+        : "❌ The research could not be completed. Try again, or narrow the topic a little.") + debugSuffix;
+      await editMessageText(chat.id, progress.message_id, userErr).catch(() => {
+        sendMessage(chat.id, userErr, { reply_to_message_id: msg.message_id }).catch(() => {});
+      });
+    }
   }
 }
 // SECTION: UTILITY COMMANDS (/tr /tts /ocr /read /summarize /remember /stats /id /now)
@@ -24689,8 +24699,13 @@ if (photo?.length) { fileId = photo[photo.length - 1].file_id; mimeType = "image
     logger.error("handleMediaMessage failed", e);
     const errMsg = e instanceof Error ? e.message : String(e);
     const userErr = lang === "fa" ? "❌ پردازش فایل ارسالی ناموفق بود." : "❌ Failed to process the sent file.";
-    const debugSuffix = from.id === cfg.BOT_OWNER_ID ? `\n\n🔧 **جزئیات کامل خطا:**\n\`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
-    await sendMessage(chat.id, userErr + debugSuffix, { reply_to_message_id: msg.message_id }).catch(() => {});
+    if (chat.type !== "private") {
+      await notifyOwnerPrivateGroupError(chat.id, from.id, e, "پردازش فایل");
+      await sendMessage(chat.id, GROUP_SERVER_STUCK_NOTICE, { reply_to_message_id: msg.message_id }).catch(() => {});
+    } else {
+      const debugSuffix = from.id === cfg.BOT_OWNER_ID ? `\n\n🔧 **جزئیات کامل خطا:**\n\`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
+      await sendMessage(chat.id, userErr + debugSuffix, { reply_to_message_id: msg.message_id }).catch(() => {});
+    }
   }
 }
 // SECTION: ADMIN NAVIGATION — ONE PANEL, ONE DESTINATION
