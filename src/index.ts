@@ -11913,41 +11913,25 @@ function getGeminiKeyIndex(preferredStart?: number): number {
   if (!keys.length) return -1;
 
   const now = Date.now();
-  const start =
-    preferredStart !== undefined
-      ? ((preferredStart % keys.length) + keys.length) % keys.length
-      : geminiRoundRobinIndex % keys.length;
+  const start = preferredStart !== undefined
+    ? ((preferredStart % keys.length) + keys.length) % keys.length
+    : geminiRoundRobinIndex % keys.length;
+  const bestIndex = selectGeminiKeyIndex(
+    keys,
+    globalDisabledKeys,
+    geminiKeyLastUsed,
+    now,
+    start,
+  );
 
-  let bestIndex = -1;
-  let bestUsedAt = Infinity;
-
-  for (let offset = 0; offset < keys.length; offset++) {
-    const index = (start + offset) % keys.length;
-    const key = keys[index];
-    const unlock = globalDisabledKeys[key] ?? 0;
-
-    if (unlock > now) continue;
-
-    const usedAt = geminiKeyLastUsed.get(key) ?? 0;
-
-    if (usedAt < bestUsedAt) {
-      bestUsedAt = usedAt;
-      bestIndex = index;
-    }
-  }
-
-  if (bestIndex < 0) {
-    // All configured keys are cooling down. Do not bypass their cooldown by
-    // retrying the soonest-disabled key; the caller can use its safe fallback.
-    return -1;
-  }
+  // No active key means every configured key is cooling down. Never bypass
+  // cooldowns by retrying a disabled key; provider fallback handles this case.
+  if (bestIndex < 0) return -1;
 
   geminiRoundRobinIndex = (bestIndex + 1) % keys.length;
   geminiKeyLastUsed.set(keys[bestIndex], now);
-
   return bestIndex;
 }
-
 function getGeminiKey(
   preferredStart?: number
 ): { index: number; key: string } | null {
