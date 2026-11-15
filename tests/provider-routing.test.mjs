@@ -36,3 +36,13 @@ test("fallback requires enough remaining time and an available model-call budget
   assert.equal(canUseWusRouterTextFallback({ ...eligible, remainingMs: Number.POSITIVE_INFINITY }), false);
   assert.equal(canUseWusRouterTextFallback({ ...eligible, modelBudgetAvailable: false }), false);
 });
+
+
+test("Gemini project eligibility errors are distinct from healthy key pings and ordinary quota errors", async () => {
+  const { isGeminiProjectUnavailableError } = await import("../src/providerRouting.ts");
+  assert.equal(isGeminiProjectUnavailableError("The Gemini API free tier is not available for this project. Enable billing."), true);
+  assert.equal(isGeminiProjectUnavailableError("project-unavailable"), true);
+  assert.equal(isGeminiProjectUnavailableError("API key not valid"), false);
+  assert.equal(isGeminiProjectUnavailableError("Quota exceeded"), false);
+  assert.equal(isGeminiProjectUnavailableError("Service temporarily unavailable"), false);
+});

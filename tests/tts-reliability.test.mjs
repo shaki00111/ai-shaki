@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ProviderKeyCooldowns, isAudioContentType, getTelegramAudioDeliveryPlan } from "../src/ttsReliability.ts";
+import { ProviderKeyCooldowns, isAudioContentType, detectAudioMimeType, getTelegramAudioDeliveryPlan } from "../src/ttsReliability.ts";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "../src/geminiTtsProtocol.ts";
 
 test("TTS cooldowns are isolated per key and expire", () => {
@@ -140,4 +140,24 @@ test("Telegram voice delivery has compatible audio fallbacks", () => {
   ]);
   assert.equal(getTelegramAudioDeliveryPlan(false)[1].field, "audio");
   assert.equal(getTelegramAudioDeliveryPlan(true)[0].mimeType, "audio/wav");
+});
+
+test("audio signatures distinguish WAV, OGG and MP3 containers", () => {
+  assert.equal(detectAudioMimeType(Uint8Array.from([0x52,0x49,0x46,0x46,0,0,0,0,0x57,0x41,0x56,0x45])), "audio/wav");
+  assert.equal(detectAudioMimeType(Uint8Array.from([0x4f,0x67,0x67,0x53,0,0,0,0])), "audio/ogg");
+  assert.equal(detectAudioMimeType(Uint8Array.from([0x49,0x44,0x33,0,0,0])), "audio/mpeg");
+  assert.equal(detectAudioMimeType(Uint8Array.from([0xff,0xfb,0x90,0x64])), "audio/mpeg");
+  assert.equal(detectAudioMimeType(Uint8Array.from([0,1,2,3])), null);
+});
+
+test("Telegram upload MIME and extension match OGG rather than mislabeling it as MP3", () => {
+  const plan = getTelegramAudioDeliveryPlan("audio/ogg; codecs=opus");
+  assert.equal(plan[0].method, "sendVoice");
+  assert.equal(plan[0].fileName, "voice.ogg");
+  assert.equal(plan[0].mimeType, "audio/ogg");
+});
+
+test("legacy boolean delivery-plan calls remain compatible", () => {
+  assert.equal(getTelegramAudioDeliveryPlan(true)[0].fileName, "voice.wav");
+  assert.equal(getTelegramAudioDeliveryPlan(false)[0].fileName, "voice.mp3");
 });

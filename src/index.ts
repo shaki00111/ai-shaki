@@ -13,10 +13,12 @@ import { readJsonObject, RequestBodyError } from "./http";
 import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from "./memory";
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, applyOwnerPersonaLabels, ownerPersonalizationWelcome } from "./ownerPersonalization";
-import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs, isAudioContentType, getTelegramAudioDeliveryPlan } from "./ttsReliability";
-import { canUseWusRouterTextFallback } from "./providerRouting";
+import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs, isAudioContentType, detectAudioMimeType, getTelegramAudioDeliveryPlan } from "./ttsReliability";
+import { canUseWusRouterTextFallback, isGeminiProjectUnavailableError } from "./providerRouting";
+import { shouldSendMaintenanceNotice, MAINTENANCE_NOTICE_TEXT } from "./maintenanceNotice";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
+import { formatSubscriptionPricing } from "./subscriptionPricing";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
 import { inspectJpeg } from "./documentImages";
 // ── MERGE: cognition layer from SHAKI B, on top of SHAKI A's platform layer ──
@@ -3404,6 +3406,7 @@ let API_URL = "";
 let BOT_INFO: TgUser | null = null;
 let BOT_SELF_ID: number | null = null; // ← جدید
 let isInitialized = false;
+let initPromise: Promise<void> | null = null;
 let maintenanceCache: { value: boolean; ts: number } | null = null;
 let requestOrigin = "";
 /** Where the fetch path stashes its own origin for cron isolates to reuse. */
@@ -7310,6 +7313,15 @@ function classifyGeminiKeyError(
     env: Env
 ): GeminiErrorAction {
     const msg = err.message.toLowerCase();
+
+    // A successful key ping does not prove the Google project can generate content.
+    // Bench only this key temporarily, then try another project/key and finally
+    // the existing WusRouter plain-text fallback where the request is eligible.
+    if (isGeminiProjectUnavailableError(msg)) {
+        disableApiKey(key, env, 30 * 60 * 1000);
+        logger.warn("Gemini project is not eligible for generation; key benched for 30m and rotation continues.");
+        return "nextKey";
+    }
 
     // ── بلاک امنیتی: محتوا مشکل داره، نه کلید ──
     if (msg.includes("blocked") || msg.includes("safety")) {
@@ -12555,13 +12567,15 @@ async function sendVoiceResponse(
   const audio = await synthesizeVoice(text, env);
   if (!audio) return false;
 
-  const isWav = audio.length >= 12 && audio[0] === 0x52 && audio[1] === 0x49 &&
-    audio[2] === 0x46 && audio[3] === 0x46;
+  // Match the Telegram upload MIME/extension to the actual audio container.
+  // Gemini may return OGG as well as WAV/MP3; labeling OGG bytes as MP3 makes
+  // Telegram reject otherwise valid audio.
+  const audioMimeType = detectAudioMimeType(audio) ?? "audio/mpeg";
 
   // Try the preferred Telegram representation first, then downgrade only after
   // Telegram explicitly rejects it. Do not retry after a network-unknown result:
   // Telegram may have accepted the upload before the connection was lost.
-  for (const attempt of getTelegramAudioDeliveryPlan(isWav)) {
+  for (const attempt of getTelegramAudioDeliveryPlan(audioMimeType)) {
     const form = new FormData();
     form.append("chat_id", String(chatId));
     form.append(
@@ -17150,7 +17164,7 @@ function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverri
           ? `⚠️ **محدودیت روزانه VIP**\n\nامروز سقف ${limit} ${faLabel} حساب VIP شما تمام شده. این سقف فردا ریست می‌شود.`
           : `⚠️ **VIP Daily Limit**\n\nYou've reached your VIP limit of ${limit} ${enLabel}s today. It resets tomorrow.`)
       : (lang === "fa"
-          ? `⚠️ **محدودیت روزانه**\n\nامروز سقف مجاز ${limit} ${faLabel} را مصرف کرده‌اید.\n\n🌟 برای سقف بسیار بالاتر VIP شوید.\n👑 تماس: ${contact}`
+          ? `⚠️ **محدودیت روزانه**\n\nامروز سقف مجاز ${limit} ${faLabel} را مصرف کرده‌اید.\n\n🌟 برای سقف بسیار بالاتر VIP شوید.\n👑 تماس: ${contact}\n\n${formatSubscriptionPricing(lang)}`
           : `⚠️ **Daily Limit**\n\nYou've used your limit of ${limit} ${enLabel}s today.\n\n🌟 Go VIP for a much higher limit.\n👑 Contact: ${contact}`);
     return { allowed: false, message: msg };
   }
@@ -25992,7 +26006,8 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
           `✅ Priority processing\n\n` +
           `_Note: limits reset every 24h; VIP means much higher capacity, not infinite usage._\n\n` +
           `Contact to upgrade:`;
-      await editMessageText(chat.id, message.message_id, text, {
+      const displayText = text + "\n\n" + formatSubscriptionPricing(session.language);
+      await editMessageText(chat.id, message.message_id, displayText, {
         reply_markup: JSON.stringify({ inline_keyboard: [
           [urlBtn("💳 خرید / Purchase", url)],
           [btn("🔙", "home:open")],
@@ -27176,6 +27191,27 @@ async function dispatchUpdate(update: TgUpdate, env: Env): Promise<void> {
       if (!msg.from || msg.from.is_bot) return;
       if (!cfg.ALLOWED_CHAT_TYPES.includes(msg.chat.type)) return;
 
+      // Temporary public maintenance gate: private messages always receive the
+      // notice; groups receive it only when the bot is mentioned or replied to.
+      if (shouldSendMaintenanceNotice({
+        chatType: msg.chat.type,
+        text: msg.text,
+        caption: msg.caption,
+        entities: msg.entities,
+        replyToBot: Boolean(
+          msg.reply_to_message?.from?.id
+          && msg.reply_to_message.from.id === (BOT_SELF_ID ?? BOT_INFO?.id)
+        ),
+        botId: BOT_SELF_ID ?? BOT_INFO?.id,
+        botUsername: BOT_INFO?.username ?? "AI_SHAKI_BOT",
+      })) {
+        await sendMessage(msg.chat.id, MAINTENANCE_NOTICE_TEXT, {
+          reply_to_message_id: msg.message_id,
+          ...(msg.message_thread_id ? { message_thread_id: msg.message_thread_id } : {}),
+        }).catch(e => logger.warn("Maintenance notice delivery failed", e));
+        return;
+      }
+
       // Group policy engine: evaluate configured content locks and anti-spam rules
       // before the AI handlers. Admins are exempt; deletions require bot admin rights.
       if (msg.chat.type !== "private") {
@@ -27737,14 +27773,41 @@ export default {
           if (cached) BOT_SELF_ID = parseInt(cached as string, 10);
         }).catch(() => {});
       }
-      initBot(env).catch(e => { logger.error("Init failed", e); isInitialized = false; });
+      // Keep one shared initialization promise so health checks can wait for
+      // Telegram getMe instead of reporting bot:null on a cold Worker isolate.
+      initPromise = initBot(env).catch(e => {
+        logger.error("Init failed", e);
+        isInitialized = false;
+        initPromise = null;
+        throw e;
+      });
+      // Ordinary webhook/dashboard traffic remains non-blocking as before.
+      void initPromise.catch(() => {});
     } else if (!BOT_SELF_ID) {
       env.SESSIONS.get("bot:self_id").then(cached => {
         if (cached) BOT_SELF_ID = parseInt(cached as string, 10);
       }).catch(() => {});
     }
 
-    if (url.pathname === "/health") return createHealthResponse();
+    if (url.pathname === "/health") {
+      try {
+        if (initPromise) await initPromise;
+        return createHealthResponse();
+      } catch {
+        return new Response(JSON.stringify({
+          status: "degraded",
+          version: BOT_VERSION,
+          bot: null,
+          active_requests: Array.from(activeRequests.values()).reduce((s, set) => s + set.size, 0),
+          max_requests: cfg.MAX_CONCURRENT_REQUESTS,
+          agent: "SHAKI",
+          error: "Telegram bot initialization failed; inspect Worker logs.",
+        }, null, 2), {
+          status: 503,
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+        });
+      }
+    }
 
     if (url.pathname === "/dashboard") {
       // Same hardening as /admin: the user dashboard previously shipped with
