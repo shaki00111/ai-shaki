@@ -29,3 +29,12 @@ export function selectGeminiKeyIndex(
 
   return bestIndex;
 }
+
+/** True when Google explicitly says the key's project cannot use Gemini Free Tier. */
+export function isGeminiFreeTierProjectUnavailable(message: string): boolean {
+  const value = String(message ?? "").toLowerCase();
+  return value.includes("free tier is not available for this project") ||
+    value.includes("free tier is unavailable for this project") ||
+    value.includes("project is not eligible for the free tier") ||
+    value.includes("project does not have access to the free tier");
+}

@@ -35,3 +35,10 @@ test("selection order is deterministic when last-used timestamps tie", () => {
 test("empty key pools return -1", () => {
   assert.equal(selectGeminiKeyIndex([], {}, new Map(), 10), -1);
 });
+
+test("recognizes Gemini project-level Free Tier ineligibility separately from model outages", async () => {
+  const { isGeminiFreeTierProjectUnavailable } = await import("../src/geminiKeySelection.ts");
+  assert.equal(isGeminiFreeTierProjectUnavailable("The Gemini API free tier is not available for this project."), true);
+  assert.equal(isGeminiFreeTierProjectUnavailable("503 model overloaded"), false);
+  assert.equal(isGeminiFreeTierProjectUnavailable("quota exceeded"), false);
+});

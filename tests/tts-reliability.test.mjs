@@ -131,13 +131,17 @@ test("ElevenLabs responses must explicitly identify as audio", () => {
   assert.equal(isAudioContentType(null), false);
 });
 
-test("Telegram voice delivery has compatible audio fallbacks", () => {
-  assert.deepEqual(getTelegramAudioDeliveryPlan(false).map(x => x.method), [
+test("Telegram delivery preserves OGG voice, WAV audio, and MP3 audio containers", () => {
+  assert.deepEqual(getTelegramAudioDeliveryPlan("audio/ogg").map(x => x.method), [
     "sendVoice", "sendAudio", "sendDocument",
   ]);
-  assert.deepEqual(getTelegramAudioDeliveryPlan(true).map(x => x.method), [
+  assert.deepEqual(getTelegramAudioDeliveryPlan("audio/wav").map(x => x.method), [
     "sendAudio", "sendDocument",
   ]);
-  assert.equal(getTelegramAudioDeliveryPlan(false)[1].field, "audio");
-  assert.equal(getTelegramAudioDeliveryPlan(true)[0].mimeType, "audio/wav");
+  assert.deepEqual(getTelegramAudioDeliveryPlan("audio/mpeg").map(x => x.method), [
+    "sendAudio", "sendDocument",
+  ]);
+  assert.equal(getTelegramAudioDeliveryPlan("audio/ogg")[0].mimeType, "audio/ogg");
+  assert.equal(getTelegramAudioDeliveryPlan("audio/wav")[0].fileName, "voice.wav");
+  assert.equal(getTelegramAudioDeliveryPlan("audio/mpeg")[0].method, "sendAudio");
 });
