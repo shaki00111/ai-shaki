@@ -17,6 +17,7 @@ import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs, isAudioC
 import { canUseWusRouterTextFallback } from "./providerRouting";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
+import { formatSubscriptionPricing } from "./subscriptionPricing";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
 import { inspectJpeg } from "./documentImages";
 // ── MERGE: cognition layer from SHAKI B, on top of SHAKI A's platform layer ──
@@ -17150,7 +17151,7 @@ function checkDailyLimitPrivate(session: ChatSession, type: LimitType, vipOverri
           ? `⚠️ **محدودیت روزانه VIP**\n\nامروز سقف ${limit} ${faLabel} حساب VIP شما تمام شده. این سقف فردا ریست می‌شود.`
           : `⚠️ **VIP Daily Limit**\n\nYou've reached your VIP limit of ${limit} ${enLabel}s today. It resets tomorrow.`)
       : (lang === "fa"
-          ? `⚠️ **محدودیت روزانه**\n\nامروز سقف مجاز ${limit} ${faLabel} را مصرف کرده‌اید.\n\n🌟 برای سقف بسیار بالاتر VIP شوید.\n👑 تماس: ${contact}`
+          ? `⚠️ **محدودیت روزانه**\n\nامروز سقف مجاز ${limit} ${faLabel} را مصرف کرده‌اید.\n\n🌟 برای سقف بسیار بالاتر VIP شوید.\n👑 تماس: ${contact}\\n\\n${formatSubscriptionPricing(lang)}`
           : `⚠️ **Daily Limit**\n\nYou've used your limit of ${limit} ${enLabel}s today.\n\n🌟 Go VIP for a much higher limit.\n👑 Contact: ${contact}`);
     return { allowed: false, message: msg };
   }
