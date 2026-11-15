@@ -15,6 +15,7 @@ import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, applyOwnerPersonaLabels, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs, isAudioContentType, getTelegramAudioDeliveryPlan } from "./ttsReliability";
 import { canUseWusRouterTextFallback } from "./providerRouting";
+import { shouldSendMaintenanceNotice, MAINTENANCE_NOTICE_TEXT } from "./maintenanceNotice";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
@@ -27175,6 +27176,26 @@ async function dispatchUpdate(update: TgUpdate, env: Env): Promise<void> {
       const msg = update.message;
       if (!msg.from || msg.from.is_bot) return;
       if (!cfg.ALLOWED_CHAT_TYPES.includes(msg.chat.type)) return;
+
+      // Temporary public-facing maintenance notice for users who invoke the bot.
+      if (shouldSendMaintenanceNotice({
+        chatType: msg.chat.type,
+        text: msg.text,
+        caption: msg.caption,
+        entities: msg.entities,
+        replyToBot: Boolean(
+          msg.reply_to_message?.from?.id
+          && msg.reply_to_message.from.id === (BOT_SELF_ID ?? BOT_INFO?.id)
+        ),
+        botId: BOT_SELF_ID ?? BOT_INFO?.id,
+        botUsername: BOT_INFO?.username ?? "AI_SHAKI_BOT",
+      })) {
+        await sendMessage(msg.chat.id, MAINTENANCE_NOTICE_TEXT, {
+          reply_to_message_id: msg.message_id,
+          ...(msg.message_thread_id ? { message_thread_id: msg.message_thread_id } : {}),
+        }).catch(e => logger.warn("Maintenance notice delivery failed", e));
+        return;
+      }
 
       // Group policy engine: evaluate configured content locks and anti-spam rules
       // before the AI handlers. Admins are exempt; deletions require bot admin rights.
