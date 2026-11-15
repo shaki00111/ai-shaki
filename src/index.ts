@@ -10242,6 +10242,29 @@ async function isUserAdmin(userId: number, chatId: number): Promise<boolean> {
   } catch { return false; }
 }
 
+type TelegramGroupPermission = "can_restrict_members" | "can_delete_messages";
+async function botHasGroupPermission(chatId: number, permission: TelegramGroupPermission): Promise<boolean> {
+  const botId = BOT_SELF_ID ?? BOT_INFO?.id;
+  if (!botId) return false;
+  try {
+    const member = await tg("getChatMember", { chat_id: chatId, user_id: botId }) as {
+      status?: string;
+      can_restrict_members?: boolean;
+      can_delete_messages?: boolean;
+    };
+    return member.status === "creator"
+      || (member.status === "administrator" && member[permission] === true);
+  } catch { return false; }
+}
+
+async function getGroupDefaultPermissions(chatId: number): Promise<Record<string, boolean> | null> {
+  try {
+    const chat = await tg("getChat", { chat_id: chatId }) as { permissions?: Record<string, boolean> };
+    const permissions = chat.permissions;
+    return permissions && Object.keys(permissions).length ? permissions : null;
+  } catch { return null; }
+}
+
 async function isBotOwnerOrGroupCreator(userId: number, chatId: number): Promise<boolean> {
   if (userId === cfg.BOT_OWNER_ID) return true;
   try {
@@ -16139,6 +16162,16 @@ case "host_web_app": {
                 if (targetId === cfg.BOT_OWNER_ID && !isOwner) {
                   return { name: call.name, response: { success: false, error: "FORBIDDEN", note: "The target is the bot owner and cannot be moderated. Say so briefly." } };
                 }
+                if (isGroupChat && ["mute", "unmute", "kick"].includes(action)
+                  && !await botHasGroupPermission(chatId, "can_restrict_members")) {
+                  await taskMgr?.failTask(taskKey, lang === "fa" ? "دسترسی ربات کافی نیست" : "Bot permission missing");
+                  return { name: call.name, response: { success: false, error: "BOT_RESTRICT_PERMISSION_REQUIRED", note: "The bot must be a group administrator with can_restrict_members permission before it can mute, unmute, or kick members. Ask the owner to grant that exact right." } };
+                }
+                if (isGroupChat && action === "delete_message"
+                  && !await botHasGroupPermission(chatId, "can_delete_messages")) {
+                  await taskMgr?.failTask(taskKey, lang === "fa" ? "دسترسی حذف پیام کافی نیست" : "Bot permission missing");
+                  return { name: call.name, response: { success: false, error: "BOT_DELETE_PERMISSION_REQUIRED", note: "The bot must be a group administrator with can_delete_messages permission before deleting member messages. Ask the owner to grant that exact right." } };
+                }
 
                 await taskMgr?.startTask(taskKey, lang === "fa" ? "اعمال دستور مدیریتی..." : "Applying moderation...");
                 const untilTs = durationMinutes > 0 ? Date.now() + durationMinutes * 60_000 : 0;
@@ -16186,15 +16219,21 @@ case "host_web_app": {
                       }
                       await env.SESSIONS.delete(banKey);
                       invalidateChatBan(chatId, targetId);
-                      // A block never restricted them at the Telegram level, but
-                      // an earlier mute might have, and users read "unblock" as
-                      // "undo whatever is silencing them". Best-effort, so a
-                      // missing admin right cannot fail the unblock itself.
-                      await tg("restrictChatMember", {
-                        chat_id: chatId, user_id: targetId,
-                        permissions: { can_send_messages: true, can_send_audios: true, can_send_documents: true, can_send_photos: true, can_send_videos: true, can_send_video_notes: true, can_send_voice_notes: true, can_send_polls: true, can_send_other_messages: true, can_add_web_page_previews: true },
-                      }).catch(() => {});
-                      note = `Unblocked ${targetName} in this group.`;
+                      // Clear an earlier Telegram mute only when the bot has the
+                      // exact permission and the group's own defaults are known.
+                      let telegramRestrictionCleared = false;
+                      if (await botHasGroupPermission(chatId, "can_restrict_members")) {
+                        const defaultPermissions = await getGroupDefaultPermissions(chatId);
+                        if (defaultPermissions) {
+                          try {
+                            await tg("restrictChatMember", { chat_id: chatId, user_id: targetId, permissions: defaultPermissions });
+                            telegramRestrictionCleared = true;
+                          } catch {}
+                        }
+                      }
+                      note = telegramRestrictionCleared
+                        ? `Unblocked ${targetName} in this group.`
+                        : `Removed SHAKI's internal block for ${targetName} in this group. Any Telegram restriction remains unchanged because the bot could not safely restore the group's default permissions.`;
                       break;
                     }
                     case "mute": {
@@ -16209,11 +16248,10 @@ case "host_web_app": {
                     }
                     case "unmute": {
                       if (!isGroupChat) return { name: call.name, response: { success: false, error: "GROUP_ONLY", note: "Unmuting only applies inside a group." } };
-                      await tg("restrictChatMember", {
-                        chat_id: chatId, user_id: targetId,
-                        permissions: { can_send_messages: true, can_send_audios: true, can_send_documents: true, can_send_photos: true, can_send_videos: true, can_send_video_notes: true, can_send_voice_notes: true, can_send_polls: true, can_send_other_messages: true, can_add_web_page_previews: true },
-                      });
-                      note = `Unmuted ${targetName}.`;
+                      const defaultPermissions = await getGroupDefaultPermissions(chatId);
+                      if (!defaultPermissions) return { name: call.name, response: { success: false, error: "GROUP_DEFAULT_PERMISSIONS_UNAVAILABLE", note: "The group's default permissions could not be read safely. Do not replace them with unrestricted permissions; ask an administrator to retry." } };
+                      await tg("restrictChatMember", { chat_id: chatId, user_id: targetId, permissions: defaultPermissions });
+                      note = `Unmuted ${targetName} using the group's default permissions.`;
                       break;
                     }
                     case "kick": {
@@ -23498,9 +23536,8 @@ async function handleGroupModerationCommand(msg: TgMessage, command: string, arg
     await sendMessage(chat.id, "🛡️ برای جلوگیری از اقدام اشتباه، مدیران گروه قابل بن یا سکوت‌کردن با این دستور نیستند.", { reply_to_message_id: msg.message_id });
     return;
   }
-  const botId = BOT_SELF_ID ?? BOT_INFO?.id;
-  if (!botId || !await isUserAdmin(botId, chat.id)) {
-    await sendMessage(chat.id, "⚠️ برای مدیریت اعضا، اول ربات رو در گروه ادمین کن و دسترسی محدودسازی اعضا رو بده.", { reply_to_message_id: msg.message_id });
+  if (!await botHasGroupPermission(chat.id, "can_restrict_members")) {
+    await sendMessage(chat.id, "⚠️ ربات باید ادمین گروه باشد و دسترسی دقیق «محدودسازی اعضا» را داشته باشد.", { reply_to_message_id: msg.message_id });
     return;
   }
   try {
@@ -23523,11 +23560,9 @@ async function handleGroupModerationCommand(msg: TgMessage, command: string, arg
       });
       await sendMessage(chat.id, `🔇 ${escapeHTML(target.first_name)} به مدت ${minutes} دقیقه سکوت شد.`, { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
     } else if (command === "/unmute") {
-      const chatInfo = await tg("getChat", { chat_id: chat.id }) as { permissions?: Record<string, boolean> };
-      await tg("restrictChatMember", {
-        chat_id: chat.id, user_id: target.id,
-        permissions: chatInfo.permissions ?? { can_send_messages: true, can_send_audios: true, can_send_documents: true, can_send_photos: true, can_send_videos: true, can_send_video_notes: true, can_send_voice_notes: true, can_send_polls: true, can_send_other_messages: true, can_add_web_page_previews: true },
-      });
+      const defaultPermissions = await getGroupDefaultPermissions(chat.id);
+      if (!defaultPermissions) throw new Error("امکان خواندن مجوزهای پیش‌فرض گروه وجود نداشت؛ برای جلوگیری از بازکردن دسترسی‌های اضافی، سکوت برداشته نشد.");
+      await tg("restrictChatMember", { chat_id: chat.id, user_id: target.id, permissions: defaultPermissions });
       await sendMessage(chat.id, `🔊 سکوت ${escapeHTML(target.first_name)} برداشته شد.`, { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
     }
   } catch (error) {
