@@ -195,14 +195,16 @@ const classifierStart = indexSource.indexOf("function classifyGeminiKeyError");
 const classifierSource = classifierStart >= 0
   ? indexSource.slice(classifierStart, classifierStart + 5_000) : "";
 classifierSource.includes('msg.includes("empty response")') &&
-classifierSource.includes('return "nextModel"')
-  ? ok("empty Gemini streams are classified as model failures, not bad keys")
-  : fail("empty Gemini streams must try the alternate model without disabling the key");
+classifierSource.includes('return "nextKey"') &&
+indexSource.includes("GEMINI_KEY_RETRY_DELAY_MS")
+  ? ok("empty Gemini streams retry the same request with the next key after the configured delay")
+  : fail("empty Gemini streams must rotate to the next key after the five-second delay");
 
-const alternateModelRetryCount = (indexSource.match(/if \(action === "nextModel"\) break;/g) ?? []).length;
-alternateModelRetryCount >= 2
-  ? ok("Telegram and Mini App retry loops stop key rotation and advance to the alternate model")
-  : fail("both Telegram and Mini App retry loops must honor the nextModel decision");
+const sameRequestRetryCount = (indexSource.match(/retrying the same request with the next key/g) ?? []).length;
+const delayedKeyRetryCount = (indexSource.match(/await sleep\(GEMINI_KEY_RETRY_DELAY_MS\)/g) ?? []).length;
+sameRequestRetryCount >= 1 && delayedKeyRetryCount >= 3
+  ? ok("Telegram, Mini App, and additional Gemini paths wait before rotating keys")
+  : fail("Gemini retry paths must wait five seconds before trying the next key");
 
 adminSource.includes("محدودیت داخلی این کلید تا") &&
 adminSource.includes("زمان دقیق تمدید سهمیهٔ تولید از آزمون کلید قابل دریافت نیست")
