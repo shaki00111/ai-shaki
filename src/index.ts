@@ -25004,8 +25004,10 @@ interface CredentialProbe {
   info?: Record<string, string | number | boolean>;
   /** True when running this probe costs the account something. */
   billed?: boolean;
-  /** Local rate-limit backoff, independent of the upstream verdict. */
+  /** Local chat-model backoff, independent of the upstream verdict. */
   benchedUntil?: number | null;
+  /** Local TTS-only cooldown; separate from chat routing state. */
+  voiceBenchedUntil?: number | null;
 }
 
 /** The shape each probe body resolves to; `runProbe` adds identity and timing. */
@@ -25059,6 +25061,7 @@ async function runProbe(
 
 async function probeGeminiKey(key: string, index: number): Promise<CredentialProbe> {
   const benched = globalDisabledKeys[key];
+  const voiceRemaining = ttsKeyCooldowns.remainingMs(key);
   return await runProbe(
     {
       id: "gemini:" + index,
@@ -25066,6 +25069,7 @@ async function probeGeminiKey(key: string, index: number): Promise<CredentialPro
       label: "GEMINI_KEY_" + index,
       masked: maskSecret(key),
       benchedUntil: benched && benched > Date.now() ? benched : null,
+      voiceBenchedUntil: voiceRemaining > 0 ? Date.now() + voiceRemaining : null,
     },
     async (): Promise<ProbeOutcome> => {
       // models.list authenticates the key without spending generation quota. A
@@ -25190,6 +25194,7 @@ async function probeElevenLabsKey(
   env: Env,
   deep: boolean,
 ): Promise<CredentialProbe> {
+  const voiceRemaining = elevenLabsKeyCooldowns.remainingMs(key);
   return await runProbe(
     {
       id: "elevenlabs:" + index,
@@ -25197,6 +25202,7 @@ async function probeElevenLabsKey(
       label: index === 0 ? "ELEVENLABS_API_KEY (legacy)" : "ELEVENLABS_KEY_" + index,
       masked: maskSecret(key),
       billed: deep,
+      voiceBenchedUntil: voiceRemaining > 0 ? Date.now() + voiceRemaining : null,
     },
     async (): Promise<ProbeOutcome> => {
       // Reuses the diagnostic `/keys` has always used, so the two surfaces
@@ -25384,7 +25390,7 @@ interface CredentialInventoryEntry {
   label: string;
   /** False means no secret is bound — rendered as "not set up", not as a failure. */
   configured: boolean;
-  credentials: { id: string; label: string; masked: string | null; benchedUntil?: number | null }[];
+  credentials: { id: string; label: string; masked: string | null; benchedUntil?: number | null; voiceBenchedUntil?: number | null }[];
   /** Operator-facing caveat, e.g. that testing this service costs a query. */
   note?: string;
 }
@@ -25425,11 +25431,13 @@ function buildCredentialInventory(env: Env): CredentialInventoryEntry[] {
       configured: cfg.GEMINI_KEYS.length > 0,
       credentials: cfg.GEMINI_KEYS.map((k, i) => {
         const until = globalDisabledKeys[k];
+        const voiceRemaining = ttsKeyCooldowns.remainingMs(k);
         return {
           id: "gemini:" + (i + 1),
           label: "GEMINI_KEY_" + (i + 1),
           masked: maskSecret(k),
           benchedUntil: until && until > now ? until : null,
+          voiceBenchedUntil: voiceRemaining > 0 ? now + voiceRemaining : null,
         };
       }),
     },
@@ -25456,11 +25464,15 @@ function buildCredentialInventory(env: Env): CredentialInventoryEntry[] {
       service: "elevenlabs",
       label: "ElevenLabs TTS",
       configured: eleven.length > 0,
-      credentials: eleven.map(e => ({
-        id: "elevenlabs:" + e.index,
-        label: e.index === 0 ? "ELEVENLABS_API_KEY (legacy)" : "ELEVENLABS_KEY_" + e.index,
-        masked: maskSecret(e.key),
-      })),
+      credentials: eleven.map(e => {
+        const voiceRemaining = elevenLabsKeyCooldowns.remainingMs(e.key);
+        return {
+          id: "elevenlabs:" + e.index,
+          label: e.index === 0 ? "ELEVENLABS_API_KEY (legacy)" : "ELEVENLABS_KEY_" + e.index,
+          masked: maskSecret(e.key),
+          voiceBenchedUntil: voiceRemaining > 0 ? now + voiceRemaining : null,
+        };
+      }),
       note: "A deep test also synthesises one character, which spends credits.",
     },
     {
@@ -25556,7 +25568,7 @@ async function handleKeys(msg: TgMessage, env: Env): Promise<void> {
   // so the two surfaces cannot disagree about the same key.
   const geminiProbes = await Promise.all(cfg.GEMINI_KEYS.map((k, i) => probeGeminiKey(k, i + 1)));
   const geminiLines = geminiProbes.length
-    ? geminiProbes.map(pr => {
+    ? geminiProbes.map((pr, i) => {
         const icon =
           pr.status === "ok" ? "✅" :
           pr.status === "invalid" ? "❌" :
@@ -25568,7 +25580,9 @@ async function handleKeys(msg: TgMessage, env: Env): Promise<void> {
         const bench = pr.benchedUntil
           ? ` · benched ${Math.max(1, Math.round((pr.benchedUntil - now) / 60_000))}m`
           : "";
-        return `• <code>${escapeHTML(pr.label)}</code> ${icon}${bench}` +
+        const voiceRemaining = ttsKeyCooldowns.remainingMs(cfg.GEMINI_KEYS[i]);
+        const voiceBench = voiceRemaining > 0 ? ` · TTS cooldown ${Math.ceil(voiceRemaining / 1000)}s` : "";
+        return `• <code>${escapeHTML(pr.label)}</code> ${icon}${bench}${voiceBench}` +
           (pr.detail ? `\n  ↳ <i>${escapeHTML(pr.detail)}</i>` : "");
       }).join("\n")
     : "• <i>none configured</i>";
@@ -25631,10 +25645,13 @@ async function handleKeys(msg: TgMessage, env: Env): Promise<void> {
       const sub = d.subscription
         ? ` · ${d.subscription.tier ?? "?"} · ${d.subscription.characterCount ?? 0}/${d.subscription.characterLimit ?? "?"}`
         : "";
+      const key = d.index === 0 ? legacyKey : elevenKeys[d.index - 1];
+      const voiceRemaining = key ? elevenLabsKeyCooldowns.remainingMs(key) : 0;
+      const voiceBench = voiceRemaining > 0 ? ` · cooldown ${Math.ceil(voiceRemaining / 1000)}s` : "";
 
       return (
         `• <code>${label}</code> ` +
-        `AUTH ${authIcon} · TTS ${ttsIcon}${escapeHTML(sub)}` +
+        `AUTH ${authIcon} · TTS ${ttsIcon}${escapeHTML(sub)}${voiceBench}` +
         (d.error ? `\n  ↳ <i>${escapeHTML(d.error)}</i>` : "")
       );
     })

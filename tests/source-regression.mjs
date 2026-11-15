@@ -209,6 +209,14 @@ adminSource.includes("زمان دقیق تمدید سهمیهٔ تولید از 
   ? ok("owner key panel distinguishes SHAKI cooldown from Google's unavailable quota-reset time")
   : fail("owner key panel must not mislabel local cooldown as Google's quota reset");
 
+indexSource.includes("ttsKeyCooldowns.remainingMs(key)") &&
+indexSource.includes("elevenLabsKeyCooldowns.remainingMs(key)") &&
+indexSource.includes("voiceBenchedUntil") &&
+adminSource.includes("voiceBenchedUntil") &&
+adminSource.includes("محدودیت داخلی ساخت ویس")
+  ? ok("owner diagnostics expose Gemini and ElevenLabs TTS cooldowns separately from chat cooldowns")
+  : fail("owner diagnostics must expose per-key TTS cooldowns without conflating them with chat cooldowns");
+
 // ── VIP tool quota invariants ─────────────────────────────────────────────
 console.log("\n[7] VIP tool quota invariants");
 const toolStart = indexSource.indexOf("async function executeStructuredTools");
