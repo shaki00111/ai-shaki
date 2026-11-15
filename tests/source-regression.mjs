@@ -400,9 +400,19 @@ for (const action of ["banChatMember", "unbanChatMember", "restrictChatMember"])
     : fail(`group moderation is missing Telegram ${action}`);
 }
 moderationSource.includes('!await isUserAdmin(from.id, chat.id)') &&
-moderationSource.includes('!await isUserAdmin(botId, chat.id)')
-  ? ok("group moderation verifies both group-admin and bot-admin permissions")
-  : fail("group moderation must verify administrator and bot permissions");
+moderationSource.includes('botHasGroupPermission(chat.id, "can_restrict_members")')
+  ? ok("group moderation verifies both group-admin and the bot's restrict-members right")
+  : fail("group moderation must verify administrator and bot restrict-members permissions");
+
+indexSource.includes('member[permission] === true') &&
+indexSource.includes('action === "delete_message"') &&
+indexSource.includes('botHasGroupPermission(chatId, "can_delete_messages")') &&
+indexSource.includes('["mute", "unmute", "kick"].includes(action)') &&
+indexSource.includes("getGroupDefaultPermissions(chatId)") &&
+indexSource.includes("permissions: defaultPermissions") &&
+indexSource.includes("Any Telegram restriction remains unchanged")
+  ? ok("AI moderation checks exact Telegram rights and restores group defaults without granting extra permissions")
+  : fail("AI moderation must check exact Telegram rights and never replace group defaults with unrestricted permissions");
 messageHandler.includes('const moderationCommand = ["/ban", "/unban", "/kick", "/mute", "/unmute"].includes(commandProbe)')
   ? ok("authorized moderation commands remain available when bot replies are paused")
   : fail("paused groups must keep authorized moderation commands available");
