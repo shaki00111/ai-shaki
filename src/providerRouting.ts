@@ -48,6 +48,6 @@ export function getWusRouterModelCandidates(payload: unknown, preferred: string)
     }
     return value;
   };
-  return ids.sort((a, b) => score(b) - score(a)).slice(0, 5);
+  return ids.sort((a, b) => score(b) - score(a) || a.localeCompare(b)).slice(0, 5);
 }
 
