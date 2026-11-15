@@ -7313,6 +7313,15 @@ function classifyGeminiKeyError(
 ): GeminiErrorAction {
     const msg = err.message.toLowerCase();
 
+    // A successful key ping does not prove the Google project can generate content.
+    // Bench only this key temporarily, then try another project/key and finally
+    // the existing WusRouter plain-text fallback where the request is eligible.
+    if (isGeminiProjectUnavailableError(msg)) {
+        disableApiKey(key, env, 30 * 60 * 1000);
+        logger.warn("Gemini project is not eligible for generation; key benched for 30m and rotation continues.");
+        return "nextKey";
+    }
+
     // ── بلاک امنیتی: محتوا مشکل داره، نه کلید ──
     if (msg.includes("blocked") || msg.includes("safety")) {
         return "fatal";
