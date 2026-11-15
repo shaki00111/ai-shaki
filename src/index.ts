@@ -27198,10 +27198,10 @@ async function dispatchUpdate(update: TgUpdate, env: Env): Promise<void> {
         text: msg.text,
         caption: msg.caption,
         entities: msg.entities,
-        replyToBot: Boolean(msg.reply_to_message && (
-          msg.reply_to_message.from?.id === (BOT_SELF_ID ?? BOT_INFO?.id)
-          || msg.reply_to_message.from?.is_bot
-        )),
+        replyToBot: Boolean(
+          msg.reply_to_message?.from?.id
+          && msg.reply_to_message.from.id === (BOT_SELF_ID ?? BOT_INFO?.id)
+        ),
         botId: BOT_SELF_ID ?? BOT_INFO?.id,
         botUsername: BOT_INFO?.username ?? "AI_SHAKI_BOT",
       })) {
