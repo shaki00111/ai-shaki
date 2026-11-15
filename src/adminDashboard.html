@@ -3349,8 +3349,8 @@ async function loadSystem(){
     const m = d.metrics||{}, l = d.locks||{};
     const storage=d.storage||{}, providers=d.providers||{};
     list.innerHTML =
-      `<div class="item"><b>سلامت نوشتن D1</b><small>${storage.available?"آماده":"موقتاً متوقف"}${storage.retryAt?' · تلاش بعدی '+esc(fmt(storage.retryAt)):''}</small></div>`+
-      `<div class="item"><b>حفاظت سهمیه (این نمونه سرور)</b><small>${fmtNum(storage.rowsWritten)} ردیف نوشته‌شده · ${fmtNum(storage.rejected)} درخواست متوقف · ${fmtNum(storage.optionalSkipped)} عملیات اختیاری حذف‌شده</small></div>`+
+      `<div class="item"><b>سلامت دسترسی D1</b><small>${storage.available?"آماده":"موقتاً متوقف"}${storage.retryAt?' · تلاش بعدی '+esc(fmt(storage.retryAt)):''}</small></div>`+
+      `<div class="item"><b>حفاظت سهمیه (این نمونه سرور)</b><small>${fmtNum(storage.reads)} خواندن موفق · ${fmtNum(storage.rowsWritten)} ردیف نوشته‌شده · ${fmtNum(storage.rejected)} درخواست متوقف · ${fmtNum(storage.optionalSkipped)} عملیات اختیاری حذف‌شده</small></div>`+
       `<div class="item"><b>ارائه‌دهنده مدل</b><small>${fmtNum(providers.available)} کلید در دسترس از ${fmtNum(providers.configured)}</small></div>`+
       `<div class="item"><b>ذخیره‌سازی تشخیص</b><small>نتایج ابزارها و خطاها ذخیره می‌شوند؛ گفتگوی سادهٔ موفق نوشتن تشخیصی ندارد.</small></div>`+
       `<div class="item"><b>${esc(d.version)}</b><small>قفل AI: ${fmtNum(l.ai)} · قفل آپدیت: ${fmtNum(l.updates)}</small></div>`+
