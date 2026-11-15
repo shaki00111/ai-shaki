@@ -157,7 +157,7 @@ fallbackGuard.includes("providerSettings.wusrouter")
 // Mini App agent fallback must match Telegram chat: owner toggle, configured key,
 // ordinary text intent, and a second fallback attempt after Gemini exhaustion.
 const webAppAgentStart = indexSource.indexOf("async function callGeminiForWebApp");
-const webAppAgentEnd = indexSource.indexOf("\\nfunction nativeFactoryConfigured", webAppAgentStart);
+const webAppAgentEnd = indexSource.indexOf("\nfunction nativeFactoryConfigured", webAppAgentStart);
 const webAppAgentSource = webAppAgentStart >= 0 && webAppAgentEnd > webAppAgentStart
   ? indexSource.slice(webAppAgentStart, webAppAgentEnd) : "";
 const directWebAppFallback = webAppAgentSource.indexOf("if (!providerSettings.gemini || !maxAttempts)");
