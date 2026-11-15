@@ -11867,8 +11867,7 @@ for (let offset = 0; offset < cfg.GEMINI_KEYS.length; offset++) {
         if (
           action === "nextKey" &&
           offset + 1 < cfg.GEMINI_KEYS.length &&
-          Date.now() - overallStart + GEMINI_KEY_RETRY_DELAY_MS + 1_000 < OVERALL_BUDGET_MS &&
-          !ct?.cancelled
+          Date.now() - overallStart + GEMINI_KEY_RETRY_DELAY_MS + 1_000 < OVERALL_BUDGET_MS
         ) {
           logger.warn(`[Gemini failover] waiting ${GEMINI_KEY_RETRY_DELAY_MS}ms before retrying the same request with the next key`);
           await sleep(GEMINI_KEY_RETRY_DELAY_MS);
@@ -24427,9 +24426,14 @@ async function handleVoiceMessage(msg: TgMessage, env: Env): Promise<void> {
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       logger.error("Voice transcription failed", errMsg);
-      const debugSuffix = from.id === cfg.BOT_OWNER_ID ? `\n\n🔧 **جزئیات کامل خطا:**\n\`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
-      await editMessageText(chat.id, loadingMsg.message_id,
-        (lang === "fa" ? "❌ **تشخیص صدا ناموفق**\n\n> 💡 واضح‌تر صحبت کنید" : "❌ **Transcription failed**\n\n> 💡 Please speak clearly") + debugSuffix);
+      if (chat.type !== "private") {
+        await notifyOwnerPrivateGroupError(chat.id, from.id, e, "تشخیص ویس");
+        await editMessageText(chat.id, loadingMsg.message_id, GROUP_SERVER_STUCK_NOTICE).catch(() => {});
+      } else {
+        const debugSuffix = from.id === cfg.BOT_OWNER_ID ? `\n\n🔧 **جزئیات کامل خطا:**\n\`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
+        await editMessageText(chat.id, loadingMsg.message_id,
+          (lang === "fa" ? "❌ **تشخیص صدا ناموفق**\n\n> 💡 واضح‌تر صحبت کنید" : "❌ **Transcription failed**\n\n> 💡 Please speak clearly") + debugSuffix);
+      }
       return;
     }
 
