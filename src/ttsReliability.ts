@@ -58,12 +58,38 @@ export interface TelegramAudioDeliveryAttempt {
   mimeType: string;
 }
 
+/** Detect common audio containers from their file signatures, not provider labels alone. */
+export function detectAudioMimeType(bytes: Uint8Array): string | null {
+  if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+    return "audio/wav";
+  }
+  if (bytes.length >= 4 && bytes[0] === 0x4f && bytes[1] === 0x67 && bytes[2] === 0x67 && bytes[3] === 0x53) {
+    return "audio/ogg";
+  }
+  if (bytes.length >= 3 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) {
+    return "audio/mpeg";
+  }
+  // MP3 frames may omit an ID3 tag and begin directly with the frame sync word.
+  for (let i = 0; i < Math.min(bytes.length - 1, 8); i++) {
+    if (bytes[i] === 0xff && (bytes[i + 1] & 0xe0) === 0xe0) return "audio/mpeg";
+  }
+  return null;
+}
+
 /** Preferred Telegram upload followed by safe compatibility fallbacks. */
-export function getTelegramAudioDeliveryPlan(isWav: boolean): TelegramAudioDeliveryAttempt[] {
-  if (isWav) {
+export function getTelegramAudioDeliveryPlan(format: boolean | string): TelegramAudioDeliveryAttempt[] {
+  const mime = typeof format === "boolean" ? (format ? "audio/wav" : "audio/mpeg") : format.toLowerCase().split(";")[0].trim();
+  if (mime === "audio/wav" || mime === "audio/x-wav" || mime === "audio/wave") {
     return [
       { method: "sendAudio", field: "audio", fileName: "voice.wav", mimeType: "audio/wav" },
       { method: "sendDocument", field: "document", fileName: "voice.wav", mimeType: "audio/wav" },
+    ];
+  }
+  if (mime === "audio/ogg" || mime === "application/ogg") {
+    return [
+      { method: "sendVoice", field: "voice", fileName: "voice.ogg", mimeType: "audio/ogg" },
+      { method: "sendAudio", field: "audio", fileName: "voice.ogg", mimeType: "audio/ogg" },
+      { method: "sendDocument", field: "document", fileName: "voice.ogg", mimeType: "audio/ogg" },
     ];
   }
   return [
