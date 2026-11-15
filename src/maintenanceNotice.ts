@@ -27,5 +27,6 @@ export function shouldSendMaintenanceNotice(input: MaintenanceNoticeInput): bool
 
   const username = (input.botUsername || "AI_SHAKI_BOT").replace(/^@/, "");
   const body = `${input.text ?? ""}\n${input.caption ?? ""}`;
-  return new RegExp(`(^|[^\\w])@${username.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}(?![\\w])`, "i").test(body);
+  const safeUsername = username.replace(/[^a-z0-9_]/gi, "");
+  return safeUsername.length > 0 && body.toLowerCase().includes(`@${safeUsername.toLowerCase()}`);
 }
