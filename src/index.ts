@@ -15,6 +15,7 @@ import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, applyOwnerPersonaLabels, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs, isAudioContentType, getTelegramAudioDeliveryPlan } from "./ttsReliability";
 import { canUseWusRouterTextFallback } from "./providerRouting";
+import { GEMINI_KEY_RETRY_DELAY_MS, GROUP_SERVER_STUCK_NOTICE, isGroupChatId } from "./failureRouting";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
@@ -6432,6 +6433,15 @@ async function callGeminiForWebApp(
         const action = classifyGeminiKeyError(lastError, key, env);
         if (action === "fatal") throw lastError;
         if (action === "nextModel") break;
+        if (
+          i + 1 < maxAttempts &&
+          geminiBudgetMs - (Date.now() - overallStart) > GEMINI_KEY_RETRY_DELAY_MS + 1_000 &&
+          (run?.remainingMs ?? Infinity) > GEMINI_KEY_RETRY_DELAY_MS + 1_000 &&
+          !ct?.cancelled
+        ) {
+          logger.warn(`[Gemini failover] waiting ${GEMINI_KEY_RETRY_DELAY_MS}ms before the next Mini App key`);
+          await sleep(GEMINI_KEY_RETRY_DELAY_MS);
+        }
       }
     }
   }
@@ -7388,15 +7398,15 @@ function classifyGeminiKeyError(
         msg.includes("unavailable") ||
         msg.includes("deadline")
     ) {
-        return "nextModel";
+        return "nextKey";
     }
 
     // An empty SSE stream is a model/transport response failure, not evidence
     // that this API key is invalid or out of quota. Move to the alternate model
     // first instead of burning every key in the pool on the same empty result.
     if (msg.includes("empty response")) {
-        logger.warn("Gemini returned an empty stream; trying the alternate model without disabling the key.");
-        return "nextModel";
+        logger.warn("Gemini returned an empty stream; retrying the same request with the next key.");
+        return "nextKey";
     }
 
     if (
@@ -10363,6 +10373,23 @@ function formatError(error: Error, lang: Language, isAdmin = false): string {
 }
 
 const toolErrorNotices = new NoticeGate();
+const ownerGroupErrorNotices = new NoticeGate();
+async function notifyOwnerPrivateGroupError(chatId: number, userId: number | undefined, rawError: unknown, context: string): Promise<void> {
+  if (!isGroupChatId(chatId) || chatId === cfg.BOT_OWNER_ID) return;
+  if (!ownerGroupErrorNotices.allow(`owner-group-error:${chatId}`, 10_000)) return;
+  const detail = redactSecrets(rawError instanceof Error ? rawError.message : String(rawError ?? "unknown error")).slice(0, 1_800);
+  const report = [
+    "🔴 خطای AI SHAKI در گروه",
+    `گروه: ${chatId}`,
+    userId ? `کاربر: ${userId}` : "",
+    `بخش: ${context}`,
+    "",
+    "جزئیات فنی (فقط برای مالک):",
+    detail,
+  ].filter(Boolean).join("\n");
+  await sendMessage(cfg.BOT_OWNER_ID, report).catch(e => logger.warn("[owner error DM] delivery failed", e));
+}
+
 async function sendToolErrorMessage(
   chatId: number,
   replyTo: number,
@@ -10374,6 +10401,11 @@ async function sendToolErrorMessage(
   const errText = rawError instanceof Error ? rawError.message : String(rawError ?? "");
   if (!toolErrorNotices.allow(`${chatId}:${replyTo}`, isOwner ? 10_000 : 45_000)) return;
   logger.warn(`[tool failure] chat=${chatId}`, redactSecrets(errText));
+  if (isGroupChatId(chatId)) {
+    await notifyOwnerPrivateGroupError(chatId, undefined, rawError, "ابزار / تولید محتوا");
+    await sendMessage(chatId, GROUP_SERVER_STUCK_NOTICE, { reply_to_message_id: replyTo }).catch(() => {});
+    return;
+  }
   const debugSuffix = isOwner && errText
     ? `\n\n🔧 **جزئیات کامل خطا (فقط برای مالک):**\n\`\`\`\n${errText.slice(0, 900)}\n\`\`\``
     : "";
@@ -10432,6 +10464,15 @@ async function notifyTurnFailure(
 
     const isOwner = opts.userId !== undefined && opts.userId === cfg.BOT_OWNER_ID;
     const lang = opts.lang ?? cachedChatLanguage(chatId);
+    if (isGroupChatId(chatId)) {
+      await notifyOwnerPrivateGroupError(chatId, opts.userId, err, "پردازش پیام");
+      await withTimeout(
+        sendMessage(chatId, GROUP_SERVER_STUCK_NOTICE, opts.replyToMessageId ? { reply_to_message_id: opts.replyToMessageId } : {}),
+        8_000,
+        "group failure notice send timeout",
+      );
+      return;
+    }
     let text = isOwner ? formatError(err, lang, true) : friendlyFailure(err, lang);
     // Correlation id only for the owner: it is meaningless noise for everyone
     // else, but it is what makes a support report matchable to a stored
@@ -11415,6 +11456,10 @@ async function runHeavyGeneration(
         if (action === "fatal") {
           throw lastError;
         }
+        if (generationDeadline - Date.now() > GEMINI_KEY_RETRY_DELAY_MS + HEAVY_GEN_MIN_ATTEMPT_MS && !await ct.shouldAbort()) {
+          logger.warn(`[Gemini failover] waiting ${GEMINI_KEY_RETRY_DELAY_MS}ms before the next code-generation key`);
+          await sleep(GEMINI_KEY_RETRY_DELAY_MS);
+        }
 
         continue;
       }
@@ -11819,8 +11864,13 @@ for (let offset = 0; offset < cfg.GEMINI_KEYS.length; offset++) {
         // Stop rotating keys for an empty/overloaded model stream and try the
         // configured alternate model before using the plain-text fallback.
         if (action === "nextModel") break;
-        if (action === "nextKey" && lastError.message.toLowerCase().includes("gemini_quota")) {
-            await sleep(120);
+        if (
+          action === "nextKey" &&
+          offset + 1 < cfg.GEMINI_KEYS.length &&
+          Date.now() - overallStart + GEMINI_KEY_RETRY_DELAY_MS + 1_000 < OVERALL_BUDGET_MS
+        ) {
+          logger.warn(`[Gemini failover] waiting ${GEMINI_KEY_RETRY_DELAY_MS}ms before retrying the same request with the next key`);
+          await sleep(GEMINI_KEY_RETRY_DELAY_MS);
         }
         if (budget && budget.remaining <= 0) throw lastError;
     }
@@ -12946,7 +12996,8 @@ async function handleBusinessMessage(msg: TgMessage, env: Env): Promise<void> {
 // SECTION: VOICE TRANSCRIPTION
 async function transcribeVoice(audioUrl: string): Promise<string> {
   let lastErr: Error = new Error("All transcription attempts failed");
-  for (const key of cfg.GEMINI_KEYS) {
+  for (let keyIndex = 0; keyIndex < cfg.GEMINI_KEYS.length; keyIndex++) {
+    const key = cfg.GEMINI_KEYS[keyIndex];
     try {
       const audioRes = await fetchWithTimeout(audioUrl, {}, 25_000);
       const buf = await audioRes.arrayBuffer();
@@ -12973,11 +13024,13 @@ async function transcribeVoice(audioUrl: string): Promise<string> {
         return data.candidates[0].content.parts[0].text.trim();
       }
       lastErr = new Error(data.error?.message ?? `HTTP ${res.status}`);
-      if (data.error?.code === 429) { logger.warn(`transcribeVoice quota: ${lastErr.message.slice(0,100)}`); continue; }
+      if (data.error?.code === 429) { logger.warn(`transcribeVoice quota: ${lastErr.message.slice(0,100)}`); if (keyIndex + 1 < cfg.GEMINI_KEYS.length) await sleep(GEMINI_KEY_RETRY_DELAY_MS); continue; }
       logger.warn(`transcribeVoice API error: ${lastErr.message.slice(0,100)}`);
+      if (keyIndex + 1 < cfg.GEMINI_KEYS.length) await sleep(GEMINI_KEY_RETRY_DELAY_MS);
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
       logger.warn(`transcribeVoice exception: ${lastErr.message.slice(0,100)}`);
+      if (keyIndex + 1 < cfg.GEMINI_KEYS.length) await sleep(GEMINI_KEY_RETRY_DELAY_MS);
     }
   }
   logger.error("All transcription attempts failed", lastErr.message);
@@ -18552,9 +18605,14 @@ recordRequest(session);
     // cannot resurrect a half-written answer on top of it.
     await replyStreamer.stop();
 
-    const errorMsg = user.id === cfg.BOT_OWNER_ID
-      ? formatError(err, session.language, true)
-      : friendlyFailure(err, session.language);
+    if (isGroup) {
+      await notifyOwnerPrivateGroupError(originalMsg.chat.id, user.id, err, "پاسخ هوش مصنوعی");
+    }
+    const errorMsg = isGroup
+      ? GROUP_SERVER_STUCK_NOTICE
+      : user.id === cfg.BOT_OWNER_ID
+        ? formatError(err, session.language, true)
+        : friendlyFailure(err, session.language);
     run.finish("failed");
     const retryKb = type !== "blocked" && type !== "auth" ? {
       inline_keyboard: [[btn("🔄 تلاش مجدد", "retry_last_msg")]]
@@ -21673,7 +21731,10 @@ async function handleImg(msg: TgMessage, args: string[], env: Env): Promise<void
       ? `🛡️ **ساخت تصویر متوقف شد:** پرامپت ارسالی شما قوانین اخلاقی/امنیتی سرور را نقض کرده است.`
       : `🛡️ **Generation stopped:** Your prompt violated safety filters.`;
   } else if (errors.length) {
-    if (isOwner) {
+    if (chat.type !== "private") {
+      await notifyOwnerPrivateGroupError(chat.id, from.id, errors.join("\n"), "ساخت تصویر");
+      final += `\n\n${GROUP_SERVER_STUCK_NOTICE}`;
+    } else if (isOwner) {
       final += `\n\n⚠️ **جزئیات کامل خطاها (فقط برای مالک):**\n${errors.join("\n")}`;
     } else if (success === 0) {
       final += lang === "fa"
@@ -21789,13 +21850,20 @@ async function handleSuperSearch(msg: TgMessage, args: string[], env: Env): Prom
     logger.error("handleSuperSearch failed", e);
     const errMsg = e instanceof Error ? e.message : String(e);
     if (errMsg === "CANCELLED_BY_USER") return;
-    const debugSuffix = isOwner ? `\n\n🔧 \`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
-    const userErr = (lang === "fa"
-      ? "❌ تحقیق ناتمام ماند. یک‌بار دیگر امتحان کن یا موضوع را کمی محدودتر کن."
-      : "❌ The research could not be completed. Try again, or narrow the topic a little.") + debugSuffix;
-    await editMessageText(chat.id, progress.message_id, userErr).catch(() => {
-      sendMessage(chat.id, userErr, { reply_to_message_id: msg.message_id }).catch(() => {});
-    });
+    if (chat.type !== "private") {
+      await notifyOwnerPrivateGroupError(chat.id, from.id, e, "تحقیق عمیق");
+      await editMessageText(chat.id, progress.message_id, GROUP_SERVER_STUCK_NOTICE).catch(() => {
+        sendMessage(chat.id, GROUP_SERVER_STUCK_NOTICE, { reply_to_message_id: msg.message_id }).catch(() => {});
+      });
+    } else {
+      const debugSuffix = isOwner ? `\n\n🔧 \`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
+      const userErr = (lang === "fa"
+        ? "❌ تحقیق ناتمام ماند. یک‌بار دیگر امتحان کن یا موضوع را کمی محدودتر کن."
+        : "❌ The research could not be completed. Try again, or narrow the topic a little.") + debugSuffix;
+      await editMessageText(chat.id, progress.message_id, userErr).catch(() => {
+        sendMessage(chat.id, userErr, { reply_to_message_id: msg.message_id }).catch(() => {});
+      });
+    }
   }
 }
 // SECTION: UTILITY COMMANDS (/tr /tts /ocr /read /summarize /remember /stats /id /now)
@@ -24368,9 +24436,14 @@ async function handleVoiceMessage(msg: TgMessage, env: Env): Promise<void> {
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       logger.error("Voice transcription failed", errMsg);
-      const debugSuffix = from.id === cfg.BOT_OWNER_ID ? `\n\n🔧 **جزئیات کامل خطا:**\n\`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
-      await editMessageText(chat.id, loadingMsg.message_id,
-        (lang === "fa" ? "❌ **تشخیص صدا ناموفق**\n\n> 💡 واضح‌تر صحبت کنید" : "❌ **Transcription failed**\n\n> 💡 Please speak clearly") + debugSuffix);
+      if (chat.type !== "private") {
+        await notifyOwnerPrivateGroupError(chat.id, from.id, e, "تشخیص ویس");
+        await editMessageText(chat.id, loadingMsg.message_id, GROUP_SERVER_STUCK_NOTICE).catch(() => {});
+      } else {
+        const debugSuffix = from.id === cfg.BOT_OWNER_ID ? `\n\n🔧 **جزئیات کامل خطا:**\n\`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
+        await editMessageText(chat.id, loadingMsg.message_id,
+          (lang === "fa" ? "❌ **تشخیص صدا ناموفق**\n\n> 💡 واضح‌تر صحبت کنید" : "❌ **Transcription failed**\n\n> 💡 Please speak clearly") + debugSuffix);
+      }
       return;
     }
 
@@ -24417,13 +24490,17 @@ async function handleVoiceMessage(msg: TgMessage, env: Env): Promise<void> {
   } catch (e) {
     logger.error("Voice processing failed", e);
     const errMsg = e instanceof Error ? e.message : String(e);
-    const debugSuffix = from.id === cfg.BOT_OWNER_ID ? `\n\n🔧 **جزئیات کامل خطا:**\n\`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
-    if (loadingMsg) {
+    if (chat.type !== "private") {
+      await notifyOwnerPrivateGroupError(chat.id, from.id, e, "پردازش ویس");
+      if (loadingMsg) {
+        await editMessageText(chat.id, loadingMsg.message_id, GROUP_SERVER_STUCK_NOTICE).catch(() => {});
+      } else {
+        await notifyTurnFailure(chat.id, e, { replyToMessageId: msg.message_id, userId: from.id, reqId });
+      }
+    } else if (loadingMsg) {
+      const debugSuffix = from.id === cfg.BOT_OWNER_ID ? `\n\n🔧 **جزئیات کامل خطا:**\n\`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
       await editMessageText(chat.id, loadingMsg.message_id, "> ❌ Voice processing failed." + debugSuffix).catch(() => {});
     } else {
-      // Failed before the progress message existed (session load, limits, file
-      // lookup). There is nothing to edit, so the user needs a fresh notice —
-      // otherwise the voice note is answered by silence.
       await notifyTurnFailure(chat.id, e, { replyToMessageId: msg.message_id, userId: from.id, reqId });
     }
   } finally {
@@ -24622,8 +24699,13 @@ if (photo?.length) { fileId = photo[photo.length - 1].file_id; mimeType = "image
     logger.error("handleMediaMessage failed", e);
     const errMsg = e instanceof Error ? e.message : String(e);
     const userErr = lang === "fa" ? "❌ پردازش فایل ارسالی ناموفق بود." : "❌ Failed to process the sent file.";
-    const debugSuffix = from.id === cfg.BOT_OWNER_ID ? `\n\n🔧 **جزئیات کامل خطا:**\n\`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
-    await sendMessage(chat.id, userErr + debugSuffix, { reply_to_message_id: msg.message_id }).catch(() => {});
+    if (chat.type !== "private") {
+      await notifyOwnerPrivateGroupError(chat.id, from.id, e, "پردازش فایل");
+      await sendMessage(chat.id, GROUP_SERVER_STUCK_NOTICE, { reply_to_message_id: msg.message_id }).catch(() => {});
+    } else {
+      const debugSuffix = from.id === cfg.BOT_OWNER_ID ? `\n\n🔧 **جزئیات کامل خطا:**\n\`\`\`\n${errMsg.slice(0, 900)}\n\`\`\`` : "";
+      await sendMessage(chat.id, userErr + debugSuffix, { reply_to_message_id: msg.message_id }).catch(() => {});
+    }
   }
 }
 // SECTION: ADMIN NAVIGATION — ONE PANEL, ONE DESTINATION
