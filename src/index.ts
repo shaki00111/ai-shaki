@@ -11083,7 +11083,6 @@ async function callWusRouterText(
     throw new Error(`WUSROUTER_AUTH|403|${lastModelError || "No advertised WusRouter model is permitted for this key"}`);
   }
   const raw = await response.text().catch(() => "");
-  const raw = await response.text().catch(() => "");
   let payload: any = null;
   try { payload = raw ? JSON.parse(raw) : null; } catch { /* handled below */ }
 
