@@ -13,7 +13,7 @@ import { readJsonObject, RequestBodyError } from "./http";
 import { selectMemoryEntries, mergeMemoryEntries, hasDurableMemorySignal } from "./memory";
 import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./storageHealth";
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, applyOwnerPersonaLabels, ownerPersonalizationWelcome } from "./ownerPersonalization";
-import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs, isAudioContentType, getTelegramAudioDeliveryPlan } from "./ttsReliability";
+import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs, isAudioContentType, detectAudioMimeType, getTelegramAudioDeliveryPlan } from "./ttsReliability";
 import { canUseWusRouterTextFallback } from "./providerRouting";
 import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from "./geminiTtsProtocol";
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
@@ -12556,13 +12556,15 @@ async function sendVoiceResponse(
   const audio = await synthesizeVoice(text, env);
   if (!audio) return false;
 
-  const isWav = audio.length >= 12 && audio[0] === 0x52 && audio[1] === 0x49 &&
-    audio[2] === 0x46 && audio[3] === 0x46;
+  // Match the Telegram upload MIME/extension to the actual audio container.
+  // Gemini may return OGG as well as WAV/MP3; labeling OGG bytes as MP3 makes
+  // Telegram reject otherwise valid audio.
+  const audioMimeType = detectAudioMimeType(audio) ?? "audio/mpeg";
 
   // Try the preferred Telegram representation first, then downgrade only after
   // Telegram explicitly rejects it. Do not retry after a network-unknown result:
   // Telegram may have accepted the upload before the connection was lost.
-  for (const attempt of getTelegramAudioDeliveryPlan(isWav)) {
+  for (const attempt of getTelegramAudioDeliveryPlan(audioMimeType)) {
     const form = new FormData();
     form.append("chat_id", String(chatId));
     form.append(
