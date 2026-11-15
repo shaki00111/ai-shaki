@@ -1,4 +1,4 @@
-/** D1 quota protection shared by every SQL writer in an isolate. No storage writes of its own. */
+/** D1 quota protection shared by every SQL query in an isolate. No storage writes of its own. */
 export class StorageBackpressureError extends Error {
   constructor() { super("STORAGE_WRITE_BACKPRESSURE"); }
 }
@@ -7,6 +7,7 @@ export class WriteGovernor {
   reason: "daily_quota" | "transient" | null = null;
   rejected = 0;
   writes = 0;
+  reads = 0;
   rowsWritten = 0;
   optionalSkipped = 0;
   private failures = 0;
@@ -21,6 +22,10 @@ export class WriteGovernor {
     this.optionalSkipped++;
     return false;
   }
+  readSuccess(): void {
+    this.reads++;
+    if (this.available) { this.failures = 0; this.reason = null; }
+  }
   success(result: unknown): void {
     this.writes++;
     this.rowsWritten += Number((result as { meta?: { rows_written?: number; changes?: number } })?.meta?.rows_written
@@ -29,7 +34,7 @@ export class WriteGovernor {
   }
   failure(error: unknown): void {
     const text = String(error).toLowerCase();
-    if (/daily.*(row.*write|write.*limit)|exceeded.*free tier|daily.*quota/.test(text)) {
+    if (/daily.*row.*(?:read|write).*limit|exceeded.*free tier.*daily.*(?:read|write).*limit|daily.*quota/.test(text)) {
       this.reason = "daily_quota";
       this.blockedUntil = Math.floor(this.now() / 86_400_000 + 1) * 86_400_000 + 60_000;
     } else if (/d1.*(busy|overload)|d1_error.*internal error|internal error.*d1.*storage|storage caused object to be reset|sqlite_busy|too many requests|temporar|timeout/.test(text)) {
@@ -40,7 +45,7 @@ export class WriteGovernor {
   snapshot() {
     return { scope: "isolate", available: this.available, reason: this.available ? null : this.reason,
       retryAt: this.available ? null : this.blockedUntil, writes: this.writes, rowsWritten: this.rowsWritten,
-      rejected: this.rejected, optionalSkipped: this.optionalSkipped };
+      reads: this.reads, rejected: this.rejected, optionalSkipped: this.optionalSkipped };
   }
 }
 
@@ -66,10 +71,21 @@ export function governDatabase<T extends object>(db: T): T {
       return result;
     } catch (e) { governor.failure(e); throw e; }
   };
+  const read = async (work: () => Promise<unknown>) => {
+    governor.assertAvailable();
+    try {
+      const result = await work();
+      governor.readSuccess();
+      return result;
+    } catch (e) { governor.failure(e); throw e; }
+  };
   const statement = (native: any): any => {
     const proxy = new Proxy(native, { get(target, prop) {
       if (prop === "bind") return (...args: unknown[]) => statement(target.bind(...args));
       if (prop === "run") return () => write(() => target.run());
+      if (prop === "first" || prop === "all" || prop === "raw") {
+        return (...args: unknown[]) => read(() => target[prop](...args));
+      }
       const value = Reflect.get(target, prop);
       return typeof value === "function" ? value.bind(target) : value;
     } });
