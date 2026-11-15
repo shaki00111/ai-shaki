@@ -3405,6 +3405,7 @@ let API_URL = "";
 let BOT_INFO: TgUser | null = null;
 let BOT_SELF_ID: number | null = null; // ← جدید
 let isInitialized = false;
+let initPromise: Promise<void> | null = null;
 let maintenanceCache: { value: boolean; ts: number } | null = null;
 let requestOrigin = "";
 /** Where the fetch path stashes its own origin for cron isolates to reuse. */
@@ -27741,14 +27742,41 @@ export default {
           if (cached) BOT_SELF_ID = parseInt(cached as string, 10);
         }).catch(() => {});
       }
-      initBot(env).catch(e => { logger.error("Init failed", e); isInitialized = false; });
+      // Keep one shared initialization promise so health checks can wait for
+      // Telegram getMe instead of reporting bot:null on a cold Worker isolate.
+      initPromise = initBot(env).catch(e => {
+        logger.error("Init failed", e);
+        isInitialized = false;
+        initPromise = null;
+        throw e;
+      });
+      // Ordinary webhook/dashboard traffic remains non-blocking as before.
+      void initPromise.catch(() => {});
     } else if (!BOT_SELF_ID) {
       env.SESSIONS.get("bot:self_id").then(cached => {
         if (cached) BOT_SELF_ID = parseInt(cached as string, 10);
       }).catch(() => {});
     }
 
-    if (url.pathname === "/health") return createHealthResponse();
+    if (url.pathname === "/health") {
+      try {
+        if (initPromise) await initPromise;
+        return createHealthResponse();
+      } catch {
+        return new Response(JSON.stringify({
+          status: "degraded",
+          version: BOT_VERSION,
+          bot: null,
+          active_requests: Array.from(activeRequests.values()).reduce((s, set) => s + set.size, 0),
+          max_requests: cfg.MAX_CONCURRENT_REQUESTS,
+          agent: "SHAKI",
+          error: "Telegram bot initialization failed; inspect Worker logs.",
+        }, null, 2), {
+          status: 503,
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+        });
+      }
+    }
 
     if (url.pathname === "/dashboard") {
       // Same hardening as /admin: the user dashboard previously shipped with
