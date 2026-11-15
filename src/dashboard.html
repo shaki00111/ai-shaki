@@ -2933,17 +2933,11 @@ body{background-color:#050611!important}
  animation:shakiCyberFloat 5.8s ease-in-out infinite,shakiCyberGlow 4.4s ease-in-out infinite;
 }
 #suggestGrid .suggest,.suggest,.personaCard,.convItem,.capItem{
- position:relative;isolation:isolate;overflow:hidden;
+ position:relative;isolation:isolate;
  border-color:var(--cyber-line)!important;
  box-shadow:0 14px 34px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.06)!important;
  transition:transform .24s cubic-bezier(.2,.8,.2,1),border-color .24s ease,box-shadow .24s ease,filter .24s ease!important;
 }
-#suggestGrid .suggest:before,.suggest:before,.personaCard:before,.capItem:before{
- content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;
- background:linear-gradient(118deg,transparent 18%,rgba(255,255,255,.075) 48%,transparent 72%);
- transform:translateX(-125%);transition:transform .75s ease;
-}
-#suggestGrid .suggest:hover:before,.suggest:hover:before,.personaCard:hover:before,.capItem:hover:before{transform:translateX(125%)}
 #suggestGrid .suggest:hover,.suggest:hover,.personaCard:hover,.convItem:hover,.capItem:hover{
  transform:translateY(-3px) perspective(700px) rotateX(1deg);
  border-color:var(--cyber-blue-line)!important;
