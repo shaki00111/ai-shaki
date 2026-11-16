@@ -7346,6 +7346,18 @@ function classifyGeminiKeyError(
         return "nextKey";
     }
 
+    // A project-level free-tier restriction is not a temporary model outage.
+    // Rotate to another configured key; it may belong to a different project.
+    if (
+        msg.includes("free tier is not available for this project") ||
+        msg.includes("free tier is unavailable for this project") ||
+        msg.includes("project is not eligible for free tier")
+    ) {
+        disableApiKey(key, env, 5 * 60 * 1000);
+        logger.warn("Gemini project is not eligible for free tier; rotating to another configured key.");
+        return "nextKey";
+    }
+
     // ── 403: ممکنه محدودیت دسترسی باشه نه auth ──
     if (msg.includes("403") || msg.includes("permission denied")) {
         disableApiKey(key, env, 60_000); // فقط ۱ دقیقه
@@ -11859,7 +11871,7 @@ for (let offset = 0; offset < cfg.GEMINI_KEYS.length; offset++) {
         // configured alternate model before using the plain-text fallback.
         if (action === "nextModel") break;
         if (action === "nextKey" && lastError.message.toLowerCase().includes("gemini_quota")) {
-            await sleep(120);
+            await sleep(5_000);
         }
         if (budget && budget.remaining <= 0) throw lastError;
     }
@@ -12474,7 +12486,7 @@ async function synthesizeVoiceGemini(
   // The 3.1 preview model is scheduled for retirement on 2026-11-17.
   // Prefer current GA 3.8 models and keep 3.1 as a temporary fallback.
   const models = getGeminiTtsModels();
-  const maxKeys = Math.min(cfg.GEMINI_KEYS.length, 5);
+  const maxKeys = cfg.GEMINI_KEYS.length;
   const failures: string[] = [];
 
   for (let i = 0; i < maxKeys; i++) {
