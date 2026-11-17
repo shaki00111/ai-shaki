@@ -18,6 +18,7 @@ import { canUseWusRouterTextFallback, getWusRouterModelCandidates } from "./prov
 import { selectGeminiKeyIndex, shouldRetryGeminiQuotaImmediately } from "./geminiKeySelection";
 import { geminiErrorWithHttpStatus, geminiStreamError } from "./geminiErrors";
 import { mergeGeminiKeys, hasGeminiKeyAfterUpdate } from "./geminiKeyring";
+import { persistCooldown, readCooldowns, migrateLegacyCooldowns, clearCooldowns } from "./keyCooldownStore";
 import { dailyChallengeText } from "./dailyChallenge";
 import { parsePollDraft, sendAnonymousPoll } from "./polls";
 import { creativeImagePrompt, type CreativeImageKind } from "./creativeImages";
@@ -7249,17 +7250,32 @@ async function refreshDisabledKeysFromKV(env: Env, force = false): Promise<void>
   const now = Date.now();
   if (!force && now - lastDisabledKeysFetch < DISABLED_KEYS_CACHE_TTL_MS) return;
   lastDisabledKeysFetch = now; // فوری ثبت می‌شود تا درخواست‌های هم‌زمان دوباره KV نخوانند
-  try {
-    const raw = await env.SESSIONS.get("disabled_api_keys", "json") as Record<string, number> | null;
-    if (!raw) return;
+  const merge = (entries: Record<string, unknown>): void => {
     const nowTs = Date.now();
-    for (const [k, until] of Object.entries(raw)) {
-      if (until > nowTs && (!globalDisabledKeys[k] || globalDisabledKeys[k] < until)) {
-        globalDisabledKeys[k] = until;
+    for (const [key, until] of Object.entries(entries)) {
+      if (cfg.GEMINI_KEYS.includes(key) && typeof until === "number" && Number.isSafeInteger(until) && until > nowTs && (!globalDisabledKeys[key] || globalDisabledKeys[key] < until)) {
+        globalDisabledKeys[key] = until;
       }
     }
+  };
+  try {
+    merge(await readCooldowns(env.DB, cfg.GEMINI_KEYS));
   } catch (e) {
-    logger.warn("refreshDisabledKeysFromKV failed", e);
+    logger.warn("refresh hashed cooldowns failed", e);
+  }
+  try {
+    const raw = await env.SESSIONS.get("disabled_api_keys", "text");
+    if (!raw) return;
+    const legacy: unknown = JSON.parse(raw);
+    if (!legacy || typeof legacy !== "object" || Array.isArray(legacy)) throw new Error("Invalid legacy cooldown map");
+    merge(legacy as Record<string, unknown>);
+    if (Object.keys(legacy).length) {
+      // Preserve old cooldowns before clearing their exact snapshot; migration
+      // tolerates older isolates writing the legacy format during rollout.
+      runBackground(() => migrateLegacyCooldowns(env.DB, raw), 3000, "migrate-key-cooldowns");
+    }
+  } catch (e) {
+    logger.warn("refresh legacy cooldowns failed", e);
   }
 }
 
@@ -7294,15 +7310,7 @@ function disableApiKey(
     globalDisabledKeys[key] = until;
   }
 
-  runBackground(
-    () =>
-      env.SESSIONS.put(
-        "disabled_api_keys",
-        JSON.stringify(globalDisabledKeys)
-      ),
-    3000,
-    "disable-api-key"
-  );
+  runBackground(() => persistCooldown(env.DB, key, until), 3000, "disable-api-key");
 
   logger.warn(`🚫 API key locked for ${Math.ceil(durationMs / 1000)}s`);
 }
@@ -24141,8 +24149,9 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
           break;
         case "/unlockkeys":
           if (from.id === cfg.BOT_OWNER_ID) {
-          globalDisabledKeys = {};
-            await env.SESSIONS.put("disabled_api_keys", "{}");
+            await clearCooldowns(env.DB);
+            globalDisabledKeys = {};
+            lastDisabledKeysFetch = 0;
             await sendMessage(chat.id, "✅ تمام قفل‌های کلید API ریست شد.", { reply_to_message_id: msg.message_id });
           }
           break;

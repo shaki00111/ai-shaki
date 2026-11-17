@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Store Gemini cooldowns under SHA-256 identifiers with monotonic D1 upserts and best-effort migration of the legacy raw-key map; existing backups and old isolates are unaffected.
 - Rebuild the Gemini key pool from authoritative environment and managed keys after owner updates, avoiding stale deleted keys and protecting the last active key.
 - Bound replied-photo downloads before image editing to reduce Worker memory and deadline exposure.
 - Extract bounded DOCX body text locally before model analysis, including for replied-to documents; reject oversized or malformed archives rather than trusting unsupported inline MIME types.
