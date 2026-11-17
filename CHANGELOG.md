@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- Rebuild the Gemini key pool from authoritative environment and managed keys after owner updates, avoiding stale deleted keys and protecting the last active key.
+- Bound replied-photo downloads before image editing to reduce Worker memory and deadline exposure.
+- Extract bounded DOCX body text locally before model analysis, including for replied-to documents; reject oversized or malformed archives rather than trusting unsupported inline MIME types.
+- Add private user-managed text shortcuts (`/shortcut`, `/go`) with per-user D1 isolation and an atomic 20-item cap.
+- Add `/anime` and `/cartoon` shortcuts for editing a replied-to image through the existing image-edit pipeline.
+- Add `/quiz`, a group-admin-started daily quiz using anonymous native Telegram polls.
+- Add `/card` to turn a short message or replied-to text into a self-contained dark SVG quote card.
+- Add text-to-image shortcuts `/avatar`, `/duo`, `/story`, and `/meme` using the existing image quota and Cloudflare generation path.
+- Add `/poll` for native anonymous Telegram polls, with input validation, group-admin checks, deduplication and rate limiting.
+- Add `/challenge`, a shared daily creative prompt in Persian, English and Arabic, rotating at midnight UTC without an external API or new storage.
+- Cover challenge rotation, localization and command wiring with automated tests.
+- Detect Gemini quota errors by HTTP/SSE status even when the provider message is generic; immediately rotate eligible keys without repeating a key in the same chat/model attempt.
+- Allow bounded immediate quota failover across the Gemini key pool for code generation and redact the active provider key from the covered Gemini and TTS error paths.
+
 ## 2026-11-14 — Reliability and validation
 
 - Respect the owner’s WusRouter enable/disable setting during code-generation fallback.

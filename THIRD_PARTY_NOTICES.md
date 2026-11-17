@@ -33,6 +33,17 @@ vendored verbatim so the Mini App can load it from Nova's own origin and is
 
 ---
 
+## Runtime dependency
+
+### fflate
+
+* **Use:** bounded DOCX ZIP extraction
+* **License:** MIT
+* **Copyright:** Arjun Barrett
+* **Upstream:** https://github.com/101arrowz/fflate
+
+---
+
 ## Services used at runtime (subject to their own terms)
 
 Nova's operator (not the Nova authors) holds accounts/keys for these services.

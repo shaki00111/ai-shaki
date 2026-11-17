@@ -768,6 +768,8 @@ If you enjoy SHAKI and want to support its development:
 
 # 🗺️ Roadmap
 
+See [ROADMAP.md](ROADMAP.md) for the requested 48-feature roadmap and implementation status.
+
 ### Current
 
 * [x] Gemini Agent
@@ -787,6 +789,17 @@ If you enjoy SHAKI and want to support its development:
 * [x] Business Automation
 * [x] Group Activation Control
 * [x] Improved Web Search Formatting
+
+### Daily challenge
+
+Use `/challenge` in a private chat or an enabled group to get a shared creative
+prompt for the current UTC day. The 14 prompts rotate, are available in Persian,
+English and Arabic, and require no external API or extra storage. This initial
+version does not track submissions, points or winners.
+
+Use `/poll question | option 1 | option 2` for a native anonymous Telegram poll
+with 2–10 distinct options. In groups, only group administrators or the bot
+owner can create polls. SHAKI does not store a separate voting history.
 
 ### Planned
 
