@@ -5846,7 +5846,8 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
       ok: true,
       job: {
         status: job.status, mode: job.mode, message: job.message,
-        totalUsers: job.totalUsers, processedIndex: job.processedIndex,
+        totalUsers: job.totalUsers, userCount: job.userIds.length, groupCount: job.groupChatIds?.length ?? 0,
+        processedIndex: job.processedIndex,
         sent: job.sent, failed: job.failed, uncertain:job.uncertain??0,createdAt: job.createdAt,
         percent: Math.max(0, Math.min(100, percent)),
       },
@@ -20250,7 +20251,7 @@ function broadcastProgressText(job: BroadcastJob): string {
     return `✅ <b>ارسال پیام همگانی به پایان رسید!</b>\n\n` +
       `✅ ارسال موفق: <b>${job.sent}</b>\n` +
       `🚫 ناموفق / مسدودشده: <b>${job.failed}</b>\n` +
-      `👥 کل مخاطبان: <b>${job.totalUsers}</b>` + ((job.uncertain??0)>0?`\n⚠️ بدون تأیید دریافت: <b>${job.uncertain}</b> (برای جلوگیری از ارسال تکراری، دوباره ارسال نشد)`:"");
+      `👥 کل مخاطبان: <b>${job.totalUsers}</b> (👤 اعضا: ${job.userIds.length} · 👥 گروه‌ها: ${job.groupChatIds?.length ?? 0})` + ((job.uncertain??0)>0?`\n⚠️ بدون تأیید دریافت: <b>${job.uncertain}</b> (برای جلوگیری از ارسال تکراری، دوباره ارسال نشد)`:"");
   }
   if (job.status === "error") {
     return `🛑 <b>ارسال همگانی لغو شد.</b>\n\n` +
@@ -20261,6 +20262,7 @@ function broadcastProgressText(job: BroadcastJob): string {
   const pct = job.totalUsers ? Math.round((job.processedIndex / job.totalUsers) * 100) : 0;
   return `🔄 <b>ارسال همگانی در جریان است...</b>\n\n` +
     `📊 پیشرفت: <code>${job.processedIndex}/${job.totalUsers}</code> (<b>${pct}%</b>)\n` +
+    `👤 اعضا: <code>${job.userIds.length}</code> · 👥 گروه‌ها: <code>${job.groupChatIds?.length ?? 0}</code>\n` +
     `✅ ارسال شده: <code>${job.sent}</code> | ❌ خطا/بلاک: <code>${job.failed}</code> | ⚠️ بدون تأیید: <code>${job.uncertain??0}</code>\n\n` +
     `⏳ <i>دستهٔ بعدی ظرف ۱ دقیقه دیگر ارسال خواهد شد...</i>`;
 }
