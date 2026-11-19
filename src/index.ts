@@ -21368,7 +21368,19 @@ async function setGroupPromo(chatId: number, enabled: boolean, lang: Language, t
   return true;
 }
 async function processDailyGroupPromos(env: Env): Promise<void> {
-  if (_groupPromoRunning || !BOT_INFO?.username) return;
+  if (_groupPromoRunning) return;
+  // Scheduled events may run in a fresh isolate that has never called initBot.
+  if (!BOT_INFO?.username) {
+    const cachedUsername = await env.SESSIONS.get("bot:username", "text").catch(() => null);
+    if (cachedUsername) BOT_INFO = { id: BOT_SELF_ID ?? 0, is_bot: true, first_name: "AI SHAKI", username: cachedUsername } as TgUser;
+    else {
+      try {
+        BOT_INFO = await tg("getMe", {}) as TgUser;
+        if (BOT_INFO.username) await env.SESSIONS.put("bot:username", BOT_INFO.username).catch(() => {});
+      } catch (e) { logger.warn("[group-promo] could not resolve bot username in cron", e); }
+    }
+  }
+  if (!BOT_INFO?.username) return;
   _groupPromoRunning = true;
   try {
     const raw = await env.SESSIONS.get(GROUP_PROMO_INDEX_KEY, "json").catch(() => []) as number[];
@@ -21548,6 +21560,7 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
         `• \`/start\` — منوی شخصی شما در این گروه\n` +
         `• \`/new\` — پاک کردن حافظه‌ی گفتگوی شما در این گروه\n` +
         `• \`/challenge\` — چالش روزانه شاکی\n` +
+        `• \`/promo on|off|status\` — معرفی روزانه اختیاری (فقط مدیران)\n` +
         `• \`/quiz\` — مسابقه روزانه گروهی (شروع فقط برای مدیران)\n` +
         `• \`/poll سؤال | گزینه ۱ | گزینه ۲\` — نظرسنجی ناشناس (فقط مدیران)\n` +
         `• \`/setprompt shaki [متن]\` — پرامپت اختصاصی فقط برای شما\n\n` +
@@ -21557,6 +21570,7 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
         `• \`/start\` — Your personal menu in this group\n` +
         `• \`/new\` — Clear your own chat memory here\n` +
         `• \`/challenge\` — SHAKI's daily challenge\n` +
+        `• \`/promo on|off|status\` — optional daily introduction (admins only)\n` +
         `• \`/quiz\` — Daily group quiz (admins start)\n` +
         `• \`/poll question | option 1 | option 2\` — Anonymous poll (admins only)\n` +
         `• \`/setprompt shaki [text]\` — A custom prompt just for you\n\n` +
@@ -27670,6 +27684,7 @@ async function initBot(env: Env): Promise<void> {
   BOT_INFO = botInfo;
   BOT_SELF_ID = botInfo.id;
   env.SESSIONS.put("bot:self_id", String(botInfo.id)).catch(() => {});
+  if (botInfo.username) env.SESSIONS.put("bot:username", botInfo.username).catch(() => {});
   logger.info(`✅ Bot ready: ${botInfo.first_name} (@${botInfo.username}) v${BOT_VERSION}`);
 
   const maintenance = await env.SESSIONS.get("maintenance_mode", "text");
