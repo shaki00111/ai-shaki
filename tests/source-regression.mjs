@@ -441,6 +441,22 @@ indexSource.includes("const errorMsg = ownerPrivate")
   ? ok("group failures show friendly text and send redacted technical details to the owner privately")
   : fail("technical error details must never be displayed in group chats");
 
+
+console.log("\\n[16] Interactive owner guide");
+adminSource.includes('id="panel-guide"') &&
+adminSource.includes('{id:"guide", label:"راهنمای کامل امکانات"}') &&
+adminSource.includes("قابلیت‌های ۱ تا ۱۰") &&
+adminSource.includes("قابلیت‌های ۱۱ تا ۲۰") &&
+adminSource.includes("قابلیت‌های ۲۱ تا ۲۸") &&
+adminSource.includes("قابلیت‌های ۲۹ تا ۳۵") &&
+adminSource.includes("قابلیت‌های ۳۶ تا ۴۴") &&
+adminSource.includes("قابلیت‌های ۴۵ تا ۴۸") &&
+adminSource.includes("همه اعضا + همه گروه‌ها") &&
+adminSource.includes("KEYRING_MASTER_KEY") &&
+(adminSource.match(/class="guide-item"/g)||[]).length >= 60
+  ? ok("owner dashboard includes expandable guidance for all 48 roadmap items and admin workflows")
+  : fail("owner dashboard guide must cover all roadmap ranges, admin paths, update broadcasts and key setup");
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
