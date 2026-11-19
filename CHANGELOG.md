@@ -1,3 +1,6 @@
+## Unreleased
+- Add Groq numbered-key rotation for text-only fallback, owner provider controls, and credential health checks.
+
 # Changelog
 
 ## 2026-11-14 — Reliability and validation

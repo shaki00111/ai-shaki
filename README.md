@@ -1043,3 +1043,8 @@ Pull Request و Contribution استقبال می‌شود.
 سفارشی‌سازی و نگهداری توسط **آرمان (@shaki0030)**\n\nاین مخزن نسخه‌ای تغییریافته از NovaAgent اثر Hsoofi82 است و تحت مجوز AGPL-3.0 منتشر می‌شود؛ اطلاعیه‌های حق‌نشر و مجوز نسخه اصلی حفظ شده‌اند.
 
 </div>
+
+
+## Groq text fallback
+
+Add Cloudflare Worker Secrets named `GROQ_API_KEY_1`, `GROQ_API_KEY_2`, `GROQ_API_KEY_3`, and so on. Numbered keys are discovered automatically (up to 100) and tried in numeric order. The bot rotates to the next key after authentication, quota/rate-limit, or upstream failures. Groq handles ordinary text chat only; image generation, file understanding, voice, and Gemini tool workflows still require their respective providers. The owner dashboard displays configured keys and lets the owner enable or disable Groq.
