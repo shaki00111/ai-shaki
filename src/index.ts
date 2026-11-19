@@ -21399,13 +21399,13 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
 
   const session = await getOrCreateSession(chat, from, env);
   const isGroup = chat.type !== "private";
-  if (isGroup && /(?:^|\\s)add_shaki(?:\\s|$)/i.test(msg.text ?? "")) {
+  if (isGroup && /(?:^|\s)add_shaki(?:\s|$)/i.test(msg.text ?? "")) {
     const lang = session.language;
     const welcome = lang === "en"
-      ? "🎉 <b>AI SHAKI is ready in this group!</b>\\nMention SHAKI or reply to one of her messages to chat. Group admins can enable an optional daily introduction with <code>/promo on</code> and disable it anytime with <code>/promo off</code>."
+      ? "🎉 <b>AI SHAKI is ready in this group!</b>\nMention SHAKI or reply to one of her messages to chat. Group admins can enable an optional daily introduction with <code>/promo on</code> and disable it anytime with <code>/promo off</code>."
       : lang === "ar"
-        ? "🎉 <b>تمت إضافة AI SHAKI إلى المجموعة!</b>\\nاذكر SHAKI أو ردّ على إحدى رسائلها لبدء المحادثة. يمكن للمديرين تفعيل التعريف اليومي عبر <code>/promo on</code> وإيقافه عبر <code>/promo off</code>."
-        : "🎉 <b>AI SHAKI به گروه اضافه شد!</b>\\nبرای گفتگو شاکی رو منشن کن یا روی یکی از پیام‌هاش ریپلای بزن. مدیران گروه می‌تونن معرفی روزانه رو با <code>/promo on</code> فعال و با <code>/promo off</code> خاموش کنن.";
+        ? "🎉 <b>تمت إضافة AI SHAKI إلى المجموعة!</b>\nاذكر SHAKI أو ردّ على إحدى رسائلها لبدء المحادثة. يمكن للمديرين تفعيل التعريف اليومي عبر <code>/promo on</code> وإيقافه عبر <code>/promo off</code>."
+        : "🎉 <b>AI SHAKI به گروه اضافه شد!</b>\nبرای گفتگو شاکی رو منشن کن یا روی یکی از پیام‌هاش ریپلای بزن. مدیران گروه می‌تونن معرفی روزانه رو با <code>/promo on</code> فعال و با <code>/promo off</code> خاموش کنن.";
     await sendMessage(chat.id, welcome, {
       reply_to_message_id: msg.message_id, parse_mode: "HTML",
       reply_markup: JSON.stringify({ inline_keyboard: BOT_INFO?.username ? [[urlBtn("🤖 شروع خصوصی AI SHAKI", `https://t.me/${BOT_INFO.username}?start=group_promo`)]] : [] }),
@@ -24080,7 +24080,7 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
               : (lang === "fa" ? "📭 معرفی روزانه خاموشه. مدیر گروه برای فعال‌سازی /promo on و برای خاموش‌کردن /promo off رو بفرسته." : "📭 Daily introduction is off. A group admin can use /promo on or /promo off."),
               { reply_to_message_id: msg.message_id });
           } else {
-            await sendMessage(chat.id, lang === "fa" ? "دستورها:\\n/promo on — فعال‌سازی با رضایت مدیر\\n/promo off — خاموش‌کردن\\n/promo status — مشاهده وضعیت" : "Commands:\\n/promo on — opt in\\n/promo off — opt out\\n/promo status — check status", { reply_to_message_id: msg.message_id, parse_mode: undefined });
+            await sendMessage(chat.id, lang === "fa" ? "دستورها:\n/promo on — فعال‌سازی با رضایت مدیر\n/promo off — خاموش‌کردن\n/promo status — مشاهده وضعیت" : "Commands:\n/promo on — opt in\n/promo off — opt out\n/promo status — check status", { reply_to_message_id: msg.message_id, parse_mode: undefined });
           }
           break;
         }
