@@ -21400,6 +21400,7 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
         reply_markup: JSON.stringify({ inline_keyboard: [
           [btn("🇮🇷  فارسی", "set_lang_fa"), btn("🇺🇸  English", "set_lang_en")],
           [btn("🇸🇦  العربية", "set_lang_ar")],
+          ...(BOT_INFO?.username ? [[urlBtn("➕ افزودن AI SHAKI به گروه", `https://t.me/${BOT_INFO.username}?startgroup=add_shaki`)]] : []),
           // Language is not chosen yet, so the label is trilingual; the deep link
           // is the safe shape everywhere (web_app buttons are private-only).
           ...(BOT_INFO?.username ? [[urlBtn("🚀 My Dashboard / داشبورد من", `https://t.me/${BOT_INFO.username}?start=mydash`)]] : []),
@@ -27083,6 +27084,15 @@ async function buildHomeKeyboard(session: ChatSession, userId: number, env: Env,
       btn(isFa ? "🌐 تغییر زبان" : isAr ? "🌐 تغییر اللغة" : "🌐 Language", "home:language"),
     ],
   ];
+
+  // One-tap Telegram deep link: opens the native group picker and adds SHAKI.
+  // Telegram sends /start@bot add_shaki after the user confirms a target group.
+  if (session.type === "private" && BOT_INFO?.username) {
+    rows.push([urlBtn(
+      isFa ? "➕ افزودن AI SHAKI به گروه" : isAr ? "➕ إضافة AI SHAKI إلى مجموعة" : "➕ Add AI SHAKI to a Group",
+      `https://t.me/${BOT_INFO.username}?startgroup=add_shaki`
+    )]);
+  }
 
   if (!session.vipStatus && !isOwner) {
     rows.push([
