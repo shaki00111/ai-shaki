@@ -1062,7 +1062,7 @@ input,select,textarea{background:rgba(5,10,27,.82)!important;border-color:rgba(1
           <div style="height:var(--s3)"></div>
           <label class="lbl" for="bcMessage">متن پیام (حداکثر ۴۰۰۰ کاراکتر)</label>
           <textarea id="bcMessage" maxlength="4000" placeholder="متن پیام برادکست…" style="min-height:120px"></textarea>
-          <div class="toolbar-line"><button class="primary" id="bcSend">📢 ارسال به صف</button><span class="pill" id="bcCount" aria-live="polite">۰ کاراکتر</span></div>
+          <div class="toolbar-line"><button class="sm" id="bcUpdateTemplate" type="button">📝 متن آمادهٔ آپدیت</button><button class="primary" id="bcSend">📢 ارسال به صف</button><span class="pill" id="bcCount" aria-live="polite">۰ کاراکتر</span></div>
         </div></div>
         <div class="card"><div class="section-head"><h2>وضعیت ارسال</h2><button class="sm ghost icon-btn" id="bcRefresh" aria-label="تازه‌سازی وضعیت ارسال">↻</button></div><div id="bcStatus" class="list" aria-live="polite"><div class="status">موردی در جریان نیست.</div></div></div>
         <div class="card"><div class="section-head"><h2>پیام مستقیم به یک کاربر</h2></div><div class="section-body">
@@ -3452,6 +3452,11 @@ function bindStatic(){
   $("nextBtn").onclick  = ()=>{ if(!users.nextCursor) return; users.history.push(users.cursor); users.cursor = users.nextCursor; users.page++; loadUsers().catch(()=>{}); };
 
   $("bcSend").onclick    = sendBroadcast;
+  $("bcUpdateTemplate").onclick = ()=>{
+    $("bcMessage").value = "🚀 آپدیت جدید AI SHAKI منتشر شد!\\n\\n✨ چند قابلیت تازه و بهبود برای ربات اضافه شده است.\\n🔧 عملکرد بخش‌های مختلف بهتر شده و مشکلات گزارش‌شده در این نسخه بررسی و اصلاح شده‌اند.\\n\\nبرای استفاده از نسخه جدید، ربات را دوباره باز کنید.\\n@AI_SHAKI_BOT";
+    updateBcCount();
+    toast("متن آماده شد؛ قبل از ارسال می‌توانی ویرایشش کنی.","ok");
+  };
   $("bcRefresh").onclick = ()=> loadBroadcast();
   $("bcMessage").addEventListener("input", updateBcCount);
   $("dmSend").onclick    = sendDM;
