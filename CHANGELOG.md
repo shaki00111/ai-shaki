@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Make the admin panel's all-audience update announcement reach registered private members and known groups/supergroups in resumable batches, with split counts, progress, cancellation, and a ready-to-edit Persian update template.
+- Keep group error messages user-friendly and send redacted technical diagnostics privately to the owner with per-group rate limiting.
+
 - Store Gemini cooldowns under SHA-256 identifiers with monotonic D1 upserts and best-effort migration of the legacy raw-key map; existing backups and old isolates are unaffected.
 - Rebuild the Gemini key pool from authoritative environment and managed keys after owner updates, avoiding stale deleted keys and protecting the last active key.
 - Bound replied-photo downloads before image editing to reduce Worker memory and deadline exposure.
