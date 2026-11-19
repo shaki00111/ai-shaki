@@ -10383,6 +10383,20 @@ function formatError(error: Error, lang: Language, isAdmin = false): string {
     : userMsg;
 }
 
+// Technical diagnostics are never exposed in groups. Every group failure is
+// summarized privately to the owner, with a per-group rate limit to prevent spam.
+const _ownerGroupDiagnosticNotices = new NoticeGate();
+function isOwnerPrivateChat(chatId: number, userId?: number): boolean {
+  return chatId === cfg.BOT_OWNER_ID && (userId === undefined || userId === cfg.BOT_OWNER_ID);
+}
+async function sendOwnerPrivateDiagnostic(chatId: number, rawError: unknown, reqId?: string): Promise<void> {
+  if (chatId >= 0 || !_ownerGroupDiagnosticNotices.allow(`group:${chatId}`, 60_000)) return;
+  const raw = rawError instanceof Error ? rawError.message : String(rawError ?? "unknown error");
+  const safe = redactSecrets(raw).slice(0, 2200);
+  const ref = reqId ? `\nReference: #${reqId.slice(0, 12)}` : "";
+  await sendMessage(cfg.BOT_OWNER_ID, `🛠 گزارش خصوصی خطای گروهی SHAKI\nGroup: ${chatId}${ref}\n\n${safe}`).catch(() => {});
+}
+
 const toolErrorNotices = new NoticeGate();
 async function sendToolErrorMessage(
   chatId: number,
@@ -10395,8 +10409,10 @@ async function sendToolErrorMessage(
   const errText = rawError instanceof Error ? rawError.message : String(rawError ?? "");
   if (!toolErrorNotices.allow(`${chatId}:${replyTo}`, isOwner ? 10_000 : 45_000)) return;
   logger.warn(`[tool failure] chat=${chatId}`, redactSecrets(errText));
-  const debugSuffix = isOwner && errText
-    ? `\n\n🔧 **جزئیات کامل خطا (فقط برای مالک):**\n\`\`\`\n${errText.slice(0, 900)}\n\`\`\``
+  const ownerPrivate = isOwnerPrivateChat(chatId, isOwner ? cfg.BOT_OWNER_ID : undefined);
+  if (chatId < 0) await sendOwnerPrivateDiagnostic(chatId, errText);
+  const debugSuffix = ownerPrivate && errText
+    ? `\n\n🔧 **جزئیات کامل خطا (فقط در پیوی مالک):**\n\`\`\`\n${redactSecrets(errText).slice(0, 900)}\n\`\`\``
     : "";
   const retryMarkup = showRetry
     ? { reply_markup: JSON.stringify({ inline_keyboard: [[btn("🔄 تلاش مجدد", "retry_last_msg")]] }) }
@@ -10451,13 +10467,14 @@ async function notifyTurnFailure(
     if (now - last < TURN_FAILURE_NOTICE_MIN_INTERVAL_MS) return;
     _lastTurnFailureNotice.set(chatId, now);
 
-    const isOwner = opts.userId !== undefined && opts.userId === cfg.BOT_OWNER_ID;
+    const ownerPrivate = isOwnerPrivateChat(chatId, opts.userId);
     const lang = opts.lang ?? cachedChatLanguage(chatId);
-    let text = isOwner ? formatError(err, lang, true) : friendlyFailure(err, lang);
+    if (chatId < 0) await sendOwnerPrivateDiagnostic(chatId, err, opts.reqId);
+    let text = ownerPrivate ? formatError(err, lang, true) : friendlyFailure(err, lang);
     // Correlation id only for the owner: it is meaningless noise for everyone
     // else, but it is what makes a support report matchable to a stored
     // diagnostic row.
-    if (isOwner && opts.reqId) text += `\n\n\`#${opts.reqId.slice(0, 10)}\``;
+    if (ownerPrivate && opts.reqId) text += `\n\n\`#${opts.reqId.slice(0, 10)}\``;
 
     await withTimeout(
       sendMessage(chatId, text, opts.replyToMessageId ? { reply_to_message_id: opts.replyToMessageId } : {}),
@@ -18589,7 +18606,9 @@ recordRequest(session);
     // cannot resurrect a half-written answer on top of it.
     await replyStreamer.stop();
 
-    const errorMsg = user.id === cfg.BOT_OWNER_ID
+    const ownerPrivate = originalMsg.chat.type === "private" && isOwnerPrivateChat(originalMsg.chat.id, user.id);
+    if (originalMsg.chat.type !== "private") await sendOwnerPrivateDiagnostic(originalMsg.chat.id, err);
+    const errorMsg = ownerPrivate
       ? formatError(err, session.language, true)
       : friendlyFailure(err, session.language);
     run.finish("failed");
