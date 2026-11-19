@@ -417,6 +417,19 @@ messageHandler.includes('const moderationCommand = ["/ban", "/unban", "/kick", "
   ? ok("authorized moderation commands remain available when bot replies are paused")
   : fail("paused groups must keep authorized moderation commands available");
 
+console.log("\\n[14] All-audience broadcast includes groups");
+indexSource.includes('groupChatIds?: number[]') &&
+indexSource.includes('await listGroups(env, true)') &&
+indexSource.includes('uid > 0 && !await chatCanReceive(env.DB,uid)') &&
+indexSource.includes('groupChatIds, processedIndex: 0')
+  ? ok("all-audience broadcast queues known groups as well as private members")
+  : fail("all-audience broadcast must include group chats and only apply private delivery suppression to users");
+adminSource.includes('value="all">همه اعضا + همه گروه‌ها</option>') &&
+adminSource.includes('fmtNum(d.groups||0)') &&
+adminSource.includes('j.groupCount||0')
+  ? ok("admin panel confirms member/group audience and shows split progress")
+  : fail("admin broadcast panel must describe all members and groups and show both recipient counts");
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
