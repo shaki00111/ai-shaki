@@ -452,7 +452,7 @@ adminSource.includes("قابلیت‌های ۲۹ تا ۳۵") &&
 adminSource.includes("قابلیت‌های ۳۶ تا ۴۴") &&
 adminSource.includes("قابلیت‌های ۴۵ تا ۴۸") &&
 adminSource.includes("همه اعضا + همه گروه‌ها") &&
-adminSource.includes("KEYRING_MASTER_KEY") &&
+adminSource.includes("GEMINI_KEY_1") &&
 (adminSource.match(/class="guide-item"/g)||[]).length >= 60
   ? ok("owner dashboard includes expandable guidance for all 48 roadmap items and admin workflows")
   : fail("owner dashboard guide must cover all roadmap ranges, admin paths, update broadcasts and key setup");
