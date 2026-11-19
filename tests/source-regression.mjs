@@ -430,6 +430,15 @@ adminSource.includes('j.groupCount||0')
   ? ok("admin panel confirms member/group audience and shows split progress")
   : fail("admin broadcast panel must describe all members and groups and show both recipient counts");
 
+console.log("\\n[15] Group errors stay private");
+indexSource.includes("async function sendOwnerPrivateDiagnostic") &&
+indexSource.includes("if (chatId >= 0") &&
+indexSource.includes("if (chatId < 0) await sendOwnerPrivateDiagnostic(chatId, errText)") &&
+indexSource.includes("originalMsg.chat.type !== \"private\"") &&
+indexSource.includes("const errorMsg = ownerPrivate")
+  ? ok("group failures show friendly text and send redacted technical details to the owner privately")
+  : fail("technical error details must never be displayed in group chats");
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
