@@ -426,7 +426,9 @@ indexSource.includes('groupChatIds, processedIndex: 0')
   : fail("all-audience broadcast must include group chats and only apply private delivery suppression to users");
 adminSource.includes('value="all">همه اعضا + همه گروه‌ها</option>') &&
 adminSource.includes('fmtNum(d.groups||0)') &&
-adminSource.includes('j.groupCount||0')
+adminSource.includes('j.groupCount||0') &&
+adminSource.includes('id="bcUpdateTemplate"') &&
+adminSource.includes('bcUpdateTemplate").onclick')
   ? ok("admin panel confirms member/group audience and shows split progress")
   : fail("admin broadcast panel must describe all members and groups and show both recipient counts");
 
