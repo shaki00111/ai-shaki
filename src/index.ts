@@ -2262,6 +2262,8 @@ interface BroadcastJob {
   targetUserId?: number;
   message: string;
   userIds: number[];
+  /** Group/supergroup chat IDs included only in an "all" audience broadcast. */
+  groupChatIds?: number[];
   processedIndex: number;
   sent: number;
   failed: number;
@@ -5747,7 +5749,7 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     // The cron sweep drives the rest either way, so this is safe to detach.
     if (ctx) ctx.waitUntil(processBroadcastBatch(env).catch(e => logger.warn("[broadcast] first batch failed", e)));
     else await processBroadcastBatch(env);
-    return json({ ok: true, total: result.job.totalUsers, audience, status: "in_progress" });
+    return json({ ok: true, total: result.job.totalUsers, users: result.job.userIds.length, groups: result.job.groupChatIds?.length ?? 0, audience, status: "in_progress" });
   }
   if (request.method === "GET" && path === "requests") {
     const q = (url.searchParams.get("q") ?? "").trim().toLowerCase(); const memory = requestLog.slice().reverse().filter(e => !q || e.reqId.toLowerCase().includes(q) || String(e.userId).includes(q) || e.kind.toLowerCase().includes(q) || (e.error ?? "").toLowerCase().includes(q));
@@ -20140,9 +20142,16 @@ async function processBroadcastBatch(env: Env): Promise<void> {
       if(Date.now()+1000>=deadline)break;
       const current=await env.DB.prepare("SELECT json_extract(value_text,'$.status') AS status FROM kv_store WHERE key='broadcast_job:current' AND json_extract(value_text,'$.id')=?").bind(job.id).first<{status:string}>();
       if(!current||current.status==='error')break;
-      const uid=job.userIds[index];
+      const userCount = job.userIds.length;
+      const uid = index < userCount ? job.userIds[index] : job.groupChatIds?.[index - userCount];
+      if (typeof uid !== "number" || !Number.isSafeInteger(uid) || uid === 0) {
+        failed++; next = index + 1; continue;
+      }
       try {
-        if(!await chatCanReceive(env.DB,uid)){failed++;next=index+1;continue;}
+        // Delivery suppression is tracked for private users. Group chats are
+        // verified by Telegram at send time; a stale/kicked group is counted
+        // as failed rather than silently omitted from the requested audience.
+        if (uid > 0 && !await chatCanReceive(env.DB,uid)){failed++;next=index+1;continue;}
         await tg("sendMessage",{chat_id:uid,text},{timeoutMs:5000,deadline});
         sent++;
       } catch (err) {
@@ -20195,15 +20204,21 @@ async function createBroadcastJob(
 
     if (opts.audience === "vip") users = users.filter(u => u.vipStatus);
     else if (opts.audience === "free") users = users.filter(u => !u.vipStatus);
-    if (!users.length) return { ok: false, error: "NO_USERS" };
+
+    // "All" means every reachable private member PLUS every known group and
+    // supergroup where SHAKI has been seen. VIP/free remain private-user-only.
+    const groupChatIds = opts.audience === "all"
+      ? [...new Set((await listGroups(env, true)).map(group => group.chatId).filter(id => Number.isSafeInteger(id) && id < 0))]
+      : [];
+    if (!users.length && !groupChatIds.length) return { ok: false, error: "NO_USERS" };
 
     const adminMessageId = opts.adminMessageId ??
       (await sendMessage(opts.adminChatId, "⏳ **Preparing broadcast...**")).message_id;
 
     const job: BroadcastJob = {
       id: `bc_${Date.now()}`, mode: opts.audience, message: opts.message,
-      userIds: users.map(u => u.userId), processedIndex: 0, sent: 0, failed: 0,
-      totalUsers: users.length, adminChatId: opts.adminChatId, adminMessageId,
+      userIds: users.map(u => u.userId), groupChatIds, processedIndex: 0, sent: 0, failed: 0,
+      totalUsers: users.length + groupChatIds.length, adminChatId: opts.adminChatId, adminMessageId,
       createdAt: Date.now(), status: "pending",
     };
     await env.SESSIONS.put("broadcast_job:current", JSON.stringify(job));
