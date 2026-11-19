@@ -2538,6 +2538,7 @@ async function loadBroadcast(opts){
       `<div class="item"><b>${esc(j.status)} · ${j.percent}%</b>`+
       `<div class="bar"><i style="width:${Math.max(0,Math.min(100,j.percent))}%"></i></div>`+
       `<small style="margin-top:7px">مخاطب: ${esc(j.mode)} · ${fmtNum(j.processedIndex)} از ${fmtNum(j.totalUsers)}<br>`+
+      `👤 اعضا: ${fmtNum(j.userCount||0)} · 👥 گروه‌ها: ${fmtNum(j.groupCount||0)}<br>`+
       `✅ ${fmtNum(j.sent)} ارسال · ❌ ${fmtNum(j.failed)} خطا · ⚠️ ${fmtNum(j.uncertain)} بدون تأیید · ${esc(fmt(j.createdAt))}</small>`+
       `<small style="margin-top:6px;opacity:.75">${esc(j.message)}</small></div>`+
       (active?`<button class="danger" id="bcCancel" style="width:100%">🛑 لغو ارسال</button>`:"");
