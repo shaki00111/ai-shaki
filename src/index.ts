@@ -21318,12 +21318,100 @@ async function handleTruthDare(msg: TgMessage, session: ChatSession, env: Env, k
     { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
 }
 
+
+const GROUP_PROMO_INDEX_KEY = "promo:groups:index";
+const GROUP_PROMO_INTERVAL_MS = 24 * 60 * 60 * 1000;
+let _groupPromoRunning = false;
+interface GroupPromoConfig { enabled: boolean; nextAt: number; lang: Language; title?: string; lastSentAt?: number; }
+
+function groupPromoMessage(lang: Language): string {
+  if (lang === "ar") return "🤖 <b>جرّب AI SHAKI</b>\nمساعد ذكي على تيليجرام للدردشة، الإجابة عن الأسئلة، البحث، إنشاء الصور، تحليل الملفات والمزيد.\n\nإذا أعجبتك SHAKI، شاركها مع أصدقائك أو أضفها إلى مجموعتك الأخرى.";
+  if (lang === "en") return "🤖 <b>Meet AI SHAKI</b>\nA smart Telegram assistant for chatting, research, image creation, file analysis and more.\n\nIf SHAKI is useful, share it with friends or add it to another group.";
+  return "🤖 <b>با AI SHAKI آشنا شو!</b>\nدستیار هوشمند تلگرام برای گفتگو، پاسخ به سؤال‌ها، جست‌وجو، ساخت تصویر، تحلیل فایل و کلی قابلیت دیگه.\n\nاگه شاکی به کارت اومده، برای دوستات بفرست یا به گروه دیگه‌ای هم اضافه‌اش کن.";
+}
+async function sendGroupPromo(chatId: number, lang: Language): Promise<void> {
+  const username = BOT_INFO?.username;
+  if (!username) throw new Error("Bot username is unavailable");
+  const botUrl = `https://t.me/${username}?start=group_promo`;
+  const groupUrl = `https://t.me/${username}?startgroup=add_shaki`;
+  const shareText = lang === "en" ? "Try AI SHAKI, a smart Telegram assistant: " : lang === "ar" ? "جرّب مساعد AI SHAKI على تيليجرام: " : "هوش مصنوعی AI SHAKI رو توی تلگرام امتحان کن: ";
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(shareText)}`;
+  await sendMessage(chatId, groupPromoMessage(lang), { parse_mode: "HTML", reply_markup: JSON.stringify({ inline_keyboard: [
+    [urlBtn(lang === "en" ? "🤖 Open AI SHAKI" : lang === "ar" ? "🤖 افتح AI SHAKI" : "🤖 شروع گفتگو با شاکی", botUrl)],
+    [urlBtn(lang === "en" ? "➕ Add to another group" : lang === "ar" ? "➕ أضفها إلى مجموعة" : "➕ افزودن به گروه دیگر", groupUrl)],
+    [urlBtn(lang === "en" ? "📤 Share with friends" : lang === "ar" ? "📤 شارك مع الأصدقاء" : "📤 معرفی به دوستان", shareUrl)],
+  ]}) });
+}
+async function setGroupPromo(chatId: number, enabled: boolean, lang: Language, title: string, env: Env): Promise<boolean> {
+  const key = `promo:group:${chatId}`;
+  const raw = await env.SESSIONS.get(GROUP_PROMO_INDEX_KEY, "json").catch(() => []) as number[];
+  const ids = Array.isArray(raw) ? raw.filter((id) => Number.isSafeInteger(id)) : [];
+  if (!enabled) {
+    await env.SESSIONS.delete(key);
+    await env.SESSIONS.put(GROUP_PROMO_INDEX_KEY, JSON.stringify(ids.filter((id) => id !== chatId)));
+    return true;
+  }
+  if (!ids.includes(chatId) && ids.length >= 2000) return false;
+  if (!ids.includes(chatId)) ids.push(chatId);
+  const config: GroupPromoConfig = { enabled: true, nextAt: Date.now(), lang, title: title.slice(0, 120) };
+  await env.SESSIONS.put(key, JSON.stringify(config));
+  await env.SESSIONS.put(GROUP_PROMO_INDEX_KEY, JSON.stringify(ids));
+  try {
+    await sendGroupPromo(chatId, lang);
+    config.lastSentAt = Date.now();
+    config.nextAt = config.lastSentAt + GROUP_PROMO_INTERVAL_MS;
+  } catch (e) {
+    config.nextAt = Date.now() + 6 * 60 * 60 * 1000;
+    logger.warn("[group-promo] initial delivery failed", e);
+  }
+  await env.SESSIONS.put(key, JSON.stringify(config));
+  return true;
+}
+async function processDailyGroupPromos(env: Env): Promise<void> {
+  if (_groupPromoRunning || !BOT_INFO?.username) return;
+  _groupPromoRunning = true;
+  try {
+    const raw = await env.SESSIONS.get(GROUP_PROMO_INDEX_KEY, "json").catch(() => []) as number[];
+    const ids = Array.isArray(raw) ? raw.filter((id) => Number.isSafeInteger(id)) : [];
+    if (!ids.length) return;
+    const cursorRaw = await env.SESSIONS.get("promo:groups:cursor", "text").catch(() => "0");
+    let cursor = Math.max(0, Number.parseInt(cursorRaw ?? "0", 10) || 0) % ids.length;
+    const now = Date.now();
+    for (let i = 0; i < Math.min(5, ids.length); i++) {
+      const chatId = ids[cursor];
+      cursor = (cursor + 1) % ids.length;
+      const key = `promo:group:${chatId}`;
+      const config = await env.SESSIONS.get(key, "json").catch(() => null) as GroupPromoConfig | null;
+      if (!config?.enabled || config.nextAt > now) continue;
+      config.nextAt = now + GROUP_PROMO_INTERVAL_MS;
+      await env.SESSIONS.put(key, JSON.stringify(config));
+      try { await sendGroupPromo(chatId, config.lang ?? "fa"); config.lastSentAt = now; }
+      catch (e) { config.nextAt = now + 6 * 60 * 60 * 1000; logger.warn(`[group-promo] delivery failed for chat ${chatId}`, e); }
+      await env.SESSIONS.put(key, JSON.stringify(config));
+    }
+    await env.SESSIONS.put("promo:groups:cursor", String(cursor));
+  } finally { _groupPromoRunning = false; }
+}
+
 async function handleStart(msg: TgMessage, env: Env): Promise<void> {
   const { chat, from } = msg;
   if (!from) return;
 
   const session = await getOrCreateSession(chat, from, env);
   const isGroup = chat.type !== "private";
+  if (isGroup && /(?:^|\\s)add_shaki(?:\\s|$)/i.test(msg.text ?? "")) {
+    const lang = session.language;
+    const welcome = lang === "en"
+      ? "🎉 <b>AI SHAKI is ready in this group!</b>\\nMention SHAKI or reply to one of her messages to chat. Group admins can enable an optional daily introduction with <code>/promo on</code> and disable it anytime with <code>/promo off</code>."
+      : lang === "ar"
+        ? "🎉 <b>تمت إضافة AI SHAKI إلى المجموعة!</b>\\nاذكر SHAKI أو ردّ على إحدى رسائلها لبدء المحادثة. يمكن للمديرين تفعيل التعريف اليومي عبر <code>/promo on</code> وإيقافه عبر <code>/promo off</code>."
+        : "🎉 <b>AI SHAKI به گروه اضافه شد!</b>\\nبرای گفتگو شاکی رو منشن کن یا روی یکی از پیام‌هاش ریپلای بزن. مدیران گروه می‌تونن معرفی روزانه رو با <code>/promo on</code> فعال و با <code>/promo off</code> خاموش کنن.";
+    await sendMessage(chat.id, welcome, {
+      reply_to_message_id: msg.message_id, parse_mode: "HTML",
+      reply_markup: JSON.stringify({ inline_keyboard: BOT_INFO?.username ? [[urlBtn("🤖 شروع خصوصی AI SHAKI", `https://t.me/${BOT_INFO.username}?start=group_promo`)]] : [] }),
+    });
+    return;
+  }
   // GROUP AVAILABILITY: groups are enabled by default.
   // If an administrator explicitly disables replies, /start only opens the
   // settings surface; it never silently re-enables a disabled group.
@@ -23972,6 +24060,30 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
             parse_mode: undefined,
           });
           break;
+        case "/promo": {
+          if (!isGroup) { await sendMessage(chat.id, lang === "fa" ? "این دستور رو داخل گروه اجرا کن؛ مدیر گروه می‌تونه معرفی روزانه رو فعال کنه." : "Use this command in a group; a group admin can enable the daily introduction.", { reply_to_message_id: msg.message_id }); break; }
+          if (from.id !== cfg.BOT_OWNER_ID && !await isUserAdmin(from.id, chat.id)) { await sendMessage(chat.id, lang === "fa" ? "🚫 فقط مدیران گروه می‌تونن معرفی روزانه رو تنظیم کنن." : "🚫 Only group admins can configure the daily introduction.", { reply_to_message_id: msg.message_id }); break; }
+          const action = (args[0] ?? "status").toLowerCase();
+          const current = await env.SESSIONS.get(`promo:group:${chat.id}`, "json").catch(() => null) as GroupPromoConfig | null;
+          if (action === "on") {
+            const saved = await setGroupPromo(chat.id, true, lang, chat.title ?? "", env);
+            await sendMessage(chat.id, !saved
+              ? (lang === "fa" ? "ظرفیت فهرست گروه‌های تبلیغاتی پر شده؛ با مالک ربات تماس بگیر." : "The opted-in group list is full; contact the bot owner.")
+              : (lang === "fa" ? "✅ معرفی روزانه فعال شد. اولین معرفی ارسال شد و از این به بعد حداکثر روزی یک‌بار منتشر می‌شه. برای خاموش‌کردن: /promo off" : "✅ Daily introduction enabled. The first post was sent; future posts are limited to once per 24 hours. Disable with /promo off."),
+              { reply_to_message_id: msg.message_id });
+          } else if (action === "off") {
+            await setGroupPromo(chat.id, false, lang, chat.title ?? "", env);
+            await sendMessage(chat.id, lang === "fa" ? "🔕 معرفی روزانه این گروه خاموش شد." : "🔕 Daily introduction disabled for this group.", { reply_to_message_id: msg.message_id });
+          } else if (action === "status") {
+            await sendMessage(chat.id, current?.enabled
+              ? (lang === "fa" ? "📣 معرفی روزانه این گروه فعاله؛ حداکثر هر ۲۴ ساعت یک پیام." : "📣 Daily introduction is enabled; at most one message every 24 hours.")
+              : (lang === "fa" ? "📭 معرفی روزانه خاموشه. مدیر گروه برای فعال‌سازی /promo on و برای خاموش‌کردن /promo off رو بفرسته." : "📭 Daily introduction is off. A group admin can use /promo on or /promo off."),
+              { reply_to_message_id: msg.message_id });
+          } else {
+            await sendMessage(chat.id, lang === "fa" ? "دستورها:\\n/promo on — فعال‌سازی با رضایت مدیر\\n/promo off — خاموش‌کردن\\n/promo status — مشاهده وضعیت" : "Commands:\\n/promo on — opt in\\n/promo off — opt out\\n/promo status — check status", { reply_to_message_id: msg.message_id, parse_mode: undefined });
+          }
+          break;
+        }
         case "/shortcut": {
           if (isGroup) {
             await sendMessage(chat.id, lang === "fa" ? "برای مدیریت میان‌برها به چت خصوصی ربات برو." : "Manage shortcuts in the bot's private chat.", { reply_to_message_id: msg.message_id });
@@ -28223,6 +28335,11 @@ export default {
       // Every tick, but cheap and self-bounded: pending broadcast batch.
       await processBroadcastBatch(env)
         .catch(e => logger.warn(`cron broadcast failed: ${e instanceof Error ? e.message : e}`));
+
+      // Only groups whose administrators explicitly opted in receive this post.
+      // The rotating cursor bounds each cron invocation to five groups.
+      await processDailyGroupPromos(env)
+        .catch(e => logger.warn(`cron group promos failed: ${e instanceof Error ? e.message : e}`));
 
       // Every tick: drain any session write the coalescer deferred. The buffer is
       // per-isolate, so this only helps when the cron shares an isolate with a
