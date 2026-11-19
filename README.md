@@ -182,6 +182,7 @@ SHAKI can operate inside Telegram groups while maintaining:
 * VIP/group access controls
 
 New groups are enabled by default. SHAKI replies when a member mentions the bot, addresses it by name, or replies to one of its messages; group administrators can disable replies.
+- Group administrators can optionally enable one daily AI SHAKI introduction with `/promo on`; disable it with `/promo off`, or check it with `/promo status`. This is opt-in per group and sends no more than one promotional post per 24 hours.
 
 ---
 
