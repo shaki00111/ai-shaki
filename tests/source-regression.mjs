@@ -466,6 +466,20 @@ indexSource.includes('BOT_INFO?.username')
   ? ok("private start/home menus expose Telegram's native add-to-group picker only when the bot username is known")
   : fail("private menus must expose a localized Telegram startgroup deep link when the bot username is available");
 
+console.log("\\n[18] Consent-based daily group promotion");
+indexSource.includes('case "/promo"') &&
+indexSource.includes("setGroupPromo(chat.id, true") &&
+indexSource.includes("processDailyGroupPromos(env)") &&
+indexSource.includes("GROUP_PROMO_INTERVAL_MS = 24 * 60 * 60 * 1000") &&
+indexSource.includes("isUserAdmin(from.id, chat.id)") &&
+indexSource.includes("startgroup=add_shaki") &&
+indexSource.includes("t.me/share/url")
+  ? ok("group promotion is admin opt-in, has off/status controls, daily rate limit, onboarding and share links")
+  : fail("group promotion must be opt-in, admin-only, rate-limited, cancellable and include working growth links");
+adminSource.includes("/promo on") && adminSource.includes("/promo off") && adminSource.includes("هر ۲۴ ساعت")
+  ? ok("owner guide documents the opt-in daily group promotion and its controls")
+  : fail("owner guide must document /promo controls and the 24-hour limit");
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
