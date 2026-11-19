@@ -1048,7 +1048,7 @@ input,select,textarea{background:rgba(5,10,27,.82)!important;border-color:rgba(1
           </div>
         </div>
         <div class="card"><div class="section-head"><h2>📣 ارسال‌های همگانی</h2></div><div class="section-body">
-          <p class="dim">ارسال پیام همگانی متنی و مشاهده پیشرفت در بخش «پیام‌ها» قرار دارد. برای جلوگیری از ارسال اشتباهی، هر ارسال نیازمند تأیید نهایی است.</p>
+          <p class="dim">ارسال پیام همگانی برای اعضای خصوصی و گروه‌های فعال؛ هر ارسال با تأیید نهایی مالک انجام می‌شود.</p>
           <button class="primary" id="goBroadcast" style="width:100%">رفتن به پیام همگانی ←</button>
           <p class="dim" style="margin-top:var(--s3)">فروارد همگانی و مدیریت کمپین‌های تبلیغاتی هنوز در این نسخه به مسیر اجرایی وصل نشده‌اند؛ آن‌ها را به‌عنوان قابلیت مستقل اضافه می‌کنم، نه دکمه‌ی نمایشیِ بدون عملکرد.</p>
         </div></div>
@@ -1058,7 +1058,7 @@ input,select,textarea{background:rgba(5,10,27,.82)!important;border-color:rgba(1
         <div class="page-head"><h1>ارسال پیام</h1><p>ارسال همگانی یا پیام مستقیم به یک کاربر</p></div>
         <div class="card"><div class="section-head"><h2>ارسال همگانی</h2></div><div class="section-body">
           <label class="lbl" for="bcAudience">مخاطبان</label>
-          <select id="bcAudience"><option value="all">همه کاربران</option><option value="vip">فقط VIP</option><option value="free">فقط رایگان</option></select>
+          <select id="bcAudience"><option value="all">همه اعضا + همه گروه‌ها</option><option value="vip">فقط VIP</option><option value="free">فقط رایگان</option></select>
           <div style="height:var(--s3)"></div>
           <label class="lbl" for="bcMessage">متن پیام (حداکثر ۴۰۰۰ کاراکتر)</label>
           <textarea id="bcMessage" maxlength="4000" placeholder="متن پیام برادکست…" style="min-height:120px"></textarea>
@@ -2553,13 +2553,13 @@ async function sendBroadcast(){
   const msg = $("bcMessage").value.trim();
   if(!msg){ toast("متن خالی است","err"); return; }
   const aud = $("bcAudience").value;
-  const label = aud==="all"?"همه کاربران":aud==="vip"?"کاربران VIP":"کاربران رایگان";
+  const label = aud==="all"?"همه اعضا و گروه‌های فعال":aud==="vip"?"کاربران VIP":"کاربران رایگان";
   if(!await confirmAction("ارسال همگانی","این پیام برای «"+label+"» ارسال می‌شود. مطمئنی؟")) return;
   const btn = $("bcSend"); btn.disabled = true;
   try{
     const d = await api("/api/admin/broadcast", { method:"POST", body:{ message:msg, audience:aud }, timeoutMs:20000 });
     $("bcMessage").value = ""; updateBcCount();
-    toast("ارسال شروع شد: "+fmtNum(d.total)+" گیرنده","ok");
+    toast("ارسال شروع شد: "+fmtNum(d.total)+" مخاطب ("+fmtNum(d.users||0)+" عضو، "+fmtNum(d.groups||0)+" گروه)","ok");
     invalidateTab("broadcast");
     await loadBroadcast();
   }catch(e){ toast("خطا: "+e.message,"err"); }
