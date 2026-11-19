@@ -24066,10 +24066,14 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
           const action = (args[0] ?? "status").toLowerCase();
           const current = await env.SESSIONS.get(`promo:group:${chat.id}`, "json").catch(() => null) as GroupPromoConfig | null;
           if (action === "on") {
+            if (current?.enabled) {
+              await sendMessage(chat.id, lang === "fa" ? "📣 معرفی روزانه از قبل فعاله؛ برای توقف /promo off رو بفرست." : "📣 Daily introduction is already enabled; use /promo off to stop it.", { reply_to_message_id: msg.message_id });
+              break;
+            }
             const saved = await setGroupPromo(chat.id, true, lang, chat.title ?? "", env);
             await sendMessage(chat.id, !saved
               ? (lang === "fa" ? "ظرفیت فهرست گروه‌های تبلیغاتی پر شده؛ با مالک ربات تماس بگیر." : "The opted-in group list is full; contact the bot owner.")
-              : (lang === "fa" ? "✅ معرفی روزانه فعال شد. اولین معرفی ارسال شد و از این به بعد حداکثر روزی یک‌بار منتشر می‌شه. برای خاموش‌کردن: /promo off" : "✅ Daily introduction enabled. The first post was sent; future posts are limited to once per 24 hours. Disable with /promo off."),
+              : (lang === "fa" ? "✅ معرفی روزانه فعال شد. از این به بعد حداکثر روزی یک‌بار منتشر می‌شه. برای خاموش‌کردن: /promo off" : "✅ Daily introduction enabled. future posts are limited to once per 24 hours. Disable with /promo off."),
               { reply_to_message_id: msg.message_id });
           } else if (action === "off") {
             await setGroupPromo(chat.id, false, lang, chat.title ?? "", env);
@@ -27203,6 +27207,12 @@ async function buildHomeKeyboard(session: ChatSession, userId: number, env: Env,
     rows.push([urlBtn(
       isFa ? "➕ افزودن AI SHAKI به گروه" : isAr ? "➕ إضافة AI SHAKI إلى مجموعة" : "➕ Add AI SHAKI to a Group",
       `https://t.me/${BOT_INFO.username}?startgroup=add_shaki`
+    )]);
+    const botUrl = `https://t.me/${BOT_INFO.username}?start=share`;
+    const shareText = isFa ? "هوش مصنوعی AI SHAKI رو توی تلگرام امتحان کن: " : isAr ? "جرّب مساعد AI SHAKI على تيليجرام: " : "Try AI SHAKI, a smart Telegram assistant: ";
+    rows.push([urlBtn(
+      isFa ? "📤 معرفی شاکی به دوستان" : isAr ? "📤 شارك AI SHAKI مع أصدقائك" : "📤 Share AI SHAKI with Friends",
+      `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(shareText)}`
     )]);
   }
 
