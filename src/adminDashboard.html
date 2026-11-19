@@ -3577,6 +3577,24 @@ let personaCache = [];
 function bindStatic(){
   // ↻ صریحاً تازه‌سازی اجباری است، وگرنه کش تب جلوی درخواست را می‌گیرد.
   $("refreshBtn").onclick = ()=> loadTab(state.tab, true);
+  if($("guideSearch")) $("guideSearch").addEventListener("input", ()=>{
+    const q = $("guideSearch").value.trim().toLocaleLowerCase();
+    document.querySelectorAll("#panel-guide .guide-group").forEach(group=>{
+      const items = [...group.querySelectorAll(".guide-item")];
+      let visible = 0;
+      items.forEach(item=>{
+        const match = !q || item.textContent.toLocaleLowerCase().includes(q);
+        item.hidden = !match;
+        if(match) visible++;
+        if(q && match) item.open = true;
+        else if(!q) item.open = false;
+      });
+      group.hidden = !!q && visible===0;
+      if(q && visible) group.open = true;
+      else if(!q) group.open = false;
+    });
+  });
+
   $("closeBtn").onclick   = ()=>{ try{ tg.close(); }catch(e){} };
   $("hamburger").onclick  = openDrawer;
   $("drawerBackdrop").onclick = closeDrawer;
