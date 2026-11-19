@@ -457,6 +457,15 @@ adminSource.includes("GEMINI_KEY_1") &&
   ? ok("owner dashboard includes expandable guidance for all 48 roadmap items and admin workflows")
   : fail("owner dashboard guide must cover all roadmap ranges, admin paths, update broadcasts and key setup");
 
+
+console.log("\\n[17] Native Telegram add-to-group entry point");
+indexSource.includes('startgroup=add_shaki') &&
+indexSource.includes('➕ افزودن AI SHAKI به گروه') &&
+indexSource.includes('urlBtn(') &&
+indexSource.includes('BOT_INFO?.username')
+  ? ok("private start/home menus expose Telegram's native add-to-group picker only when the bot username is known")
+  : fail("private menus must expose a localized Telegram startgroup deep link when the bot username is available");
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
