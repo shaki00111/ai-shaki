@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add an expandable Persian owner-panel guide covering all 48 roadmap items, exact admin-panel paths, supported commands, update announcements, API-key setup, known limitations, and troubleshooting; pending items are explicitly marked rather than presented as working.
+
 - Make the admin panel's all-audience update announcement reach registered private members and known groups/supergroups in resumable batches, with split counts, progress, cancellation, and a ready-to-edit Persian update template.
 - Keep group error messages user-friendly and send redacted technical diagnostics privately to the owner with per-group rate limiting.
 
