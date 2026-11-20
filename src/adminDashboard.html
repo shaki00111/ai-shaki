@@ -3879,25 +3879,6 @@ button.primary{background:linear-gradient(110deg,#7020e8,#a52dff,#2568ee)!import
 @media(min-width:760px){.main{padding-bottom:30px!important}#shakiOwnerBottomNav{left:50%;right:auto;transform:translateX(-50%);width:min(680px,calc(100% - 32px))}}
 @media(max-width:420px){.main{padding-inline:8px!important}.metrics{gap:6px!important}.metric{padding:8px!important;min-height:68px!important}.metric b{font-size:19px!important}}
 </style>
-<script id="shaki-owner-reference-nav">
-document.addEventListener("DOMContentLoaded",function(){
- const nav=document.getElementById("sidebarNav");
- if(!nav)return;
- const bar=document.createElement("nav");bar.id="shakiOwnerBottomNav";bar.setAttribute("aria-label","ناوبری پنل مالک");
- const labels=[["overview","نمای کلی","⌂"],["users","کاربران","♙"],["providers","هوش مصنوعی","✦"],["settings","تنظیمات","⚙"]];
- function build(){
-  const buttons=[...nav.querySelectorAll("button,[role=tab],a")];
-  const chosen=labels.map(([key,label,icon])=>{
-   const source=buttons.find(b=>((b.getAttribute("data-tab")||b.dataset.tab||b.id||b.getAttribute("aria-controls")||"").toLowerCase().includes(key))||b.textContent.toLowerCase().includes(label));
-   if(!source)return null;
-   const clone=document.createElement("button");clone.type="button";clone.innerHTML='<span style="display:block;font-size:17px;line-height:1.2">'+icon+'</span>'+label;
-   clone.addEventListener("click",()=>source.click());return clone;
-  }).filter(Boolean);
-  if(!chosen.length){bar.remove();return}
-  bar.replaceChildren(...chosen);if(!bar.isConnected)document.body.appendChild(bar);
- }
- build();new MutationObserver(build).observe(nav,{childList:true,subtree:true,attributes:true});
-});
-</script>
+
 </body>
 </html>
