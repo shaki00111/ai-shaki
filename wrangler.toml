@@ -91,3 +91,14 @@ LOADING_GIF_URL = ""
 #
 #   WALLET_ADDRESS                        (optional) shown by /donate
 #   SEED_STICKER_SETS                     (optional) sticker sets to seed
+
+# Isolated Cloudflare Preview configuration. Never point previews at production D1.
+[previews.vars]
+ENVIRONMENT = "preview"
+MAINTENANCE_MODE = "true"
+LOADING_GIF_URL = ""
+
+[[previews.d1_databases]]
+binding = "DB"
+database_name = "ai-shaki-preview-db"
+database_id = "8b98c0c6-2467-41c6-af33-2d26b59678f5"
