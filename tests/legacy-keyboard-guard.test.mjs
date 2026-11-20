@@ -36,6 +36,9 @@ test("ordinary messages and callback-only updates are untouched", () => {
   assert.equal(classifyLegacyKeyboardUpdate(update("مدیریت گروه من را توضیح بده")), "none");
   assert.equal(classifyLegacyKeyboardUpdate({ callback_query: { data: "home:close" } }), "none");
   assert.equal(classifyLegacyKeyboardUpdate(update("/start", "not-a-number")), "none");
+  assert.equal(classifyLegacyKeyboardUpdate({
+    callback_query: { data: "home:close", message: { chat: { id: 123 } } },
+  }), "clear");
 });
 
 test("keyboard removal uses Telegram ReplyKeyboardRemove and deletes its invisible notice", async () => {
