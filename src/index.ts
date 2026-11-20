@@ -6389,7 +6389,7 @@ async function callGeminiForWebApp(
       try{
         const timeoutMs=Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart),run?.remainingMs??Infinity);
         if(run)run.modelCalls++;
-        const answer=await callGroqText(groqKeys,buildGroqMessages(systemPromptText+"\\n"+AGENT_WORKFLOW+(run?.context()??""),userPrompt,history),timeoutMs,4096);
+        const answer=await callGroqText(groqKeys,buildGroqMessages(systemPromptText+"\n"+AGENT_WORKFLOW+(run?.context()??""),userPrompt,history),timeoutMs,4096);
         engine.consecutiveErrors=0;
         logger.info("[AI provider] Mini App Gemini disabled/unconfigured; Groq fallback succeeded");
         return {text:answer,functionCalls:[],modelParts:[{text:answer}],finishReason:"STOP"};
@@ -6455,7 +6455,7 @@ async function callGeminiForWebApp(
     try{
       const timeoutMs=Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart),run?.remainingMs??Infinity);
       if(run)run.modelCalls++;
-      const answer=await callGroqText(groqKeysForWebApp,buildGroqMessages(systemPromptText+"\\n"+AGENT_WORKFLOW+(run?.context()??""),userPrompt,history),timeoutMs,4096);
+      const answer=await callGroqText(groqKeysForWebApp,buildGroqMessages(systemPromptText+"\n"+AGENT_WORKFLOW+(run?.context()??""),userPrompt,history),timeoutMs,4096);
       engine.consecutiveErrors=0;
       logger.info("[AI provider] Mini App Gemini exhausted; Groq fallback succeeded");
       return {text:answer,functionCalls:[],modelParts:[{text:answer}],finishReason:"STOP"};
@@ -25540,10 +25540,13 @@ async function probeGeminiKey(key: string, index: number): Promise<CredentialPro
 
 
 function environmentGroqKeyEntries(env: Env): Array<{index:number;key:string}> {
-  return Object.entries(env as unknown as Record<string,unknown>).map(([name,value])=>{
-    const match=/^GROQ_API_KEY_(\\d+)$/.exec(name);
-    return match&&typeof value==="string"&&value.trim()?{index:Number(match[1]),key:value.trim()}:null;
-  }).filter((item):item is {index:number;key:string}=>item!==null&&Number.isSafeInteger(item.index)&&item.index>0).sort((a,b)=>a.index-b.index).slice(0,100);
+  const entries:Array<{index:number;key:string}>=[];
+  const bindings=env as unknown as Record<string,unknown>;
+  for(let index=1;index<=100;index++){
+    const value=bindings["GROQ_API_KEY_"+index];
+    if(typeof value==="string"&&value.trim())entries.push({index,key:value.trim()});
+  }
+  return entries;
 }
 async function probeGroqKey(key:string,index:number):Promise<CredentialProbe>{
   return await runProbe({id:"groq:"+index,service:"groq",label:"GROQ_API_KEY_"+index,masked:maskSecret(key)},async():Promise<ProbeOutcome>=>{

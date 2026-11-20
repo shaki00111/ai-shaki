@@ -1,9 +1,12 @@
 export interface GroqHistoryItem { role: string; parts: Array<{ text?: string }>; }
 export interface GroqMessage { role: "system" | "user" | "assistant"; content: string; }
 export function groqKeysFromEnv(env: Record<string, unknown>): string[] {
-  return Object.entries(env).map(([name,value])=>{const match=/^GROQ_API_KEY_(\d+)$/.exec(name);return match&&typeof value==="string"&&value.trim()?{index:Number(match[1]),key:value.trim()}:null;})
-    .filter((item):item is {index:number;key:string}=>item!==null&&Number.isSafeInteger(item.index)&&item.index>0)
-    .sort((a,b)=>a.index-b.index).map(item=>item.key).filter((key,index,all)=>all.indexOf(key)===index).slice(0,100);
+  const keys:string[]=[];
+  for(let index=1;index<=100;index++){
+    const value=env["GROQ_API_KEY_"+index];
+    if(typeof value==="string"&&value.trim())keys.push(value.trim());
+  }
+  return keys.filter((key,index,all)=>all.indexOf(key)===index);
 }
 export function buildGroqMessages(systemPrompt:string,userPrompt:string,history:readonly GroqHistoryItem[]=[]):GroqMessage[]{
   const messages:GroqMessage[]=[];
