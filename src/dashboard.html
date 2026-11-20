@@ -2914,6 +2914,11 @@ html.keyboard-open #composerBar{min-height:38px!important}
 @media(prefers-reduced-motion:reduce){#app *{animation:none!important;transition:none!important}}
 </style>
 
+<style id="shaki-full-width-viewport-fix">
+html,body{width:100%!important;min-width:0!important;margin:0!important;overflow-x:hidden!important}
+#app{display:flex!important;width:100vw!important;max-width:none!important;min-width:0!important;margin:0!important;border-radius:0!important}
+@supports(width:100dvw){#app{width:100dvw!important}}
+</style>
 <style id="shaki-reference-exact-user">
 :root{--bg:#05020b!important;--bg-1:#09051a!important;--bg-2:#100a25!important;--bg-3:#1a1038!important;--bg-4:#24134c!important;--surface:rgba(12,7,31,.88)!important;--glass:rgba(100,65,255,.10)!important;--glass-strong:rgba(115,75,255,.17)!important;--border:rgba(151,105,255,.28)!important;--border-strong:rgba(82,177,255,.42)!important;--border-accent:rgba(184,144,255,.58)!important;--text:#f7f2ff!important;--text-2:#d9caff!important;--text-dim:#a99bc8!important;--accent:#a12cff!important;--accent-2:#22d5ff!important;--accent-3:#e34cff!important;--accent-glow:rgba(145,40,255,.48)!important;--accent-soft:rgba(147,45,255,.18)!important;--user-msg:linear-gradient(135deg,#7024e9,#a52dff 55%,#2567f5)!important;--radius-xl:22px!important;--radius-lg:18px!important;--radius-md:14px!important}
 html,body{background:#030108!important;color:#f8f3ff!important}
