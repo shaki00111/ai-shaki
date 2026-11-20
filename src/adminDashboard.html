@@ -1080,6 +1080,21 @@ thead th{background:rgba(42,24,86,.96)!important}
 @media(prefers-reduced-motion:reduce){.logo{animation:none!important}}
 </style>
 
+
+<style id="shaki-compact-owner-controls">
+/* Dense controls: more dashboard content visible without oversized buttons. */
+button,.btn,.navitem,.nav-item,.tab-btn,[role=button]{
+ min-height:34px!important;padding:7px 10px!important;border-radius:11px!important;
+ font-size:12px!important;line-height:1.25!important;
+}
+button svg,.btn svg,.navitem svg,.nav-item svg{width:17px!important;height:17px!important}
+input,select,textarea{min-height:36px!important;font-size:13px!important;padding:8px 10px!important}
+.card,.metric{border-radius:14px!important}
+@media(max-width:560px){
+ button,.btn,.navitem,.nav-item,.tab-btn,[role=button]{min-height:32px!important;padding:6px 8px!important;font-size:11px!important}
+}
+</style>
+
 </head>
 <body>
 <a class="skip-link" href="#mainContent">پرش به محتوای اصلی</a>
