@@ -74,6 +74,8 @@ test("group management opens for verified admins", async () => {
   });
   assert.ok(calls.at(-1).params.text.includes("/poll"));
   assert.ok(!calls.at(-1).params.text.includes("/promo"));
+  assert.equal(calls.at(-1).params.reply_markup, undefined);
+  assert.match(calls.at(-1).params.text, /پنل شیشه‌ای/);
 });
 
 test("game buttons invoke native Telegram poll and interactive callback keyboards", async () => {
@@ -137,7 +139,7 @@ test("RPS callbacks are bound to the user who opened the game", async () => {
 });
 
 
-test("joining AI SHAKI sends a Persian group usage guide and keyboard", async () => {
+test("joining AI SHAKI sends a Persian group usage guide without a reply keyboard", async () => {
   const calls = [];
   const handled = await handleTelegramKeyboardUpdate({
     message: {
@@ -154,7 +156,8 @@ test("joining AI SHAKI sends a Persian group usage guide and keyboard", async ()
   assert.match(calls[0].params.text, /\/panel/);
   assert.match(calls[0].params.text, /\/leaderboard/);
   assert.match(calls[0].params.text, /\/poll/);
-  assert.ok(calls[0].params.reply_markup.keyboard.flat().some(button => button.text === "🎮 بازی‌ها"));
+  assert.equal(calls[0].params.reply_markup, undefined);
+  assert.match(calls[0].params.text, /پنل شیشه‌ای/);
 });
 
 test("adding an ordinary member does not trigger the bot onboarding guide", async () => {
@@ -203,4 +206,25 @@ test("malformed poll command returns usage instead of silently passing through",
   assert.equal(handled, true);
   assert.equal(calls[0].method, "sendMessage");
   assert.match(calls[0].params.text, /قالب درست نظرسنجی/);
+});
+
+
+test("group /panel never displays a reply keyboard", async () => {
+  const calls = [];
+  const handled = await handleTelegramKeyboardUpdate({
+    message: { message_id: 120, text: "/panel", chat: { id: -100123, type: "supergroup" }, from: { id: 5, first_name: "Test" } },
+  }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
+  assert.equal(handled, true);
+  assert.equal(calls[0].method, "sendMessage");
+  assert.equal(calls[0].params.reply_markup, undefined);
+  assert.match(calls[0].params.text, /پنل شیشه‌ای قبلی/);
+});
+
+test("private /panel still displays the Telegram reply keyboard", async () => {
+  const calls = [];
+  const handled = await handleTelegramKeyboardUpdate({
+    message: { message_id: 121, text: "/panel", chat: { id: 5, type: "private" }, from: { id: 5, first_name: "Test" } },
+  }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
+  assert.equal(handled, true);
+  assert.ok(calls[0].params.reply_markup.keyboard.flat().some(button => button.text === "🎮 بازی‌ها"));
 });
