@@ -64,9 +64,9 @@ test("provider settings POST response keeps Groq credential visibility consisten
   assert.match(postRoute, /groq:groqKeysFromEnv\(env as unknown as Record<string, unknown>\)\.length>0/);
 });
 
-test("text-only Groq and WusRouter fallbacks join text parts with real line breaks", async () => {
+
+test("all direct Groq and WusRouter text fallback paths use the shared text-part joiner", async () => {
   const { readFileSync } = await import("node:fs");
   const source = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
-  assert.equal(source.split('parts.map(part=>part.text??"").join("\\n")').length - 1, 4);
-  assert.equal(source.split('parts.map(part=>part.text??"").join("\\\\n")').length - 1, 0);
+  assert.equal((source.match(/joinTextParts\(parts\)/g) || []).length, 4);
 });

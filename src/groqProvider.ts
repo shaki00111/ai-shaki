@@ -72,3 +72,8 @@ export async function callGroqText(apiKeys:readonly string[],messages:readonly G
   }
   throw new Error(lastError);
 }
+
+/** Join Telegram text parts without emitting literal backslash-n sequences. */
+export function joinTextParts(parts: readonly { text?: string }[]): string {
+  return parts.map(part => part.text ?? "").join("\n");
+}

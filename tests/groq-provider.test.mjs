@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {buildGroqMessages,callGroqText,groqKeysFromEnv} from "../src/groqProvider.ts";
+import {buildGroqMessages,callGroqText,groqKeysFromEnv,joinTextParts} from "../src/groqProvider.ts";
 test("discovers numbered Groq secrets in numeric order and ignores invalid names",()=>{
  assert.deepEqual(groqKeysFromEnv({GROQ_API_KEY_3:" third ",GROQ_API_KEY_1:"first",GROQ_API_KEY_2:"",GROQ_API_KEY_10:"tenth",GROQ_API_KEY_BAD:"ignored",GROQ_API_KEY_0:"zero"}),["first","third","tenth"]);
 });
@@ -33,3 +33,7 @@ test("redacts an API key from provider error details",async()=>{
  await assert.rejects(()=>callGroqText(["secret-token"],[{role:"user",content:"hi"}],5000,512,fakeFetch),error=>!String(error).includes("secret-token"));
 });
 test("rejects an empty key pool",async()=>{await assert.rejects(()=>callGroqText([],[{role:"user",content:"hi"}]),/GROQ_API_KEY_1/);});
+
+test("joins multiple text parts with real line breaks", () => {
+ assert.equal(joinTextParts([{text:"first"},{text:"second"},{text:""}]),"first\nsecond\n");
+});
