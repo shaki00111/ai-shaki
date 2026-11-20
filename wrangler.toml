@@ -75,7 +75,7 @@ LOADING_GIF_URL = ""
 #   WEBHOOK_SECRET           Value expected in X-Telegram-Bot-Api-Secret-Token
 #   KEYRING_MASTER_KEY       32+ character secret for AES-GCM encrypted owner-managed Gemini keys
 #
-#   GEMINI_KEY_1 .. GEMINI_KEY_5          Google Gemini API key pool
+#   GEMINI_KEY_1 .. GEMINI_KEY_100        Numbered Google Gemini API key pool
 #   WUSROUTER_API_KEY                      Optional text/code fallback
 #
 #   GOOGLE_SEARCH_API_KEY                 Google Programmable Search key
