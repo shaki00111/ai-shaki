@@ -167,6 +167,19 @@ async function handleCallback(update: TelegramUpdate, call: TelegramCall): Promi
   }
 
   const parts = query.data.split(":");
+  if (parts[1] === "rps" && parts[2] === "again") {
+    await call("answerCallbackQuery", { callback_query_id: query.id });
+    await call("editMessageText", {
+      chat_id: chatId, message_id: messageId, text: "✊ دوباره انتخاب کن:",
+      reply_markup: { inline_keyboard: [[
+        { text: "🪨 سنگ", callback_data: "shaki:rps:سنگ" },
+        { text: "📄 کاغذ", callback_data: "shaki:rps:کاغذ" },
+        { text: "✂️ قیچی", callback_data: "shaki:rps:قیچی" },
+      ]] },
+    });
+    return true;
+  }
+
   if (parts[1] === "rps") {
     const player = parts[2] as RpsChoice;
     if (!RPS.includes(player)) {
@@ -196,6 +209,17 @@ async function handleCallback(update: TelegramUpdate, call: TelegramCall): Promi
         { text: "📄 کاغذ", callback_data: "shaki:rps:کاغذ" },
         { text: "✂️ قیچی", callback_data: "shaki:rps:قیچی" },
       ]] },
+    });
+    return true;
+  }
+
+  if (parts[1] === "word" && parts[2] === "next") {
+    await call("answerCallbackQuery", { callback_query_id: query.id });
+    const index = Math.floor(Math.random() * WORD_QUIZZES.length);
+    const question = WORD_QUIZZES[index];
+    await call("editMessageText", {
+      chat_id: chatId, message_id: messageId, text: `🔤 حدس کلمه\n\n${question.question}`,
+      reply_markup: { inline_keyboard: [question.options.map((option, i) => ({ text: option, callback_data: `shaki:word:${index}:${i}` }))] },
     });
     return true;
   }
