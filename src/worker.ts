@@ -8,7 +8,7 @@ type WorkerEnv = { TOKEN?: string; WEBHOOK_SECRET?: string };
 
 type ExistingWorker = {
   fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response>;
-  scheduled?: (controller: ScheduledController, env: ShakiTelegramEnv, ctx: ExecutionContext) => void | Promise<void>;
+  scheduled?: (controller: ScheduledController, env: WorkerEnv, ctx: ExecutionContext) => void | Promise<void>;
 };
 
 const existing = app as unknown as ExistingWorker;
@@ -31,7 +31,7 @@ function ok(): Response {
 }
 
 export default {
-  async fetch(request: Request, env: ShakiTelegramEnv, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response> {
     // Only trust Telegram webhook updates authenticated with the configured secret.
     if (
       request.method === "POST" &&
@@ -67,7 +67,7 @@ export default {
 
     return existing.fetch(request, env, ctx);
   },
-  scheduled(controller: ScheduledController, env: ShakiTelegramEnv, ctx: ExecutionContext) {
+  scheduled(controller: ScheduledController, env: WorkerEnv, ctx: ExecutionContext) {
     return existing.scheduled?.(controller, env, ctx);
   },
 };
