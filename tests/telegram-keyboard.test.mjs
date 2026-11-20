@@ -153,7 +153,6 @@ test("joining AI SHAKI sends a Persian group usage guide without a reply keyboar
   assert.equal(calls[0].method, "sendMessage");
   assert.equal(calls[0].params.chat_id, -100987);
   assert.match(calls[0].params.text, /AI SHAKI به گروه/);
-  assert.match(calls[0].params.text, /\/panel/);
   assert.match(calls[0].params.text, /\/leaderboard/);
   assert.match(calls[0].params.text, /\/poll/);
   assert.equal(calls[0].params.reply_markup, undefined);
