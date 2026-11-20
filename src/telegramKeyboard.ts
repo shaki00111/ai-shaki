@@ -1,10 +1,12 @@
 import { dailyChallengeText } from "./dailyChallenge";
 import { dailyQuiz, sendGroupQuiz } from "./groupQuiz";
+import { awardGroupXp, getGroupLeaderboard, type GroupStatsDB } from "./groupStats";
 
 export interface ShakiTelegramEnv {
   TOKEN?: string;
   WEBHOOK_SECRET?: string;
   BOT_OWNER_ID?: string;
+  DB?: GroupStatsDB;
 }
 
 type TelegramUpdate = {
@@ -158,7 +160,7 @@ async function showGroupAdminPanel(call: TelegramCall, chatId: number, userId: n
   });
 }
 
-async function handleCallback(update: TelegramUpdate, call: TelegramCall): Promise<boolean> {
+async function handleCallback(update: TelegramUpdate, call: TelegramCall, env: ShakiTelegramEnv): Promise<boolean> {
   const query = update.callback_query;
   if (!query?.data?.startsWith("shaki:")) return false;
   const chatId = query.message?.chat.id;
@@ -201,6 +203,7 @@ async function handleCallback(update: TelegramUpdate, call: TelegramCall): Promi
     const bot = RPS[Math.floor(Math.random() * RPS.length)];
     const result = rpsWinner(player, bot);
     const label = result === "win" ? "🏆 تو بردی!" : result === "lose" ? "🤖 این دست رو من بردم!" : "🤝 مساوی شد!";
+    if (result === "win" && chatId < 0 && env.DB) { try { await awardGroupXp(env.DB, chatId, query.from.id, 10, query.id); } catch { /* Optional score storage must not break games. */ } }
     await call("answerCallbackQuery", { callback_query_id: query.id, text: label });
     await call("editMessageText", {
       chat_id: chatId, message_id: messageId,
@@ -233,6 +236,7 @@ async function handleCallback(update: TelegramUpdate, call: TelegramCall): Promi
       return true;
     }
     const correct = selected === question.answer;
+    if (correct && chatId < 0 && env.DB) { try { await awardGroupXp(env.DB, chatId, query.from.id, 5, query.id); } catch { /* Optional score storage must not break quizzes. */ } }
     await call("answerCallbackQuery", { callback_query_id: query.id, text: correct ? "آفرین! جواب درسته 🎉" : "این یکی درست نبود؛ دوباره تلاش کن!" });
     await call("editMessageText", {
       chat_id: chatId, message_id: messageId,
@@ -263,7 +267,7 @@ export async function handleTelegramKeyboardUpdate(
   if (!token) return false;
   const telegram = call ?? ((method, params) => defaultTelegramCall(token, method, params));
 
-  if (await handleCallback(update, telegram)) return true;
+  if (await handleCallback(update, telegram, env)) return true;
 
   const message = update.message;
   const text = String(message?.text ?? "").trim();
@@ -293,9 +297,15 @@ export async function handleTelegramKeyboardUpdate(
       if (typeof userId !== "number") return true;
       await showGroupAdminPanel(telegram, chatId, userId, env, message.chat.type);
       return true;
-    case "🏆 رتبه‌بندی":
-      await telegram("sendMessage", { chat_id: chatId, text: "🏆 برای دیدن جدول امتیازهای گروه از دستور /leaderboard استفاده کن." });
+    case "🏆 رتبه‌بندی": {
+      if (chatId >= 0 || !env.DB) { await telegram("sendMessage", { chat_id: chatId, text: "🏆 جدول امتیازها فقط در گروهی که امتیاز ثبت کرده نمایش داده می‌شه." }); return true; }
+      try {
+        const rows = await getGroupLeaderboard(env.DB, chatId, 10);
+        const lines = rows.map((row, index) => `${index + 1}. شناسه ${row.userId} — ${row.xp} XP`);
+        await telegram("sendMessage", { chat_id: chatId, text: lines.length ? "🏆 رتبه‌بندی گروه\n\n" + lines.join("\n") : "🏆 هنوز امتیازی ثبت نشده؛ با بازی‌کردن اولین نفر جدول شو!" });
+      } catch { await telegram("sendMessage", { chat_id: chatId, text: "الان دسترسی به جدول امتیازها ممکن نیست؛ کمی بعد دوباره امتحان کن." }); }
       return true;
+    }
     case "🚀 چالش روزانه":
       await telegram("sendMessage", { chat_id: chatId, text: dailyChallengeText(new Date(), "fa") });
       return true;
