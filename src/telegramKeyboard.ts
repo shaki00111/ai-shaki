@@ -15,6 +15,7 @@ type TelegramUpdate = {
     text?: string;
     chat: { id: number; type: string; title?: string };
     from?: { id: number; first_name?: string; username?: string };
+    new_chat_members?: Array<{ id: number; is_bot?: boolean; first_name?: string; username?: string }>;
   };
   callback_query?: {
     id: string;
@@ -113,6 +114,28 @@ async function sendPanel(call: TelegramCall, chatId: number, firstName?: string)
     chat_id: chatId,
     text: mainPanelText(firstName),
     reply_markup: replyKeyboard(),
+  });
+}
+
+async function sendGroupOnboarding(call: TelegramCall, chatId: number, title?: string): Promise<void> {
+  const groupName = title ? ` «${title}»` : "";
+  await call("sendMessage", {
+    chat_id: chatId,
+    text: `🎉 سلام! AI SHAKI به گروه${groupName} اضافه شد.
+
+🤖 برای شروع، هر وقت خواستید ربات را صدا بزنید یا از دستورهای زیر استفاده کنید:
+
+• /panel — نمایش پنل کیبوردی
+• /panel و سپس 🎮 بازی‌ها — کوئیز، سنگ‌کاغذقیچی، حدس کلمه و جرئت یا حقیقت
+• /leaderboard — جدول امتیازهای همین گروه
+• /poll سؤال | گزینه ۱ | گزینه ۲ — ساخت نظرسنجی
+
+👑 مدیران گروه می‌توانند از دکمه «👥 مدیریت گروه» تنظیمات مدیریتی را ببینند.
+➕ برای افزودن ربات به گروه دیگر، از دکمه «➕ افزودن به گروه» در پنل استفاده کنید.
+
+💡 نکته: برای عملکرد کامل قابلیت‌های مدیریتی، دسترسی‌های لازم را از تنظیمات مدیران گروه به ربات بدهید. خوش بگذره! 💜`,
+    reply_markup: replyKeyboard(),
+    disable_web_page_preview: true,
   });
 }
 
@@ -270,6 +293,12 @@ export async function handleTelegramKeyboardUpdate(
   if (await handleCallback(update, telegram, env)) return true;
 
   const message = update.message;
+  if (message?.new_chat_members?.some(member =>
+    member.is_bot === true && String(member.username ?? "").toLowerCase() === "ai_shaki_bot"
+  )) {
+    await sendGroupOnboarding(telegram, message.chat.id, message.chat.title);
+    return true;
+  }
   const text = String(message?.text ?? "").trim();
   const chatId = message?.chat?.id;
   const userId = message?.from?.id;
