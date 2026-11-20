@@ -37,8 +37,9 @@ const MAIN_KEYBOARD = [
 const GAME_KEYBOARD = [
   ["🧠 کوئیز روزانه", "🎲 جرئت یا حقیقت"],
   ["✊ سنگ کاغذ قیچی", "🔤 حدس کلمه"],
-  ["📊 ساخت نظرسنجی", "🏆 رتبه‌بندی"],
-  ["⬅️ برگشت به پنل"],
+  ["🎲 تاس", "🎯 دارت"],
+  ["🎳 بولینگ", "📊 ساخت نظرسنجی"],
+  ["🏆 رتبه‌بندی", "⬅️ برگشت به پنل"],
 ];
 
 const WORD_QUIZZES = [
@@ -314,6 +315,21 @@ export async function handleTelegramKeyboardUpdate(
   const userId = message?.from?.id;
   if (!message || !text || typeof chatId !== "number" || !Number.isSafeInteger(chatId)) return false;
 
+  if (/^\/(?:leaderboard|top)(?:@[^\s]+)?(?:\s|$)/i.test(text)) {
+    if (chatId >= 0 || !env.DB) {
+      await telegram("sendMessage", { chat_id: chatId, text: "🏆 جدول امتیازها فقط داخل گروهی که امتیاز ثبت کرده در دسترسه." });
+      return true;
+    }
+    try {
+      const rows = await getGroupLeaderboard(env.DB, chatId, 10);
+      const lines = rows.map((row, index) => `${index + 1}. شناسه ${row.userId} — ${row.xp} XP`);
+      await telegram("sendMessage", { chat_id: chatId, text: lines.length ? "🏆 رتبه‌بندی گروه\n\n" + lines.join("\n") : "🏆 هنوز امتیازی ثبت نشده؛ با بازی‌کردن اولین نفر جدول شو!" });
+    } catch {
+      await telegram("sendMessage", { chat_id: chatId, text: "الان دسترسی به جدول امتیازها ممکن نیست؛ کمی بعد دوباره امتحان کن." });
+    }
+    return true;
+  }
+
   if (/^\/poll(?:@[^\s]+)?(?:\s|$)/i.test(text)) {
     const poll = parsePollCommand(text);
     if (!poll) {
@@ -399,6 +415,13 @@ export async function handleTelegramKeyboardUpdate(
         chat_id: chatId, text: `🔤 حدس کلمه\n\n${question.question}`,
         reply_markup: { inline_keyboard: [question.options.map((option, i) => ({ text: option, callback_data: `shaki:word:${index}:${i}` }))] },
       });
+      return true;
+    }
+    case "🎲 تاس":
+    case "🎯 دارت":
+    case "🎳 بولینگ": {
+      const emoji = text === "🎲 تاس" ? "🎲" : text === "🎯 دارت" ? "🎯" : "🎳";
+      await telegram("sendDice", { chat_id: chatId, emoji });
       return true;
     }
     case "📊 ساخت نظرسنجی":
