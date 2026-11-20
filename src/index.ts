@@ -27571,7 +27571,6 @@ async function dispatchUpdate(update: TgUpdate, env: Env): Promise<void> {
       const oldMember=update.my_chat_member.old_chat_member;
       const wasPresent=isTelegramMemberPresent(oldMember);
       const present=isTelegramMemberPresent(member);
-      const present=["member","administrator","creator"].includes(member.status)||(member.status==="restricted"&&member.is_member!==false);
       if(present&&member.can_send_messages!==false){
         await clearDeliveryFailure(env.DB,chat.id);
         if(chat.type!=="private"){
