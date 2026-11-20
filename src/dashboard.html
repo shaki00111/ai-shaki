@@ -4136,27 +4136,7 @@ document.addEventListener("DOMContentLoaded",function(){
  if(vip)vip.addEventListener("click",()=>{const b=document.getElementById("statusPill");if(b)b.click()});
 });
 </script>
-<style id="shaki-companion-motion-polish">
-#shaki-companion-motion-polish{position:fixed;right:12px;bottom:calc(82px + env(safe-area-inset-bottom,0px));z-index:4;width:42px;height:42px;border-radius:50%;pointer-events:none;display:grid;place-items:center;background:radial-gradient(circle at 35% 25%,#4feaff,#6727e8 64%,#160a3b);border:1px solid rgba(155,115,255,.72);box-shadow:0 0 20px rgba(87,83,255,.42);opacity:.82;transition:transform .25s ease,opacity .25s ease}
-#shaki-companion-motion-polish:before{content:"";width:18px;height:13px;border-radius:45%;background:linear-gradient(90deg,#fff 0 28%,transparent 28% 72%,#fff 72%);filter:drop-shadow(0 0 5px #28dfff)}
-#shaki-companion-motion-polish.shaki-blink:before{transform:scaleY(.15)}
-#shaki-companion-motion-polish.shaki-curious{transform:rotate(-12deg) scale(1.08)}
-#shaki-companion-motion-polish.shaki-think{animation:shakiCompanionThink 1.1s ease-in-out infinite}
-@keyframes shakiCompanionThink{50%{transform:translateY(-7px) rotate(8deg);filter:brightness(1.35)}}
-@media(prefers-reduced-motion:reduce){#shaki-companion-motion-polish{transition:none!important;animation:none!important}}
-</style>
-<div id="shaki-companion-motion-polish" aria-hidden="true"></div>
-<script>
-(()=>{const c=document.getElementById("shaki-companion-motion-polish");if(!c)return;c.setAttribute("aria-hidden","true");
-const reduced=window.matchMedia&&window.matchMedia("(prefers-reduced-motion:reduce)").matches;
-if(reduced)return;
-let last=0;document.addEventListener("pointermove",e=>{if(!e.isPrimary)return;const now=Date.now();if(now-last<70)return;last=now;c.style.translate=(e.clientX>innerWidth/2?"-2px":"2px")+" 0";},{passive:true});
-document.addEventListener("focusin",()=>{c.classList.add("shaki-curious");setTimeout(()=>c.classList.remove("shaki-curious"),700);});
-document.addEventListener("shaki:companion-sad",()=>{c.style.filter="saturate(.45) brightness(.8)";});
-document.addEventListener("shaki:companion-thinking",()=>{c.classList.add("shaki-think");setTimeout(()=>c.classList.remove("shaki-think"),1600);});
-c.classList.add("shaki-blink");setTimeout(()=>c.classList.remove("shaki-blink"),180);
-})();
-</script>
+
 <style id="shaki-reference-user-dock-style">
 #hero>h1,#hero>p{display:none!important}
 #shakiUserDock{position:fixed;z-index:80;left:9px;right:9px;bottom:max(6px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:6px;border:1px solid rgba(155,103,255,.38);border-radius:18px;background:rgba(7,4,23,.96);backdrop-filter:blur(22px);box-shadow:0 8px 28px rgba(0,0,0,.48),0 0 22px rgba(105,40,255,.16)}
