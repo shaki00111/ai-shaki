@@ -50,16 +50,24 @@ export async function getGroupPlayerScore(db: GroupStatsDB, chatId: number, user
 export async function getGroupLeaderboard(db: GroupStatsDB, chatId: number, limit = 10): Promise<GroupPlayerScore[]> {
   const prefix = eventPrefix(chatId);
   const safeLimit = Number.isSafeInteger(limit) ? Math.max(1, Math.min(20, limit)) : 10;
-  const result = await db.prepare(`SELECT key,value_text FROM kv_store
-    WHERE key>=? AND key<? ORDER BY created_at DESC`).bind(prefix, prefix + "\uffff").all<{key:string;value_text:string|null}>();
-  const scores = new Map<number, number>();
-  for (const row of result.results ?? []) {
-    const match = /^([1-9]\d*):/.exec(row.key.slice(prefix.length));
-    if (!match) continue;
-    const userId = Number(match[1]);
-    const amount = Number.parseInt(String(row.value_text ?? "0"), 10);
-    if (!Number.isSafeInteger(userId) || !Number.isSafeInteger(amount) || amount < 0) continue;
-    scores.set(userId, (scores.get(userId) ?? 0) + amount);
-  }
-  return [...scores].map(([userId,xp])=>({userId,xp})).sort((a,b)=>b.xp-a.xp || a.userId-b.userId).slice(0,safeLimit);
+  // Aggregate and cap inside SQLite instead of transferring every game event to
+  // the Worker and building an unbounded in-memory map on every /leaderboard.
+  const userStart = prefix.length + 1; // SQLite substr() is one-based.
+  const result = await db.prepare(`SELECT
+      CAST(substr(key, ?, instr(substr(key, ?), ':') - 1) AS INTEGER) AS user_id,
+      SUM(CAST(value_text AS INTEGER)) AS xp
+    FROM kv_store
+    WHERE key>=? AND key<?
+      AND instr(substr(key, ?), ':') > 1
+    GROUP BY user_id
+    ORDER BY xp DESC, user_id ASC
+    LIMIT ?`)
+    .bind(userStart, userStart, prefix, prefix + "\\uffff", userStart, safeLimit)
+    .all<{ user_id: number | string; xp: number | string }>();
+  return (result.results ?? []).flatMap(row => {
+    const userId = Number(row.user_id);
+    const xp = Number(row.xp);
+    if (!Number.isSafeInteger(userId) || userId <= 0 || !Number.isSafeInteger(xp) || xp < 0) return [];
+    return [{ userId, xp }];
+  });
 }
