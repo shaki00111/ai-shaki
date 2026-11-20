@@ -36,12 +36,14 @@ test("score query is scoped to one group and one user",async()=>{
 test("leaderboard aggregates event ledger by user and caps results",async()=>{
  const prefix="shaki:group-xp:v1:-55:event:";
  const db=fakeDb({rows:[
-  {key:prefix+"2:ev1",value_text:"90"},
-  {key:prefix+"1:ev2",value_text:"40"},
-  {key:prefix+"2:ev3",value_text:"10"},
-  {key:prefix+"bad:ev4",value_text:"999"},
+  {user_id:2,xp:100},
+  {user_id:1,xp:40},
+  {user_id:0,xp:999},
  ]});
  const rows=await getGroupLeaderboard(db,-55,500);
  assert.deepEqual(rows,[{userId:2,xp:100},{userId:1,xp:40}]);
- assert.deepEqual(db.calls[0].values,[prefix,prefix+"\uffff"]);
+ assert.match(db.calls[0].sql,/GROUP BY user_id/);
+ assert.match(db.calls[0].sql,/ORDER BY xp DESC, user_id ASC/);
+ assert.match(db.calls[0].sql,/LIMIT \\?/);
+ assert.deepEqual(db.calls[0].values,[prefix.length+1,prefix.length+1,prefix,prefix+"\\uffff",prefix.length+1,20]);
 });
