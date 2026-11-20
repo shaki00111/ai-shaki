@@ -3848,5 +3848,56 @@ init();
 })();
 </script>
 
+
+<style id="shaki-reference-exact-owner">
+:root{--bg:#04020a!important;--surface-1:#0b0719!important;--surface-2:#160d2b!important;--surface-3:#241343!important;--sunken:#080516!important;--border:rgba(157,84,255,.27)!important;--border-strong:rgba(75,165,255,.38)!important;--border-focus:#9d4dff!important;--text:#fbf7ff!important;--text-soft:#d6c8ed!important;--muted:#a297ba!important;--accent:#a52cff!important;--accent-soft:rgba(165,44,255,.18)!important;--accent-2:#20d9ff!important;--good:#20e6a3!important;--good-soft:rgba(32,230,163,.14)!important;--sidebar-w:0px!important}
+html,body{background:#030108!important;color:#fbf7ff!important}
+body{background:radial-gradient(ellipse 75% 30% at 50% 0%,rgba(113,24,255,.28),transparent 70%),radial-gradient(ellipse 44% 30% at 100% 38%,rgba(0,118,255,.18),transparent 72%),linear-gradient(180deg,#030108,#080719 62%,#030108)!important}
+#app,.body,.main{background:transparent!important}
+.topbar{min-height:54px!important;padding:7px 10px!important;background:rgba(6,4,20,.94)!important;border-bottom:1px solid rgba(157,84,255,.28)!important;box-shadow:0 8px 28px rgba(0,0,0,.42)!important;backdrop-filter:blur(22px)!important}
+.logo,.brand .logo{background:linear-gradient(135deg,#a52cff,#256dff 70%,#22d3ee)!important;box-shadow:0 0 22px rgba(139,92,246,.5)!important}
+.body{display:block!important}
+.sidebar{display:none!important}
+.main{width:100%!important;max-width:760px!important;margin:0 auto!important;padding:12px 10px 86px!important}
+.page-head{padding:10px 4px 12px!important;margin:0 0 10px!important}
+.page-head h1{font-size:19px!important;color:#fff!important}
+.page-head p{font-size:11px!important;color:#b9a9d8!important}
+.metrics{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;margin-bottom:10px!important}
+.metric{min-height:72px!important;padding:10px!important;border-radius:15px!important;background:linear-gradient(145deg,rgba(29,16,67,.96),rgba(8,14,39,.96))!important;border:1px solid rgba(145,94,255,.38)!important;box-shadow:0 8px 22px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.07)!important}
+.metric:before{background:linear-gradient(90deg,#a52cff,#22cfff)!important;opacity:.8!important}
+.metric strong,.metric b{color:#fff!important}
+.card{border-radius:17px!important;background:linear-gradient(145deg,rgba(26,14,58,.94),rgba(7,13,34,.97))!important;border:1px solid rgba(142,91,255,.35)!important;box-shadow:0 10px 28px rgba(0,0,0,.26),inset 0 1px rgba(255,255,255,.06)!important;margin-bottom:9px!important}
+.section-head{padding:10px 12px!important}
+.section-head h2{font-size:12px!important;color:#fff!important}
+.card .list{padding:0 10px 10px!important}
+.tag{border-color:rgba(145,107,255,.35)!important;background:rgba(100,54,190,.16)!important;color:#d9caff!important}
+button.sm,.sm,button.primary{border-radius:11px!important}
+button.primary{background:linear-gradient(110deg,#7020e8,#a52dff,#2568ee)!important;box-shadow:0 0 18px rgba(133,37,255,.28)!important}
+#shakiOwnerBottomNav{position:fixed;z-index:90;left:10px;right:10px;bottom:max(7px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:7px;border:1px solid rgba(160,103,255,.34);border-radius:18px;background:rgba(8,5,25,.94);backdrop-filter:blur(22px);box-shadow:0 10px 32px rgba(0,0,0,.48),0 0 22px rgba(105,40,255,.16)}
+#shakiOwnerBottomNav button{min-width:0;min-height:42px;border:1px solid rgba(143,96,255,.24);border-radius:12px;background:linear-gradient(145deg,rgba(46,23,91,.85),rgba(13,14,42,.9));color:#dcd1f5;font-size:10px;padding:6px 3px}
+#shakiOwnerBottomNav button[aria-current="page"]{background:linear-gradient(110deg,#7020e8,#a52dff,#2568ee);color:#fff;box-shadow:0 0 16px rgba(135,39,255,.36)}
+@media(min-width:760px){.main{padding-bottom:30px!important}#shakiOwnerBottomNav{left:50%;right:auto;transform:translateX(-50%);width:min(680px,calc(100% - 32px))}}
+@media(max-width:420px){.main{padding-inline:8px!important}.metrics{gap:6px!important}.metric{padding:8px!important;min-height:68px!important}.metric b{font-size:19px!important}}
+</style>
+<script id="shaki-owner-reference-nav">
+document.addEventListener("DOMContentLoaded",function(){
+ const nav=document.getElementById("sidebarNav");
+ if(!nav)return;
+ const bar=document.createElement("nav");bar.id="shakiOwnerBottomNav";bar.setAttribute("aria-label","ناوبری پنل مالک");
+ const labels=[["overview","نمای کلی","⌂"],["users","کاربران","♙"],["providers","هوش مصنوعی","✦"],["settings","تنظیمات","⚙"]];
+ function build(){
+  const buttons=[...nav.querySelectorAll("button,[role=tab],a")];
+  const chosen=labels.map(([key,label,icon])=>{
+   const source=buttons.find(b=>((b.getAttribute("data-tab")||b.dataset.tab||b.id||b.getAttribute("aria-controls")||"").toLowerCase().includes(key))||b.textContent.toLowerCase().includes(label));
+   if(!source)return null;
+   const clone=document.createElement("button");clone.type="button";clone.innerHTML='<span style="display:block;font-size:17px;line-height:1.2">'+icon+'</span>'+label;
+   clone.addEventListener("click",()=>source.click());return clone;
+  }).filter(Boolean);
+  if(!chosen.length){bar.remove();return}
+  bar.replaceChildren(...chosen);if(!bar.isConnected)document.body.appendChild(bar);
+ }
+ build();new MutationObserver(build).observe(nav,{childList:true,subtree:true,attributes:true});
+});
+</script>
 </body>
 </html>
