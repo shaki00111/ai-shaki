@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   handleTelegramKeyboardUpdate, isKeyboardCommand, isGroupAdminStatus, rpsWinner,
-  maybeHandleKeyboardWebhook,
+  maybeHandleKeyboardWebhook, parsePollCommand,
 } from "../src/telegramKeyboard.ts";
 
 test("keyboard commands accept aliases and bot-addressed commands", () => {
@@ -72,7 +72,8 @@ test("group management opens for verified admins", async () => {
     if (method === "getChatMember") return { status: "administrator" };
     return {};
   });
-  assert.ok(calls.at(-1).params.text.includes("/promo on"));
+  assert.ok(calls.at(-1).params.text.includes("/poll"));
+  assert.ok(!calls.at(-1).params.text.includes("/promo"));
 });
 
 test("game buttons invoke native Telegram poll and interactive callback keyboards", async () => {
@@ -167,4 +168,39 @@ test("adding an ordinary member does not trigger the bot onboarding guide", asyn
   }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
   assert.equal(handled, false);
   assert.equal(calls.length, 0);
+});
+
+test("poll parser validates Telegram question and option limits", () => {
+  assert.deepEqual(parsePollCommand("/poll@AI_SHAKI_BOT بهترین بازی؟ | مافیا | کوئیز | حدس کلمه"), {
+    question: "بهترین بازی؟",
+    options: ["مافیا", "کوئیز", "حدس کلمه"],
+  });
+  assert.equal(parsePollCommand("/poll فقط یک گزینه"), null);
+  assert.equal(parsePollCommand("/poll سؤال | گزینه اول"), null);
+  assert.equal(parsePollCommand("/poll سؤال | الف | ب | ج | د | هـ | و | ز | ح | ط | ی | ک"), null);
+  assert.equal(parsePollCommand("/poll " + "س".repeat(301) + " | الف | ب"), null);
+  assert.equal(parsePollCommand("/poll سؤال | " + "الف".repeat(101) + " | ب"), null);
+});
+
+test("poll command creates a real non-anonymous Telegram poll", async () => {
+  const calls = [];
+  const handled = await handleTelegramKeyboardUpdate({
+    message: { message_id: 90, text: "/poll بهترین بازی؟ | مافیا | کوئیز | حدس کلمه", chat: { id: -100123, type: "supergroup" }, from: { id: 5 } },
+  }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
+  assert.equal(handled, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, "sendPoll");
+  assert.equal(calls[0].params.question, "بهترین بازی؟");
+  assert.deepEqual(calls[0].params.options, [{ text: "مافیا" }, { text: "کوئیز" }, { text: "حدس کلمه" }]);
+  assert.equal(calls[0].params.is_anonymous, false);
+});
+
+test("malformed poll command returns usage instead of silently passing through", async () => {
+  const calls = [];
+  const handled = await handleTelegramKeyboardUpdate({
+    message: { message_id: 91, text: "/poll ناقص", chat: { id: -100123, type: "supergroup" }, from: { id: 5 } },
+  }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
+  assert.equal(handled, true);
+  assert.equal(calls[0].method, "sendMessage");
+  assert.match(calls[0].params.text, /قالب درست نظرسنجی/);
 });
