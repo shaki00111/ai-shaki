@@ -2967,6 +2967,130 @@ a{color:#7dd3fc!important}*{scrollbar-color:#5d50a4 transparent}
 @media(prefers-reduced-motion:reduce){#shaki-companion *,#shaki-companion *:before{animation:none!important;transition:none!important}}
 </style>
 
+
+<style id="shaki-reference-home-v1">
+/* Reference reconstruction: black glass, saturated violet + electric blue.
+   Kept as a final skin so the existing Telegram actions and DOM remain intact. */
+:root{
+ --bg:#03030a!important;--bg-1:#080817!important;--bg-2:#11102a!important;
+ --bg-3:#1a1740!important;--bg-4:#25205a!important;
+ --accent:#a12cff!important;--accent-2:#22d8ff!important;--accent-3:#e14bff!important;
+ --accent-glow:rgba(145,48,255,.42)!important;--accent-soft:rgba(145,48,255,.18)!important;
+ --border:rgba(155,74,255,.26)!important;--border-strong:rgba(75,157,255,.38)!important;
+ --text:#f8f4ff!important;--text-2:#d8d0ef!important;--text-dim:#a49abf!important;
+ --shadow-glow:0 0 38px rgba(134,45,255,.28)!important;
+}
+html,body{background:#020208!important;color:#f8f4ff!important}
+body{
+ background:
+  radial-gradient(ellipse 62% 36% at 50% 0%,rgba(113,20,255,.28),transparent 72%),
+  radial-gradient(ellipse 42% 34% at 100% 42%,rgba(0,110,255,.19),transparent 75%),
+  radial-gradient(ellipse 45% 30% at 0% 80%,rgba(124,0,255,.16),transparent 75%),#020208!important;
+}
+body:before{opacity:.12!important;background-image:linear-gradient(rgba(151,74,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(54,139,255,.13) 1px,transparent 1px)!important;background-size:42px 42px!important}
+#app{background:linear-gradient(180deg,rgba(4,3,13,.84),rgba(2,3,10,.98))!important}
+.topbar{
+ background:linear-gradient(105deg,rgba(13,7,30,.97),rgba(5,9,25,.94))!important;
+ border-bottom:1px solid rgba(151,74,255,.32)!important;
+ box-shadow:0 8px 34px rgba(0,0,0,.42),0 0 26px rgba(119,40,255,.12)!important;
+ backdrop-filter:blur(24px) saturate(160%)!important;
+}
+.orb,.heroOrb{
+ background:radial-gradient(circle at 32% 25%,#4c1d95,#11102c 68%,#050718)!important;
+ border:1px solid rgba(181,122,255,.62)!important;
+ box-shadow:0 0 0 4px rgba(132,51,255,.10),0 0 28px rgba(143,45,255,.55),0 0 58px rgba(0,139,255,.19),inset 0 0 22px rgba(0,187,255,.17)!important;
+ color:#5de8ff!important;
+}
+.brand b{color:#c6a1ff!important;text-shadow:0 0 16px rgba(161,75,255,.72)!important;letter-spacing:.04em}
+.brand span{color:#b7a9d9!important}
+#statusPill{background:rgba(9,18,26,.82)!important;border:1px solid rgba(42,231,171,.35)!important;box-shadow:0 0 18px rgba(25,224,161,.09)!important}
+#statusPill .dot{background:#25ef9a!important;box-shadow:0 0 10px #25ef9a!important}
+#hero{
+ position:relative;isolation:isolate;overflow:hidden;
+ margin:12px 12px 9px!important;padding:20px 15px 16px!important;
+ border:1px solid rgba(155,91,255,.43)!important;border-radius:25px!important;
+ background:
+  radial-gradient(ellipse at 75% 8%,rgba(112,39,255,.28),transparent 52%),
+  linear-gradient(145deg,rgba(25,13,57,.95),rgba(7,10,30,.97) 72%)!important;
+ box-shadow:0 14px 36px rgba(0,0,0,.48),0 0 24px rgba(128,43,255,.18),inset 0 1px rgba(255,255,255,.12)!important;
+}
+#hero:before{
+ content:"";position:absolute;z-index:-1;inset:-20% -8%;
+ background:radial-gradient(ellipse at 72% 30%,rgba(0,163,255,.17),transparent 36%),radial-gradient(ellipse at 20% 70%,rgba(149,48,255,.16),transparent 48%);
+ animation:shakiReferenceAura 7s ease-in-out infinite alternate;pointer-events:none;
+}
+#hero:after{
+ content:"♛";position:absolute;z-index:0;top:9px;inset-inline-start:15px;
+ color:#c58cff;font-size:24px;line-height:1;text-shadow:0 0 9px #9c35ff,0 0 22px #6d28ff;
+ opacity:.92;pointer-events:none;
+}
+#hero .heroOrb{width:86px!important;height:86px!important;margin:0 auto 12px!important;animation:shakiReferenceFloat 4.6s ease-in-out infinite!important}
+#hero .heroOrb svg{filter:drop-shadow(0 0 9px #25dfff)!important}
+#hero h1{
+ color:#f8edff!important;background:linear-gradient(90deg,#fff,#d7b5ff 52%,#72dfff)!important;
+ -webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;
+ font-size:clamp(20px,5vw,26px)!important;text-shadow:0 0 22px rgba(157,69,255,.28)!important;
+}
+#hero p{color:#c9bee3!important;line-height:1.85!important}
+.group-growth{
+ margin:14px 0 10px!important;padding:12px!important;border-radius:18px!important;
+ background:linear-gradient(145deg,rgba(54,20,104,.82),rgba(10,15,43,.96))!important;
+ border:1px solid rgba(161,85,255,.45)!important;
+ box-shadow:0 8px 24px rgba(0,0,0,.32),0 0 22px rgba(135,47,255,.13)!important;
+}
+.group-growth-head b{color:#f2dcff!important}.group-growth-head small{color:#b9abd4!important}
+.group-growth-btn,.group-growth-btn.primary{
+ background:linear-gradient(110deg,#7225e9,#a32cff 58%,#146de8)!important;
+ border:1px solid rgba(219,185,255,.38)!important;color:#fff!important;
+ box-shadow:0 5px 20px rgba(127,43,255,.35),inset 0 1px rgba(255,255,255,.22)!important;
+}
+.group-growth-games span{
+ background:rgba(16,19,52,.85)!important;border:1px solid rgba(69,126,255,.26)!important;
+ border-radius:999px!important;color:#c8d9ff!important;
+}
+#suggestGrid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:9px!important;margin:12px 10px 16px!important}
+#suggestGrid .suggest,.suggest,.capItem{
+ position:relative!important;overflow:hidden!important;min-width:0!important;
+ border:1px solid rgba(145,89,255,.42)!important;border-radius:17px!important;
+ background:linear-gradient(150deg,rgba(37,22,82,.96),rgba(9,15,42,.98) 75%)!important;
+ color:#f5edff!important;
+ box-shadow:0 8px 20px rgba(0,0,0,.34),0 0 15px rgba(123,45,255,.13),inset 0 1px rgba(255,255,255,.10)!important;
+}
+#suggestGrid .suggest:before,.capItem:before{
+ content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+ background:linear-gradient(135deg,rgba(255,255,255,.10),transparent 38%,rgba(0,158,255,.06));
+}
+#suggestGrid .suggest svg,.capItem svg{color:#5bdfff!important;filter:drop-shadow(0 0 8px rgba(50,183,255,.58))!important}
+#suggestGrid .suggest:active,.capItem:active{transform:scale(.965)!important}
+@media(hover:hover){
+ #suggestGrid .suggest:hover,.capItem:hover{
+  transform:translateY(-3px)!important;border-color:rgba(54,211,255,.72)!important;
+  box-shadow:0 12px 28px rgba(0,0,0,.42),0 0 24px rgba(130,50,255,.24)!important;
+ }
+}
+#composerWrap{background:linear-gradient(180deg,rgba(4,5,17,.12),rgba(3,4,13,.97) 28%)!important;border-top:1px solid rgba(144,76,255,.23)!important;backdrop-filter:blur(18px)!important}
+#composerBar{border:1px solid rgba(153,89,255,.42)!important;border-radius:22px!important;background:linear-gradient(145deg,rgba(22,15,50,.98),rgba(6,12,32,.98))!important;box-shadow:0 8px 30px rgba(0,0,0,.4),0 0 22px rgba(126,43,255,.14)!important}
+.iconBtn,.menuBtn,.gearBtn,.sbCloseX,.closeX{
+ border:1px solid rgba(151,91,255,.36)!important;background:linear-gradient(145deg,rgba(47,31,89,.88),rgba(9,14,37,.96))!important;
+ box-shadow:inset 0 1px rgba(255,255,255,.12),0 5px 16px rgba(0,0,0,.3)!important;
+}
+#sendBtn{background:linear-gradient(130deg,#8629f5,#a52eff 54%,#087de9)!important;box-shadow:0 5px 22px rgba(135,45,255,.42)!important}
+#sidebar,.sheet{background:linear-gradient(155deg,rgba(18,10,43,.99),rgba(4,9,26,.99))!important;border-color:rgba(151,91,255,.35)!important}
+.bubble.bot{background:linear-gradient(145deg,rgba(24,20,53,.98),rgba(8,13,34,.98))!important;border-color:rgba(142,94,255,.25)!important}
+.bubble.user{background:linear-gradient(120deg,#7127df,#a22cff 62%,#236ce8)!important}
+#shaki-companion{filter:drop-shadow(0 8px 18px rgba(113,45,255,.55))!important}
+@keyframes shakiReferenceAura{from{opacity:.55;transform:scale(.98)}to{opacity:1;transform:scale(1.04)}}
+@keyframes shakiReferenceFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@media(max-width:560px){
+ #hero{margin:9px 8px 7px!important;padding:16px 11px 13px!important;border-radius:21px!important}
+ #hero .heroOrb{width:74px!important;height:74px!important}
+ #suggestGrid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important;margin:9px 7px 12px!important}
+ #suggestGrid .suggest{min-height:70px!important;padding:8px 5px!important;font-size:10px!important;line-height:1.35!important}
+}
+@media(max-width:350px){#suggestGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(prefers-reduced-motion:reduce){#hero:before,#hero .heroOrb{animation:none!important}}
+</style>
+
 </head>
 <body>
     <a class="skipLink" href="#chatScroll">پرش به گفتگو</a>
