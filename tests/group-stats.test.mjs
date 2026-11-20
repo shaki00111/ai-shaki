@@ -42,5 +42,8 @@ test("leaderboard aggregates event ledger by user and caps results",async()=>{
  ]});
  const rows=await getGroupLeaderboard(db,-55,500);
  assert.deepEqual(rows,[{userId:2,xp:100},{userId:1,xp:40}]);
- assert.deepEqual(db.calls[0].values,[prefix,prefix+"\uffff"]);
+ assert.match(db.calls[0].sql,/GROUP BY user_id/);
+ assert.match(db.calls[0].sql,/ORDER BY xp DESC, user_id ASC/);
+ assert.match(db.calls[0].sql,/LIMIT \\?/);
+ assert.deepEqual(db.calls[0].values,[prefix.length+1,prefix.length+1,prefix,prefix+"\\uffff",prefix.length+1,20]);
 });
