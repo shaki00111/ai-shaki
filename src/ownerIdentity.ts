@@ -16,6 +16,6 @@ export function ownerIdentityReply(input: string): string | null {
   const text = input.toLowerCase();
   if (/\b(?:who|made|created|built|owns?|developer)\b/.test(text)) return "🤖 I’m AI SHAKI. My creator and owner is @SHAKI0030.";
   if (/(?:بابا|پدر)/u.test(input)) return "😄 من یه هوش مصنوعی‌ام و بابای واقعی ندارم؛ ولی سازنده و صاحبم @SHAKI0030 هست.";
-  if (/(?:سازنده|خالق|ساختت|ساخته|طراحی)/u.test(input)) return "⚡ من، AI SHAKI، توسط @SHAKI0030 ساخته و مدیریت می‌شم.";
+  if (/(?:سازنده|سازند|خالق|ساختت|ساخته|طراحی)/u.test(input)) return "⚡ من، AI SHAKI، توسط @SHAKI0030 ساخته و مدیریت می‌شم.";
   return "👑 صاحب و مالک AI SHAKI، @SHAKI0030 هست.";
 }
