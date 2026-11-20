@@ -67,6 +67,6 @@ test("provider settings POST response keeps Groq credential visibility consisten
 test("text-only Groq and WusRouter fallbacks join text parts with real line breaks", async () => {
   const { readFileSync } = await import("node:fs");
   const source = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
-  assert.equal((source.match(/parts\\.map\\(part=>part\\.text\\?\\?""\\)\\.join\\("\\\\n"\\)/g) || []).length, 4);
-  assert.equal((source.match(/parts\\.map\\(part=>part\\.text\\?\\?""\\)\\.join\\("\\\\\\\\n"\\)/g) || []).length, 0);
+  assert.equal(source.split('parts.map(part=>part.text??"").join("\\n")').length - 1, 4);
+  assert.equal(source.split('parts.map(part=>part.text??"").join("\\\\n")').length - 1, 0);
 });
