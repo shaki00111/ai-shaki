@@ -1,5 +1,5 @@
 import app from "./index";
-import { maybeHandleKeyboardWebhook, type ShakiTelegramEnv } from "./telegramKeyboard";
+import type { ShakiTelegramEnv } from "./telegramKeyboard";
 
 type ExistingWorker = {
   fetch(request: Request, env: ShakiTelegramEnv, ctx: ExecutionContext): Promise<Response>;
@@ -9,13 +9,10 @@ type ExistingWorker = {
 const existing = app as unknown as ExistingWorker;
 
 export default {
+  // Keep the original Telegram handler as the single source of truth.
+  // It owns the glass inline-button panels in both private chats and groups.
+  // Do not intercept /panel or replace the original menus with reply keyboards.
   async fetch(request: Request, env: ShakiTelegramEnv, ctx: ExecutionContext): Promise<Response> {
-    try {
-      const panelResponse = await maybeHandleKeyboardWebhook(request, env);
-      if (panelResponse) return panelResponse;
-    } catch {
-      // A panel failure must never prevent the original AI SHAKI handler from receiving the update.
-    }
     return existing.fetch(request, env, ctx);
   },
   scheduled(controller: ScheduledController, env: ShakiTelegramEnv, ctx: ExecutionContext) {
