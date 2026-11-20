@@ -54,7 +54,7 @@ export async function getGroupLeaderboard(db: GroupStatsDB, chatId: number, limi
     WHERE key>=? AND key<? ORDER BY created_at DESC`).bind(prefix, prefix + "\uffff").all<{key:string;value_text:string|null}>();
   const scores = new Map<number, number>();
   for (const row of result.results ?? []) {
-    const match = /^-?\d+:([1-9]\d*):/.exec(row.key.slice(prefix.length));
+    const match = /^([1-9]\d*):/.exec(row.key.slice(prefix.length));
     if (!match) continue;
     const userId = Number(match[1]);
     const amount = Number.parseInt(String(row.value_text ?? "0"), 10);
