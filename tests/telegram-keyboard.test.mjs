@@ -204,3 +204,27 @@ test("malformed poll command returns usage instead of silently passing through",
   assert.equal(calls[0].method, "sendMessage");
   assert.match(calls[0].params.text, /قالب درست نظرسنجی/);
 });
+
+
+test("native Telegram party games use sendDice for dice, darts and bowling", async () => {
+  for (const [label, emoji] of [["🎲 تاس", "🎲"], ["🎯 دارت", "🎯"], ["🎳 بولینگ", "🎳"]]) {
+    const calls = [];
+    const handled = await handleTelegramKeyboardUpdate({
+      message: { message_id: 101, text: label, chat: { id: -100123, type: "supergroup" }, from: { id: 5 } },
+    }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
+    assert.equal(handled, true);
+    assert.equal(calls[0].method, "sendDice");
+    assert.equal(calls[0].params.emoji, emoji);
+  }
+});
+
+test("leaderboard slash command is handled in groups", async () => {
+  const calls = [];
+  const DB = { prepare: () => ({ bind: () => ({ all: async () => ({ results: [] }) }) }) };
+  const handled = await handleTelegramKeyboardUpdate({
+    message: { message_id: 102, text: "/leaderboard", chat: { id: -100123, type: "supergroup" }, from: { id: 5 } },
+  }, { TOKEN: "test", DB }, async (method, params) => { calls.push({ method, params }); return {}; });
+  assert.equal(handled, true);
+  assert.equal(calls[0].method, "sendMessage");
+  assert.match(calls[0].params.text, /هنوز امتیازی ثبت نشده/);
+});
