@@ -123,7 +123,7 @@ async function sendPanel(call: TelegramCall, chatId: number, firstName?: string,
   await call("sendMessage", {
     chat_id: chatId,
     text: mainPanelText(firstName),
-    ...(privateChat ? { reply_markup: replyKeyboard() } : {}),
+    reply_markup: privateChat ? replyKeyboard() : { remove_keyboard: true },
   });
 }
 
@@ -144,6 +144,7 @@ async function sendGroupOnboarding(call: TelegramCall, chatId: number, title?: s
 ➕ برای افزودن ربات به گروه دیگر، از دکمه «➕ افزودن به گروه» در پنل استفاده کنید.
 
 💡 نکته: برای عملکرد کامل قابلیت‌های مدیریتی، دسترسی‌های لازم را از تنظیمات مدیران گروه به ربات بدهید. خوش بگذره! 💜`,
+    reply_markup: { remove_keyboard: true },
     disable_web_page_preview: true,
   });
 }
@@ -152,7 +153,7 @@ async function sendGameMenu(call: TelegramCall, chatId: number, privateChat = tr
   await call("sendMessage", {
     chat_id: chatId,
     text: "🎮 بخش بازی‌ها\nیکی از بازی‌های زیر رو انتخاب کن:",
-    ...(privateChat ? { reply_markup: replyKeyboard(GAME_KEYBOARD) } : {}),
+    reply_markup: privateChat ? replyKeyboard(GAME_KEYBOARD) : { remove_keyboard: true },
   });
 }
 
@@ -188,6 +189,7 @@ async function showGroupAdminPanel(call: TelegramCall, chatId: number, userId: n
   await call("sendMessage", {
     chat_id: chatId,
     text: "👥 مدیریت گروه\n\n• ساخت نظرسنجی: /poll سؤال | گزینه ۱ | گزینه ۲\n• جدول امتیازها: /leaderboard\n• پنل گروه همان پنل شیشه‌ای قبلی Mini App است؛ اینجا کیبوردی نمایش داده نمی‌شود.\n\nابزارهای مدیریتی فقط با دسترسی مدیر گروه اجرا می‌شن.",
+    reply_markup: { remove_keyboard: true },
   });
 }
 
@@ -329,7 +331,7 @@ export async function handleTelegramKeyboardUpdate(
   }
 
   if (isKeyboardCommand(text)) {
-    await sendPanel(telegram, chatId, message.from?.first_name);
+    await sendPanel(telegram, chatId, message.from?.first_name, message.chat.type === "private");
     return true;
   }
 
