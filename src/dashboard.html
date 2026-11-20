@@ -2858,289 +2858,61 @@ a{color:#7dd3fc}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
 
-<style id="shaki-mobile-repair-2026">
-:root{--accent:#9b7bff!important;--accent-2:#38bdf8!important;--accent-3:#a78bfa!important;--accent-glow:rgba(124,92,255,.24)!important;--accent-soft:rgba(124,92,255,.13)!important}
-html{width:100%;height:100%;overflow:hidden;overscroll-behavior:none}
-body{width:100%;height:100%;min-height:0;overflow:hidden;overscroll-behavior:none}
-#app{width:100%;height:100dvh!important;min-height:0!important;max-height:100dvh;overflow:hidden}
-#chatScroll{min-height:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-#composerWrap{position:relative;flex:0 0 auto;z-index:30}
-#capSheet{z-index:80!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;width:100%;max-height:min(52dvh,390px);overflow-y:auto!important;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch;padding:12px 10px max(12px,env(safe-area-inset-bottom))!important;scrollbar-width:thin;visibility:hidden}
-#capSheet.open{visibility:visible}
-#capSheet .capItem{min-height:68px;justify-content:center;padding:10px 5px!important;font-size:11px!important;line-height:1.4;text-align:center;overflow-wrap:anywhere}
-#capSheet .capItem svg{width:20px!important;height:20px!important;flex:0 0 auto}
-#composerBar{max-width:100%;min-width:0}
-#inp{min-width:0;font-size:16px!important}
-#sidebar{z-index:90;max-height:100dvh;overflow-y:auto;overscroll-behavior:contain}
-#sidebarBackdrop{z-index:85}
-#usageSheet,#personaSheet{max-height:min(84dvh,720px);overflow-y:auto;overscroll-behavior:contain}
-button,.iconBtn,.capItem,.suggest{touch-action:manipulation}
-@media(max-width:560px){
- :root{--page-gutter:8px;--chat-pad-x:6px;--composer-pad-x:6px}
- header.topbar{min-height:52px!important;padding:5px 8px!important}
- #hero{margin:10px 8px 8px!important;padding:16px 12px!important}
- #hero h1{font-size:19px!important}
- #hero p{font-size:12px!important;line-height:1.6}
- #suggestGrid{gap:7px!important}
- .suggest{min-height:64px;padding:9px 6px!important;font-size:11px!important}
- #composerWrap{padding:5px 6px max(5px,env(safe-area-inset-bottom))!important}
- #composerBar{gap:5px!important;padding:5px!important}
- .iconBtn{width:36px!important;height:36px!important;flex:0 0 36px}
- #sendBtn{width:38px!important;height:38px!important;flex:0 0 38px}
- #capSheet{grid-template-columns:repeat(3,minmax(0,1fr))!important;max-height:48dvh}
-}
-@media(max-width:360px){
- #capSheet{grid-template-columns:repeat(2,minmax(0,1fr))!important}
- #hero h1{font-size:17px!important}
- .brand span{display:none}
-}
 
-/* Telegram WebApp viewport hardening: the app must occupy the actual viewport.
-   The old centered 560px desktop shell left a clipped strip on wide Telegram
-   webviews and made the chat look like an empty canvas. */
-html,body{width:100%!important;min-width:0!important;max-width:100%!important}
-body{display:block!important;align-items:stretch!important;justify-content:stretch!important;margin:0!important}
-#app{display:flex!important;width:100vw!important;max-width:none!important;min-width:0!important;height:var(--app-height,100dvh)!important;max-height:100dvh!important;margin:0!important;overflow:hidden!important}
-#chatScroll{width:100%;min-width:0;max-width:100%;flex:1 1 auto}
-#composerWrap,#composerBar,#uploadPreviewWrap{width:100%;min-width:0;max-width:100%}
-#sidebar{width:min(86vw,340px)!important;max-width:calc(100vw - 24px)!important;inset-inline-start:-100%!important}
-#sidebar.open{inset-inline-start:0!important}
-#sidebarBackdrop{inset:0!important}
-#hero,#suggestGrid,.row,.bubble{min-width:0;max-width:100%;overflow-wrap:anywhere}
-#hero img,#chatScroll img,#chatScroll video{max-width:100%;height:auto}
-@supports(height:100dvh){#app{height:100dvh!important}}
-@media(max-width:560px){
- #app{width:100vw!important;max-width:100vw!important}
- #chatScroll{padding-inline:8px!important}
- #hero{margin-inline:8px!important}
- #composerWrap{padding-inline:6px!important}
-}
-@media(prefers-reduced-motion:reduce){#app *{scroll-behavior:auto!important}}
-@media(prefers-reduced-motion:reduce){#capSheet,.capItem{transition:none!important;animation:none!important}}
-</style>
-
-<style id="shaki-neon-public-v3">
-:root{--bg:#050611;--bg-1:#090d20;--bg-2:#101735;--bg-3:#182247;--accent:#9b7bff;--accent-2:#38c9ff;--primary:#8057f5;--border:rgba(153,132,255,.19);--border-2:rgba(88,190,255,.25);--text:#f4f3ff;--text-2:#c8c9e8;--text-3:#929bc2;--shadow:0 18px 50px rgba(0,0,0,.38)}
-html,body{background-color:#050611!important;color:#f4f3ff!important}body{background-image:radial-gradient(ellipse at 12% 0%,rgba(113,64,255,.24),transparent 38%),radial-gradient(ellipse at 92% 9%,rgba(0,171,255,.18),transparent 35%),linear-gradient(180deg,#050611,#080d20 54%,#050611)!important}
-body:before{opacity:.18;background-image:linear-gradient(rgba(139,92,246,.17) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.13) 1px,transparent 1px);background-size:46px 46px}
-.topbar{background:rgba(6,9,27,.84)!important;border-bottom:1px solid rgba(139,120,255,.22)!important;box-shadow:0 10px 36px rgba(0,0,0,.28)!important;backdrop-filter:blur(24px) saturate(150%)!important}
-.orb,.heroOrb{background:linear-gradient(145deg,#a78bfa,#6366f1 52%,#22d3ee)!important;color:#fff!important;box-shadow:0 0 0 6px rgba(139,92,246,.09),0 0 38px rgba(99,102,241,.30)!important}
-#hero{border:1px solid rgba(139,120,255,.20)!important;background:radial-gradient(ellipse at 50% 0%,rgba(124,58,237,.22),transparent 64%),linear-gradient(145deg,rgba(15,20,48,.68),rgba(7,13,33,.48))!important;border-radius:26px!important;box-shadow:0 20px 55px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.06)!important}
-#hero h1{background:linear-gradient(90deg,#fff,#c4b5fd 48%,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent!important;text-shadow:none!important}
-#suggestGrid .suggest,.suggest,.personaCard,.convItem,.capItem{border:1px solid rgba(139,120,255,.20)!important;background:linear-gradient(145deg,rgba(20,26,60,.88),rgba(8,15,38,.92))!important;box-shadow:0 12px 32px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.04)!important}
-#suggestGrid .suggest:hover,.suggest:hover,.personaCard:hover,.convItem:hover,.capItem:hover{border-color:rgba(56,189,248,.48)!important;box-shadow:0 15px 38px rgba(67,56,202,.20)!important}
-.bubble{border-color:rgba(139,120,255,.17)!important;background:linear-gradient(145deg,rgba(18,24,54,.92),rgba(8,14,34,.96))!important}
-#composerWrap{background:linear-gradient(180deg,rgba(5,8,23,.12),rgba(5,8,23,.94))!important;backdrop-filter:blur(18px)!important}
-#composerBar{border:1px solid rgba(139,120,255,.25)!important;background:rgba(9,14,36,.94)!important;box-shadow:0 12px 34px rgba(0,0,0,.30),0 0 24px rgba(99,102,241,.07)!important}
-#sendBtn,button.primary,.btn-primary{background:linear-gradient(115deg,#7548e8,#4d68ed 56%,#079bc7)!important;border:1px solid rgba(196,181,253,.24)!important;color:#fff!important;box-shadow:0 8px 26px rgba(99,102,241,.28)!important}
-.iconBtn,.menuBtn,.gearBtn,.newChatBtn{border-color:rgba(139,120,255,.22)!important;background:linear-gradient(145deg,rgba(30,35,77,.82),rgba(9,15,38,.92))!important}
-input,textarea,select{background:rgba(7,11,29,.94)!important;border-color:rgba(139,120,255,.24)!important;color:#f5f3ff!important}input:focus,textarea:focus,select:focus{border-color:#8b7cff!important;box-shadow:0 0 0 3px rgba(139,124,255,.13)!important}
-#statusPill,.plan,.tag{border-color:rgba(139,120,255,.24)!important;background:rgba(22,28,65,.72)!important}
-#sidebar{background:linear-gradient(180deg,rgba(9,14,36,.98),rgba(5,9,25,.99))!important;border-inline-end:1px solid rgba(139,120,255,.22)!important;backdrop-filter:blur(24px)!important}
-.sheet,.modal,.dialog{background:linear-gradient(145deg,rgba(17,23,54,.98),rgba(7,12,32,.99))!important;border:1px solid rgba(139,120,255,.24)!important;box-shadow:0 22px 70px rgba(0,0,0,.52)!important}
-a{color:#7dd3fc!important}*{scrollbar-color:#5d50a4 transparent}
-@media(max-width:560px){#hero{border-radius:19px!important;margin-inline:8px!important}#composerBar{border-radius:18px!important}}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
-</style>
-<style id="shaki-companion-motion-polish">
-#shaki-companion{will-change:left,top;contain:layout style;isolation:isolate}
-#shaki-companion .bot{transform-origin:50% 88%;animation:shaki-bob 2.65s cubic-bezier(.45,.05,.55,.95) infinite,shaki-breathe 4.8s ease-in-out infinite}
-#shaki-companion .face{overflow:hidden}
-#shaki-companion .eye{transform:translate(var(--look-x,0),var(--look-y,0));transition:transform .12s ease-out, height .16s ease,border-radius .16s ease}
-#shaki-companion .eye:first-child{animation:shaki-blink 5.1s infinite}
-#shaki-companion .eye:nth-child(2){animation:shaki-blink 5.1s .12s infinite}
-#shaki-companion .bow{animation:shaki-bow-sway 3.2s ease-in-out infinite}
-#shaki-companion .spark{pointer-events:none}
-#shaki-companion .bubble{max-width:42px;white-space:nowrap;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4))}
-#shaki-companion.curious .bot{animation:shaki-curious .42s ease-in-out 2,shaki-breathe 4.8s ease-in-out infinite}
-#shaki-companion.curious .eye{height:13px;width:8px}
-#shaki-companion.thinking .bot{animation:shaki-think .55s ease-in-out 2,shaki-breathe 4.8s ease-in-out infinite}
-#shaki-companion.thinking .eye{height:5px;width:8px}
-#shaki-companion.sad .bot{animation:shaki-sad .4s ease-in-out 2}
-#shaki-companion.sad .bow{transform:rotate(-18deg)}
-@keyframes shaki-blink{0%,46%,50%,100%{transform:translate(var(--look-x,0),var(--look-y,0)) scaleY(1)}48%{transform:translate(var(--look-x,0),var(--look-y,0)) scaleY(.12)}}
-@keyframes shaki-breathe{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}
-@keyframes shaki-bow-sway{0%,100%{rotate:8deg}50%{rotate:-9deg}}
-@keyframes shaki-curious{0%,100%{rotate:0}35%{rotate:8deg}70%{rotate:-5deg}}
-@keyframes shaki-think{0%,100%{translate:0 0}50%{translate:0 -5px}}
-@keyframes shaki-sad{0%,100%{translate:0 0}50%{translate:0 3px}}
-@media(prefers-reduced-motion:reduce){#shaki-companion *,#shaki-companion *:before{animation:none!important;transition:none!important}}
-</style>
-
-
-<style id="shaki-reference-home-v1">
-/* Reference reconstruction: black glass, saturated violet + electric blue.
-   Kept as a final skin so the existing Telegram actions and DOM remain intact. */
+<style id="shaki-reference-rebuild">
 :root{
- --bg:#03030a!important;--bg-1:#080817!important;--bg-2:#11102a!important;
- --bg-3:#1a1740!important;--bg-4:#25205a!important;
- --accent:#a12cff!important;--accent-2:#22d8ff!important;--accent-3:#e14bff!important;
- --accent-glow:rgba(145,48,255,.42)!important;--accent-soft:rgba(145,48,255,.18)!important;
- --border:rgba(155,74,255,.26)!important;--border-strong:rgba(75,157,255,.38)!important;
- --text:#f8f4ff!important;--text-2:#d8d0ef!important;--text-dim:#a49abf!important;
- --shadow-glow:0 0 38px rgba(134,45,255,.28)!important;
+ --bg:#05020b;--bg-1:#090414;--bg-2:#100a20;--bg-3:#1b1032;--bg-4:#28134b;
+ --accent:#a52cff;--accent-2:#24d8ff;--accent-3:#d94dff;
+ --accent-glow:rgba(153,45,255,.42);--accent-soft:rgba(153,45,255,.16);
+ --border:rgba(160,87,255,.24);--border-strong:rgba(92,157,255,.38);
+ --text:#fbf7ff;--text-2:#d9cbed;--text-dim:#a89abf;
+ --shadow-glow:0 0 32px rgba(143,40,255,.28);
 }
-html,body{background:#020208!important;color:#f8f4ff!important}
-body{
- background:
-  radial-gradient(ellipse 62% 36% at 50% 0%,rgba(113,20,255,.28),transparent 72%),
-  radial-gradient(ellipse 42% 34% at 100% 42%,rgba(0,110,255,.19),transparent 75%),
-  radial-gradient(ellipse 45% 30% at 0% 80%,rgba(124,0,255,.16),transparent 75%),#020208!important;
-}
-body:before{opacity:.12!important;background-image:linear-gradient(rgba(151,74,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(54,139,255,.13) 1px,transparent 1px)!important;background-size:42px 42px!important}
-#app{background:linear-gradient(180deg,rgba(4,3,13,.84),rgba(2,3,10,.98))!important}
-.topbar{
- background:linear-gradient(105deg,rgba(13,7,30,.97),rgba(5,9,25,.94))!important;
- border-bottom:1px solid rgba(151,74,255,.32)!important;
- box-shadow:0 8px 34px rgba(0,0,0,.42),0 0 26px rgba(119,40,255,.12)!important;
- backdrop-filter:blur(24px) saturate(160%)!important;
-}
-.orb,.heroOrb{
- background:radial-gradient(circle at 32% 25%,#4c1d95,#11102c 68%,#050718)!important;
- border:1px solid rgba(181,122,255,.62)!important;
- box-shadow:0 0 0 4px rgba(132,51,255,.10),0 0 28px rgba(143,45,255,.55),0 0 58px rgba(0,139,255,.19),inset 0 0 22px rgba(0,187,255,.17)!important;
- color:#5de8ff!important;
-}
-.brand b{color:#c6a1ff!important;text-shadow:0 0 16px rgba(161,75,255,.72)!important;letter-spacing:.04em}
-.brand span{color:#b7a9d9!important}
-#statusPill{background:rgba(9,18,26,.82)!important;border:1px solid rgba(42,231,171,.35)!important;box-shadow:0 0 18px rgba(25,224,161,.09)!important}
-#statusPill .dot{background:#25ef9a!important;box-shadow:0 0 10px #25ef9a!important}
-#hero{
- position:relative;isolation:isolate;overflow:hidden;
- margin:12px 12px 9px!important;padding:20px 15px 16px!important;
- border:1px solid rgba(155,91,255,.43)!important;border-radius:25px!important;
- background:
-  radial-gradient(ellipse at 75% 8%,rgba(112,39,255,.28),transparent 52%),
-  linear-gradient(145deg,rgba(25,13,57,.95),rgba(7,10,30,.97) 72%)!important;
- box-shadow:0 14px 36px rgba(0,0,0,.48),0 0 24px rgba(128,43,255,.18),inset 0 1px rgba(255,255,255,.12)!important;
-}
-#hero:before{
- content:"";position:absolute;z-index:-1;inset:-20% -8%;
- background:radial-gradient(ellipse at 72% 30%,rgba(0,163,255,.17),transparent 36%),radial-gradient(ellipse at 20% 70%,rgba(149,48,255,.16),transparent 48%);
- animation:shakiReferenceAura 7s ease-in-out infinite alternate;pointer-events:none;
-}
-#hero:after{
- content:"♛";position:absolute;z-index:0;top:9px;inset-inline-start:15px;
- color:#c58cff;font-size:24px;line-height:1;text-shadow:0 0 9px #9c35ff,0 0 22px #6d28ff;
- opacity:.92;pointer-events:none;
-}
-#hero .heroOrb{width:86px!important;height:86px!important;margin:0 auto 12px!important;animation:shakiReferenceFloat 4.6s ease-in-out infinite!important}
-#hero .heroOrb svg{filter:drop-shadow(0 0 9px #25dfff)!important}
-#hero h1{
- color:#f8edff!important;background:linear-gradient(90deg,#fff,#d7b5ff 52%,#72dfff)!important;
- -webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;
- font-size:clamp(20px,5vw,26px)!important;text-shadow:0 0 22px rgba(157,69,255,.28)!important;
-}
-#hero p{color:#c9bee3!important;line-height:1.85!important}
-.group-growth{
- margin:14px 0 10px!important;padding:12px!important;border-radius:18px!important;
- background:linear-gradient(145deg,rgba(54,20,104,.82),rgba(10,15,43,.96))!important;
- border:1px solid rgba(161,85,255,.45)!important;
- box-shadow:0 8px 24px rgba(0,0,0,.32),0 0 22px rgba(135,47,255,.13)!important;
-}
-.group-growth-head b{color:#f2dcff!important}.group-growth-head small{color:#b9abd4!important}
-.group-growth-btn,.group-growth-btn.primary{
- background:linear-gradient(110deg,#7225e9,#a32cff 58%,#146de8)!important;
- border:1px solid rgba(219,185,255,.38)!important;color:#fff!important;
- box-shadow:0 5px 20px rgba(127,43,255,.35),inset 0 1px rgba(255,255,255,.22)!important;
-}
-.group-growth-games span{
- background:rgba(16,19,52,.85)!important;border:1px solid rgba(69,126,255,.26)!important;
- border-radius:999px!important;color:#c8d9ff!important;
-}
-#suggestGrid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:9px!important;margin:12px 10px 16px!important}
-#suggestGrid .suggest,.suggest,.capItem{
- position:relative!important;overflow:hidden!important;min-width:0!important;
- border:1px solid rgba(145,89,255,.42)!important;border-radius:17px!important;
- background:linear-gradient(150deg,rgba(37,22,82,.96),rgba(9,15,42,.98) 75%)!important;
- color:#f5edff!important;
- box-shadow:0 8px 20px rgba(0,0,0,.34),0 0 15px rgba(123,45,255,.13),inset 0 1px rgba(255,255,255,.10)!important;
-}
-#suggestGrid .suggest:before,.capItem:before{
- content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
- background:linear-gradient(135deg,rgba(255,255,255,.10),transparent 38%,rgba(0,158,255,.06));
-}
-#suggestGrid .suggest svg,.capItem svg{color:#5bdfff!important;filter:drop-shadow(0 0 8px rgba(50,183,255,.58))!important}
-#suggestGrid .suggest:active,.capItem:active{transform:scale(.965)!important}
-@media(hover:hover){
- #suggestGrid .suggest:hover,.capItem:hover{
-  transform:translateY(-3px)!important;border-color:rgba(54,211,255,.72)!important;
-  box-shadow:0 12px 28px rgba(0,0,0,.42),0 0 24px rgba(130,50,255,.24)!important;
- }
-}
-#composerWrap{background:linear-gradient(180deg,rgba(4,5,17,.12),rgba(3,4,13,.97) 28%)!important;border-top:1px solid rgba(144,76,255,.23)!important;backdrop-filter:blur(18px)!important}
-#composerBar{border:1px solid rgba(153,89,255,.42)!important;border-radius:22px!important;background:linear-gradient(145deg,rgba(22,15,50,.98),rgba(6,12,32,.98))!important;box-shadow:0 8px 30px rgba(0,0,0,.4),0 0 22px rgba(126,43,255,.14)!important}
-.iconBtn,.menuBtn,.gearBtn,.sbCloseX,.closeX{
- border:1px solid rgba(151,91,255,.36)!important;background:linear-gradient(145deg,rgba(47,31,89,.88),rgba(9,14,37,.96))!important;
- box-shadow:inset 0 1px rgba(255,255,255,.12),0 5px 16px rgba(0,0,0,.3)!important;
-}
-#sendBtn{background:linear-gradient(130deg,#8629f5,#a52eff 54%,#087de9)!important;box-shadow:0 5px 22px rgba(135,45,255,.42)!important}
-#sidebar,.sheet{background:linear-gradient(155deg,rgba(18,10,43,.99),rgba(4,9,26,.99))!important;border-color:rgba(151,91,255,.35)!important}
-.bubble.bot{background:linear-gradient(145deg,rgba(24,20,53,.98),rgba(8,13,34,.98))!important;border-color:rgba(142,94,255,.25)!important}
-.bubble.user{background:linear-gradient(120deg,#7127df,#a22cff 62%,#236ce8)!important}
-#shaki-companion{filter:drop-shadow(0 8px 18px rgba(113,45,255,.55))!important}
-@keyframes shakiReferenceAura{from{opacity:.55;transform:scale(.98)}to{opacity:1;transform:scale(1.04)}}
-@keyframes shakiReferenceFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-@media(max-width:560px){
- #hero{margin:9px 8px 7px!important;padding:16px 11px 13px!important;border-radius:21px!important}
- #hero .heroOrb{width:74px!important;height:74px!important}
- #suggestGrid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important;margin:9px 7px 12px!important}
- #suggestGrid .suggest{min-height:70px!important;padding:8px 5px!important;font-size:10px!important;line-height:1.35!important}
-}
-@media(max-width:350px){#suggestGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
-@media(prefers-reduced-motion:reduce){#hero:before,#hero .heroOrb{animation:none!important}}
-</style>
-
-
-<style id="shaki-compact-keyboard-fix">
-/* Remove mascot layers completely; keep the welcome message clean. */
-.heroOrb,#shaki-companion{display:none!important}
-#hero{padding:15px 12px 12px!important;margin:8px 8px 6px!important}
-#hero:after{display:none!important}
-#hero h1{font-size:18px!important;margin:0 0 6px!important}
-#hero p{font-size:12px!important;line-height:1.55!important;margin:0!important}
-.group-growth{margin:10px 0 7px!important;padding:10px!important;border-radius:15px!important}
-.group-growth-head{gap:7px!important;margin-bottom:8px!important}
-.group-growth-icon{width:32px!important;height:32px!important;font-size:17px!important;border-radius:10px!important}
-.group-growth-head b{font-size:12px!important}
-.group-growth-head small{font-size:10px!important}
-.group-growth-actions{gap:6px!important}
-.group-growth-btn{min-height:36px!important;padding:7px 8px!important;font-size:11px!important;border-radius:11px!important}
-.group-growth-games{gap:5px!important;margin-top:8px!important}
-.group-growth-games span{font-size:9px!important;padding:4px 7px!important}
-.group-growth-note{font-size:9px!important;margin-top:6px!important}
-#suggestGrid{gap:6px!important;margin:8px 7px 10px!important}
-#suggestGrid .suggest,.suggest{
- min-height:54px!important;padding:7px 5px!important;border-radius:12px!important;
- font-size:10px!important;line-height:1.25!important;gap:4px!important;
- box-shadow:0 4px 12px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.07)!important;
-}
-#suggestGrid .suggest svg,.suggest svg{width:19px!important;height:19px!important}
-#composerWrap{padding:4px 6px max(4px,env(safe-area-inset-bottom))!important}
-#composerBar{gap:4px!important;padding:4px!important;border-radius:15px!important}
-#composerBar .iconBtn{width:32px!important;height:32px!important;min-width:32px!important;flex:0 0 32px!important}
-#composerBar .iconBtn svg{width:17px!important;height:17px!important}
-#sendBtn{width:34px!important;height:34px!important;min-width:34px!important;flex:0 0 34px!important}
-#inp{font-size:16px!important;min-height:32px!important;max-height:96px!important}
-#app{height:var(--app-height,100dvh)!important;max-height:var(--app-height,100dvh)!important;min-height:0!important}
+html,body{width:100%;height:100%;margin:0;background:#030108!important;color:#fbf7ff!important;overflow:hidden!important}
+body{display:block!important;background:
+ radial-gradient(ellipse 78% 32% at 50% 0%,rgba(115,25,255,.27),transparent 70%),
+ radial-gradient(ellipse 45% 36% at 100% 48%,rgba(0,116,255,.16),transparent 72%),
+ radial-gradient(ellipse 48% 34% at 0% 90%,rgba(132,20,255,.16),transparent 72%),#030108!important}
+#app{width:100%!important;max-width:none!important;height:var(--app-height,100dvh)!important;max-height:var(--app-height,100dvh)!important;min-height:0!important;background:transparent!important;overflow:hidden!important}
+header.topbar{min-height:58px!important;flex:0 0 auto!important;padding:7px 12px!important;gap:9px!important;background:linear-gradient(105deg,rgba(15,7,31,.98),rgba(5,9,26,.96))!important;border-bottom:1px solid rgba(155,76,255,.35)!important;box-shadow:0 7px 26px rgba(0,0,0,.42),0 0 20px rgba(123,39,255,.13)!important;backdrop-filter:blur(22px)!important}
+.menuBtn{width:34px!important;height:34px!important;border-radius:11px!important;background:linear-gradient(145deg,#241345,#0c1029)!important;border:1px solid rgba(161,91,255,.38)!important;color:#d8baff!important}
+.orb{width:37px!important;height:37px!important;border-radius:13px!important;background:linear-gradient(145deg,#7426e9,#25105c 62%,#063d77)!important;border:1px solid rgba(208,165,255,.55)!important;box-shadow:0 0 17px rgba(147,42,255,.42),inset 0 1px rgba(255,255,255,.2)!important;color:#fff!important;animation:none!important}
+.orb svg{width:23px!important;height:23px!important;filter:drop-shadow(0 0 5px #c77bff)!important}
+.brand{gap:3px!important}
+.brand b{font-size:16px!important;font-weight:800!important;letter-spacing:.035em!important;color:#d5aaff!important;text-shadow:0 0 13px rgba(160,68,255,.65)!important}
+.brand span{font-size:9px!important;color:#a9a0c6!important}
+#statusPill{height:25px!important;min-height:25px!important;padding:0 8px!important;border-radius:99px!important;background:rgba(4,28,25,.86)!important;border:1px solid rgba(42,235,163,.35)!important;color:#62f5b7!important;font-size:10px!important}
+#statusPill .dot{background:#20ee9b!important;box-shadow:0 0 9px #20ee9b!important}
+#chatScroll{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain!important;padding:8px 9px 6px!important}
+#hero{margin:9px 7px 8px!important;padding:13px 13px 12px!important;border-radius:18px!important;border:1px solid rgba(164,91,255,.42)!important;background:radial-gradient(ellipse at 85% 5%,rgba(120,40,255,.25),transparent 50%),linear-gradient(145deg,rgba(31,13,66,.96),rgba(7,12,34,.98) 78%)!important;box-shadow:0 8px 24px rgba(0,0,0,.42),0 0 19px rgba(126,35,255,.17),inset 0 1px rgba(255,255,255,.10)!important;text-align:right!important}
+#hero .heroOrb{display:none!important}
+#hero:after{content:"♛";position:absolute;top:8px;inset-inline-start:12px;color:#d2a0ff;font-size:19px;text-shadow:0 0 10px #9e39ff;pointer-events:none}
+#hero h1{font-size:17px!important;line-height:1.45!important;margin:0 0 5px!important;background:linear-gradient(90deg,#fff,#d8b5ff 55%,#76ddff)!important;-webkit-background-clip:text!important;background-clip:text!important;color:transparent!important}
+#hero p{font-size:10px!important;line-height:1.65!important;color:#c8b9df!important;margin:0!important;max-width:100%!important}
+.group-growth{display:none!important}
+#suggestGrid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important;margin:8px 7px 10px!important}
+#suggestGrid .suggest,.suggest{display:flex!important;min-width:0!important;min-height:66px!important;padding:8px 4px!important;gap:5px!important;flex-direction:column!important;justify-content:center!important;align-items:center!important;text-align:center!important;border-radius:13px!important;border:1px solid rgba(147,81,255,.44)!important;background:linear-gradient(150deg,rgba(39,19,83,.98),rgba(8,15,42,.99) 78%)!important;color:#f7edff!important;font-size:10px!important;line-height:1.3!important;box-shadow:0 5px 15px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.10)!important}
+#suggestGrid .suggest svg,.suggest svg{width:22px!important;height:22px!important;color:#5ee5ff!important;filter:drop-shadow(0 0 6px rgba(50,184,255,.65))!important}
+#suggestGrid .suggest:active{transform:scale(.96)!important}
+#composerWrap{flex:0 0 auto!important;padding:5px 7px max(5px,env(safe-area-inset-bottom))!important;background:linear-gradient(180deg,rgba(5,3,16,.35),rgba(5,3,16,.98) 25%)!important;border-top:1px solid rgba(147,75,255,.22)!important;backdrop-filter:blur(18px)!important}
+#composerBar{width:100%!important;max-width:100%!important;min-height:42px!important;gap:5px!important;padding:4px!important;border-radius:15px!important;background:linear-gradient(145deg,rgba(25,14,52,.98),rgba(6,13,34,.99))!important;border:1px solid rgba(157,89,255,.43)!important;box-shadow:0 5px 18px rgba(0,0,0,.38),0 0 14px rgba(132,43,255,.13)!important}
+#inp{min-height:34px!important;max-height:84px!important;padding:6px 10px!important;font-size:16px!important;border:0!important;background:transparent!important;box-shadow:none!important;color:#fff!important}
+.iconBtn{width:32px!important;height:32px!important;min-width:32px!important;flex:0 0 32px!important;border-radius:10px!important;background:linear-gradient(145deg,#2b1850,#0b1734)!important;border:1px solid rgba(144,94,255,.34)!important}
+.iconBtn svg{width:17px!important;height:17px!important}
+#sendBtn{width:34px!important;height:34px!important;min-width:34px!important;flex:0 0 34px!important;border-radius:11px!important;background:linear-gradient(135deg,#8b25ee,#b12cff 55%,#087fe6)!important;box-shadow:0 0 15px rgba(143,41,255,.38)!important}
+#sidebar{background:linear-gradient(160deg,#16092f,#050c20)!important;border-inline-end:1px solid rgba(151,81,255,.3)!important}
+.bubble.bot{background:linear-gradient(145deg,rgba(28,17,59,.96),rgba(7,13,34,.98))!important;border:1px solid rgba(139,85,255,.22)!important;border-radius:15px!important}
+.bubble.user{background:linear-gradient(120deg,#7424e7,#a12cff 58%,#126fdb)!important;border-radius:15px!important}
+#shaki-companion,.heroOrb{display:none!important}
 html.keyboard-open #app{height:var(--app-height)!important;max-height:var(--app-height)!important}
-html.keyboard-open #hero{display:none!important}
-html.keyboard-open #chatScroll{min-height:0!important;flex:1 1 0!important;padding-top:4px!important}
-html.keyboard-open #composerWrap{flex:0 0 auto!important;padding:3px 5px max(3px,env(safe-area-inset-bottom))!important}
-html.keyboard-open #composerBar{min-height:40px!important}
-html.keyboard-open #capSheet{max-height:30dvh!important}
-@media(max-width:560px){
- #suggestGrid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
- #suggestGrid .suggest{min-height:52px!important}
- .group-growth{padding:9px!important}
-}
-@media(max-height:520px){
- #hero{display:none!important}
- #composerWrap{padding-top:2px!important;padding-bottom:2px!important}
-}
-@media(prefers-reduced-motion:reduce){#suggestGrid .suggest{transition:none!important}}
+html.keyboard-open #hero,html.keyboard-open #suggestGrid{display:none!important}
+html.keyboard-open #chatScroll{min-height:0!important;flex:1 1 0!important;padding-top:3px!important}
+html.keyboard-open #composerWrap{padding:2px 5px max(2px,env(safe-area-inset-bottom))!important}
+html.keyboard-open #composerBar{min-height:38px!important}
+@media(max-width:360px){#suggestGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#hero{padding:10px!important}}
+@media(max-height:560px){#hero,#suggestGrid{display:none!important}}
+@media(prefers-reduced-motion:reduce){#app *{animation:none!important;transition:none!important}}
 </style>
-
 </head>
 <body>
     <a class="skipLink" href="#chatScroll">پرش به گفتگو</a>
@@ -3150,15 +2922,10 @@ html.keyboard-open #capSheet{max-height:30dvh!important}
                 <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                 <span class="dot"></span>
             </button>
-            <div class="orb" id="orb">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 6.5C16.5 4.8 14.5 4 12 4C8.5 4 6 5.8 6 8.4C6 11 8.2 11.8 12 12.4C15.8 13 18 13.8 18 16.5C18 19.2 15.5 21 12 21C9.2 21 7 20.1 5.5 18.5"/>
-                    <circle cx="12" cy="12" r="9" stroke-width="0.8" stroke-dasharray="3 2" opacity="0.5"/>
-                </svg>
-            </div>
+            <div class="orb" id="orb"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m3 7 4.2 3.2L12 4l4.8 6.2L21 7l-2 11H5L3 7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 21h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="12" cy="3" r="1" fill="currentColor"/><circle cx="21" cy="6" r="1" fill="currentColor"/></svg></div>
             <div class="brand">
-                <b id="convTitle">گفتگوی جدید</b>
-                <span id="personaSub"><span id="personaEmoji">🤖</span><span id="personaName">شاکی</span></span>
+                <b id="convTitle">AI SHAKI</b>
+                <span id="personaSub"><span id="personaEmoji">✦</span><span id="personaName">Your Smart AI Assistant</span></span>
             </div>
             <button id="statusPill" type="button" aria-label="مصرف روزانه">
                 <span class="dot"></span><span id="statusText">در حال اتصال…</span>
