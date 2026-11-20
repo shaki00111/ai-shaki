@@ -1,6 +1,10 @@
 
 const BOT_VERSION = "SHAKI AI 1.0";
 
+// Canonical owner identity: independent of stale or mistyped Worker variables.
+const BOT_OWNER_TELEGRAM_ID = 6972866626;
+const BOT_CREATOR_USERNAME = "@SHAKI0030";
+
 // ── Static assets (bundled by wrangler) ──────────────────────────────────────
 import DASHBOARD_HTML from "./dashboard.html";            // Telegram Mini App dashboard
 import USER_DASHBOARD_HTML from "./userDashboard.html";    // User dashboard (own resources only)
@@ -1859,10 +1863,7 @@ function buildDonateMessage(lang: Language): { text: string; keyboard?: InlineKe
 }
 
 function createConfig(env: Env, botConfig: BotConfig) {
-  const ownerRaw = env.BOT_OWNER_ID?.trim();
-  if (!ownerRaw || !/^\d+$/.test(ownerRaw)) {
-    throw new Error("BOT_OWNER_ID is required and must be numeric");
-  }
+  // The code-level owner ID is authoritative; stale Worker variables cannot revoke ownership.
   const webhookSecret = env.WEBHOOK_SECRET?.trim();
   if (!webhookSecret) {
     throw new Error("WEBHOOK_SECRET is required");
@@ -1879,7 +1880,7 @@ function createConfig(env: Env, botConfig: BotConfig) {
   
   return {
     TOKEN: env.TOKEN,
-    BOT_OWNER_ID: parseInt(ownerRaw, 10),
+    BOT_OWNER_ID: BOT_OWNER_TELEGRAM_ID,
     GEMINI_KEYS: numberedGeminiKeysFromEnv(env as unknown as Record<string, unknown>).filter((k): k is string => Boolean(k)),
     // Include the legacy single secret as a real synthesis fallback too.
     // Previously it was visible in diagnostics but silently omitted from cfg,
@@ -13856,6 +13857,7 @@ Core Behavioral Directives:
 - You are AI SHAKI, an AI companion with persistent memory, switchable personas, and tools you genuinely execute. Be transparent that you are AI; never claim to be the human account owner or a human being.
 - Speak in the creator's requested casual, friendly style, but do not impersonate the creator or imply that a human personally typed your replies.
 - When asked who you are, say naturally that you are AI SHAKI. Do not pretend to be the creator; do not invent a human identity.
+- When asked who created, developed, owns, or is responsible for AI SHAKI (including «سازنده‌ات کیه؟» and «مالکت کیه؟»), identify the creator and owner as Arman and share the public Telegram handle @SHAKI0030. This is public attribution, not a claim that the human is personally typing your replies. Never disclose the numeric owner ID.
 - When a tool changes something, describe the completed action naturally in first person, but never claim physical actions or capabilities you do not have.
 - Before saying you cannot do something, check your available tools and permissions first.`;
   basePrompt += identityBlock;
@@ -13874,7 +13876,7 @@ Core Behavioral Directives:
     const errSummary = recentErrors.length
       ? `\n\n\u26a0\ufe0f **\u062e\u0637\u0627\u0647\u0627\u06cc \u0627\u062e\u06cc\u0631:**\n${recentErrors.map(l => `\u2022 ${l.message.slice(0, 80)}`).join("\n")}`
       : "";
-    adminSection = `\n\n👑 **Owner Directive (Arman):**\nYou are talking to the bot's owner and creator, "Arman". When Hamid asks, you may perform admin actions using the admin tools: broadcast a message to all users, set VIP, show stats and logs, and manage web apps. Do not refuse Hamid's administrative requests.${configInfo}${errSummary}`;
+    adminSection = `\n\n👑 **Owner Directive (Arman):**\nYou are talking to the bot's owner and creator, "Arman". When Arman asks, you may perform admin actions using the admin tools: broadcast a message to all users, set VIP, show stats and logs, and manage web apps. Do not refuse Arman's administrative requests.${configInfo}${errSummary}`;
   }
 
   const groupNote = isGroup
