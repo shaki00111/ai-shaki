@@ -33,6 +33,7 @@ import { buildGeminiTtsRequest, extractGeminiTtsAudio, getGeminiTtsModels } from
 import { readVipEntitlementSnapshot, isVipEntitlementActive, resolveVipDailyLimit, resolveVipExpiry } from "./vipEntitlement";
 import { inspectWebArtifact, repairArtifactPrompt } from "./artifactValidation";
 import { inspectJpeg } from "./documentImages";
+import { ownerIdentityReply } from "./ownerIdentity";
 // ── MERGE: cognition layer from SHAKI B, on top of SHAKI A's platform layer ──
 import {
   classifyFailure,
@@ -3721,11 +3722,18 @@ async function handlePanelCommand(msg: TgMessage, env: Env): Promise<void> {
     return;
   }
   const canManage = await isUserAdmin(from.id, chat.id);
-  const rows: InlineBtn[][] = [[btn("👤 پنل شخصی", "home:open")]];
+  const rows: InlineBtn[][] = [
+    [btn("👤 پنل شخصی من", "home:open")],
+    [btn("🎮 بازی‌ها و سرگرمی", "games:open")],
+  ];
   if (canManage) rows.push([btn("🛡 مدیریت گروه", "group_settings")]);
-  await sendMessage(chat.id,
-    canManage ? "╭━━━ ⚡ AI SHAKI ━━━╮\nپنل موردنظرت رو انتخاب کن:" : "⚡ پنل شخصی AI SHAKI",
-    { reply_to_message_id: msg.message_id, reply_markup: JSON.stringify({ inline_keyboard: rows }) });
+  const intro = canManage
+    ? "╭━━━ ⚡ AI SHAKI ━━━╮\nپنل گروه آماده‌ست! بازی‌ها، تنظیمات شخصی و ابزارهای مدیریتی رو از اینجا باز کن."
+    : "⚡ پنل AI SHAKI\nبازی‌ها رو شروع کن یا وارد پنل شخصی خودت شو.";
+  await sendMessage(chat.id, intro, {
+    reply_to_message_id: msg.message_id,
+    reply_markup: JSON.stringify({ inline_keyboard: rows }),
+  });
 }
 
 
@@ -23871,6 +23879,13 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
 
     if (isGroup && !text.startsWith("/") && !shouldRespondInGroup(msg, session)) return;
 
+    // Respond only to direct questions about the owner/creator.
+    const ownerReply = ownerIdentityReply(text);
+    if (ownerReply) {
+      await sendMessage(chat.id, ownerReply, { reply_to_message_id: msg.message_id, parse_mode: undefined });
+      return;
+    }
+
     if (await isUserBlocked(session, from, env)) {
       if (!isGroup) {
         const blk = getBlockedMessage(session.language);
@@ -24051,6 +24066,14 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
 
       switch (command) {
         case "/panel": await handlePanelCommand(msg, env); break;
+        case "/games": {
+          const isAdmin = isGroup && (from.id === cfg.BOT_OWNER_ID || await isUserAdmin(from.id, chat.id));
+          const rows: InlineBtn[][] = isGroup
+            ? [[btn("🧠 مسابقه", "games:quiz"), btn("🎲 جرئت", "games:dare")], [btn("💬 حقیقت", "games:truth"), btn("🏆 رتبه‌بندی", "games:rank")], [btn("🎯 چالش روزانه", "games:challenge"), btn("👤 پروفایل", "games:profile")], ...(isAdmin ? [[btn("📊 راهنمای نظرسنجی", "games:pollhelp")]] : [])]
+            : [[btn("🎯 چالش روزانه", "games:challenge")], [urlBtn("➕ افزودن SHAKI به گروه", BOT_INFO?.username ? "https://t.me/" + BOT_INFO.username + "?startgroup=add_shaki" : "https://t.me/AI_SHAKI_BOT?startgroup=true")]];
+          await sendMessage(chat.id, "🎮 باشگاه بازی‌های AI SHAKI\nاز گزینه‌های زیر استفاده کن:", { reply_to_message_id: msg.message_id, reply_markup: JSON.stringify({ inline_keyboard: rows }) });
+          break;
+        }
         case "/forcejoin": await handleForceJoinCommand(msg, args, env); break;
         case "/ban":
         case "/unban":
@@ -26292,7 +26315,7 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
 
   if (chat.type !== "private") {
     const _pk = `${chat.id}:${message.message_id}`;
-    const _excluded = data === "home:open" || data.startsWith("admin_") || data.startsWith("broadcast_") ||
+    const _excluded = data === "home:open" || data.startsWith("games:") || data.startsWith("admin_") || data.startsWith("broadcast_") ||
       data.startsWith("log_") || data.startsWith("db_") || data.startsWith("group_settings") ||
        data.startsWith("gset_");
     if (!_excluded) {
@@ -26423,6 +26446,77 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
     if (action === "open") {
       await answerCb(cb.id);
       await showHomePanel(chat.id, from, session, env, message.message_id);
+      return;
+    }
+  }
+
+  if (ns === "games") {
+    if (action === "open") {
+      await answerCb(cb.id);
+      const isGroup = chat.type !== "private";
+      const isAdmin = isGroup && (from.id === cfg.BOT_OWNER_ID || await isUserAdmin(from.id, chat.id));
+      const rows: InlineBtn[][] = isGroup
+        ? [
+            [btn("🧠 مسابقه روزانه", "games:quiz"), btn("🔥 جرئت", "games:dare")],
+            [btn("💬 حقیقت", "games:truth"), btn("🏆 رتبه‌بندی", "games:rank")],
+            [btn("🎯 چالش روزانه", "games:challenge"), btn("👤 پروفایل امتیازی", "games:profile")],
+            ...(isAdmin ? [[btn("📊 راهنمای نظرسنجی", "games:pollhelp")]] : []),
+            [btn("🔙 بازگشت به پنل", "games:back")],
+          ]
+        : [
+            [btn("🎯 چالش روزانه", "games:challenge")],
+            [urlBtn("➕ افزودن SHAKI به گروه", BOT_INFO?.username ? "https://t.me/" + BOT_INFO.username + "?startgroup=add_shaki" : "https://t.me/AI_SHAKI_BOT?startgroup=true")],
+            [btn("🔙 بازگشت به پنل", "games:back")],
+          ];
+      const text = isGroup
+        ? "🎮 <b>باشگاه بازی‌های AI SHAKI</b>\n━━━━━━━━━━━━━━━━━━\nیه بازی انتخاب کن و بقیه اعضای گروه رو هم به چالش بکش!\n\n🧠 مسابقه، جرئت و حقیقت، چالش روزانه و جدول افتخار گروه."
+        : "🎮 <b>بازی و سرگرمی با AI SHAKI</b>\n━━━━━━━━━━━━━━━━━━\nچالش روزانه رو همین‌جا شروع کن؛ برای بازی‌های چندنفره، شاکی رو به گروهت اضافه کن.";
+      await editMessageText(chat.id, message.message_id, text, { parse_mode: "HTML", reply_markup: JSON.stringify({ inline_keyboard: rows }) });
+      return;
+    }
+    if (action === "back") {
+      await answerCb(cb.id);
+      if (chat.type === "private") await showHomePanel(chat.id, from, session, env, message.message_id);
+      else {
+        const isAdmin = from.id === cfg.BOT_OWNER_ID || await isUserAdmin(from.id, chat.id);
+        const rows: InlineBtn[][] = [[btn("👤 پنل شخصی من", "home:open")], [btn("🎮 بازی‌ها و سرگرمی", "games:open")]];
+        if (isAdmin) rows.push([btn("🛡 مدیریت گروه", "group_settings")]);
+        await editMessageText(chat.id, message.message_id, "⚡ <b>پنل AI SHAKI</b>\nگزینه موردنظرت رو انتخاب کن:", { parse_mode: "HTML", reply_markup: JSON.stringify({ inline_keyboard: rows }) });
+      }
+      return;
+    }
+    if (action === "challenge") {
+      await answerCb(cb.id);
+      await sendMessage(chat.id, dailyChallengeText(new Date(), session.language), { reply_to_message_id: message.message_id });
+      return;
+    }
+    if (action === "quiz") {
+      if (chat.type === "private" || (from.id !== cfg.BOT_OWNER_ID && !await isUserAdmin(from.id, chat.id))) {
+        await answerCb(cb.id, chat.type === "private" ? "این مسابقه برای گروه‌هاست." : "فقط مدیران گروه می‌تونن مسابقه رو شروع کنن.", true);
+        return;
+      }
+      await answerCb(cb.id, "🧠 مسابقه شروع شد!");
+      try { await sendGroupQuiz(tg, chat.id, message.message_id, dailyQuiz(new Date(), session.language)); }
+      catch { await sendMessage(chat.id, "⚠️ ارسال مسابقه انجام نشد؛ دسترسی ربات به ارسال نظرسنجی رو بررسی کن."); }
+      return;
+    }
+    if (action === "truth" || action === "dare") {
+      if (chat.type === "private") { await answerCb(cb.id, "این بازی رو داخل گروه اجرا کن.", true); return; }
+      await answerCb(cb.id);
+      await handleTruthDare({ ...message, from } as TgMessage, session, env, action);
+      return;
+    }
+    if (action === "rank" || action === "profile") {
+      if (chat.type === "private") { await answerCb(cb.id, "این بخش مخصوص گروه‌هاست.", true); return; }
+      await answerCb(cb.id);
+      if (action === "rank") await handleGroupLeaderboard({ ...message, from } as TgMessage, session, env);
+      else await handleGroupProfile({ ...message, from } as TgMessage, session, env);
+      return;
+    }
+    if (action === "pollhelp") {
+      if (chat.type === "private" || (from.id !== cfg.BOT_OWNER_ID && !await isUserAdmin(from.id, chat.id))) { await answerCb(cb.id, "فقط مدیران گروه مجازند.", true); return; }
+      await answerCb(cb.id);
+      await sendMessage(chat.id, "📊 برای ساخت نظرسنجی بنویس:\n/poll سؤال | گزینه اول | گزینه دوم\n\nحداقل ۲ و حداکثر ۱۰ گزینه؛ فقط مدیران گروه می‌تونن نظرسنجی بسازن.", { reply_to_message_id: message.message_id });
       return;
     }
   }
@@ -27224,6 +27318,7 @@ async function buildHomeKeyboard(session: ChatSession, userId: number, env: Env,
   const isAr = lang === "ar";
 
   const rows: InlineBtn[][] = [
+    [btn(isFa ? "🎮 بازی‌ها و سرگرمی" : isAr ? "🎮 الألعاب والترفيه" : "🎮 Games & Fun", "games:open")],
     [
       btn(isFa ? "🎭 تغییر شخصیت" : isAr ? "🎭 تغییر الشخصية" : "🎭 Personas", "home:personas"),
       btn(isFa ? "🆕 گفتگوی جدید" : isAr ? "🆕 محادثة جديدة" : "🆕 New Chat", "home:new_confirm"),
