@@ -21558,6 +21558,11 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
         `• \`/start\` — Your personal menu in this group\n` +
         `• \`/new\` — Clear your own chat memory here\n` +
         `• \`/challenge\` — SHAKI's daily challenge\n` +
+        `• \`/img [prompt]\` — generate an image (requires an image provider)\n` +
+        `• \`/tts [text]\` — convert text to a voice message\n` +
+        `• \`/read [URL]\` — summarize a web page; \`/ocr\` — extract text from an image\n` +
+        `• \`/summarize\` — summarize recent group messages\n` +
+        `• \`/help\` — show this guide\n` +
         `• \`/promo on|off|status\` — optional daily introduction (admins only)\n` +
         `• \`/quiz\` — Daily group quiz (admins start)\n` +
         `• \`/poll question | option 1 | option 2\` — Anonymous poll (admins only)\n` +
