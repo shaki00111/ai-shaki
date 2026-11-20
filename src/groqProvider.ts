@@ -40,7 +40,11 @@ export async function callGroqText(apiKeys:readonly string[],messages:readonly G
         lastError="Groq key "+(keyIndex+1)+" model discovery failed (HTTP "+catalogue.response.status+"): "+safeError(parseJson(catalogue.body),catalogue.body,catalogue.response.status,key);continue;
       }
       if(catalogue.response.ok){
-        const available=new Set((parseJson(catalogue.body)?.data??[]).map((item:{id?:string})=>item.id).filter((id:unknown):id is string=>typeof id==="string"));
+        const modelData: unknown = parseJson(catalogue.body)?.data;
+        const modelIds = Array.isArray(modelData)
+          ? modelData.filter((item): item is { id: string } => Boolean(item) && typeof item === "object" && typeof (item as { id?: unknown }).id === "string").map(item => item.id)
+          : [];
+        const available = new Set<string>(modelIds);
         const listed=PREFERRED_MODELS.filter(model=>available.has(model));
         const others=[...available].filter(model=>/^(?:openai\/gpt-oss|llama|qwen|deepseek|gemma)/i.test(model)&&!/whisper|tts|guard|embedding/i.test(model));
         candidates=[...new Set([...listed,...others])].slice(0,5);if(!candidates.length)candidates=[...PREFERRED_MODELS];

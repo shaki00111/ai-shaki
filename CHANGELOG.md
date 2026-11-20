@@ -3,8 +3,6 @@
 ## Unreleased
 - Add Groq numbered-key rotation, text-only Gemini fallback, owner provider controls, and credential health checks. Groq remains a text fallback and does not replace image, file, voice, or tool providers.
 
-## Unreleased
-
 - Add admin-opt-in daily group promotion: `/promo on`, `/promo off`, and `/promo status`; only consenting groups receive at most one promotional post per 24 hours, with private-chat, add-to-group, and share links.
 - Handle Telegram's `startgroup=add_shaki` payload with a localized group welcome, and add a private-menu share-with-friends link.
 
