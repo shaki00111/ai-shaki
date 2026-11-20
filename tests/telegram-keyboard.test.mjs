@@ -29,7 +29,7 @@ test("rock paper scissors resolves all outcomes", () => {
 test("the main keyboard is a real Telegram ReplyKeyboardMarkup", async () => {
   const calls = [];
   const handled = await handleTelegramKeyboardUpdate({
-    message: { message_id: 4, text: "/panel", chat: { id: -100123, type: "supergroup" }, from: { id: 10, first_name: "Arman" } },
+    message: { message_id: 4, text: "/panel", chat: { id: 10, type: "private" }, from: { id: 10, first_name: "Arman" } },
   }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
   assert.equal(handled, true);
   assert.equal(calls.length, 1);
