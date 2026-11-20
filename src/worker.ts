@@ -5,6 +5,106 @@ import {
 } from "./legacyKeyboardGuard";
 
 type WorkerEnv = { TOKEN?: string; WEBHOOK_SECRET?: string };
+import {
+  claimDailyXp, getXpInventory, getXpLeaderboard, getXpProfile,
+  getXpShop, purchaseXpItem, type XpItemCategory,
+} from "./xpEconomy";
+import type { GroupStatsDB } from "./groupStats";
+
+type XpWorkerEnv = WorkerEnv & { DB?: GroupStatsDB };
+type TgMessage = { message_id:number; chat:{id:number;type:string}; from?:{id:number;is_bot?:boolean}; text?:string };
+type TgCallback = { id:string; data?:string; from:{id:number}; message?:TgMessage };
+type TgUpdate = { message?:TgMessage; callback_query?:TgCallback };
+
+const XP_CATEGORIES: {id:XpItemCategory;label:string}[] = [
+  {id:"title",label:"👑 لقب و پرستیژ"},
+  {id:"power",label:"⚔️ قدرت بازی"},
+  {id:"fun",label:"🎲 سرگرمی"},
+  {id:"collectible",label:"💎 کلکسیونی"},
+  {id:"ticket",label:"🎟️ بلیت و جعبه"},
+];
+const XP_HOME = [[{text:"👤 پروفایل من",callback_data:"shaki_xp:profile"},{text:"🛒 فروشگاه",callback_data:"shaki_xp:shop"}],
+  [{text:"🎒 کوله‌پشتی",callback_data:"shaki_xp:inventory"},{text:"🏆 رتبه‌بندی",callback_data:"shaki_xp:rank"}],
+  [{text:"🎁 دریافت XP روزانه",callback_data:"shaki_xp:daily"}]];
+function xpKeyboard(rows: unknown[][]){return {inline_keyboard:rows};}
+async function showXpScreen(env:XpWorkerEnv,chatId:number,userId:number,messageId:number|undefined,screen:string,category?:XpItemCategory,note=""){
+  if(!env.DB||!env.TOKEN)return;
+  const db=env.DB;
+  let text="";
+  let rows:unknown[][]=[];
+  if(screen==="profile"){
+    const p=await getXpProfile(db,chatId,userId);
+    text="👤 پروفایل بازیکن\n\n⭐ موجودی XP: "+p.xp+"\n🏅 سطح: "+p.level+"\n📈 پیشرفت سطح: "+p.progress+"٪\n\nبا بازی و مأموریت XP جمع کن و در فروشگاه خرجش کن.";
+    rows=XP_HOME;
+  }else if(screen==="shop"){
+    text="🛒 فروشگاه XP شاکی\n\nیک دسته را انتخاب کن:";
+    rows=XP_CATEGORIES.map(c=>[{text:c.label,callback_data:"shaki_xp:category:"+c.id}]);
+    rows.push([{text:"⬅️ بازگشت به پروفایل",callback_data:"shaki_xp:profile"}]);
+  }else if(screen==="category"&&category){
+    const items=getXpShop(category).slice(0,8);
+    text="🛍️ "+(XP_CATEGORIES.find(c=>c.id===category)?.label??"فروشگاه")+"\n\nبرای خرید محصول انتخاب کن:";
+    rows=items.map(item=>[{text:item.name+" · "+item.price+" XP",callback_data:"shaki_xp:buy:"+item.id}]);
+    rows.push([{text:"⬅️ دسته‌ها",callback_data:"shaki_xp:shop"},{text:"👤 پروفایل",callback_data:"shaki_xp:profile"}]);
+  }else if(screen==="inventory"){
+    const inventory=await getXpInventory(db,chatId,userId);
+    text="🎒 کوله‌پشتی من\n\n"+(inventory.length?inventory.map(x=>"• "+x.item.name+" × "+x.quantity).join("\n"):"هنوز آیتمی نخریدی.")+"\n\nآیتم‌های مصرفی در بازی‌های پشتیبانی‌شده قابل استفاده‌اند.";
+    rows=[[{text:"🛒 فروشگاه",callback_data:"shaki_xp:shop"},{text:"👤 پروفایل",callback_data:"shaki_xp:profile"}]];
+  }else if(screen==="rank"){
+    const list=await getXpLeaderboard(db,chatId,10);
+    text="🏆 برترین بازیکنان این گروه\n\n"+(list.length?list.map((x,i)=>(i+1)+". کاربر "+x.userId+" — "+x.xp+" XP").join("\n"):"هنوز امتیازی ثبت نشده.");
+    rows=[[{text:"👤 پروفایل من",callback_data:"shaki_xp:profile"},{text:"🛒 فروشگاه",callback_data:"shaki_xp:shop"}]];
+  }else{
+    text="⭐ سیستم XP شاکی\n\n"+note;
+    rows=XP_HOME;
+  }
+  const params:Record<string,unknown>={chat_id:chatId,text,reply_markup:xpKeyboard(rows)};
+  if(typeof messageId==="number"){
+    params.message_id=messageId;
+    try{await telegramCall(env.TOKEN,"editMessageText",params);return;}catch(error){
+      if(String(error).includes("message is not modified"))return;
+      throw error;
+    }
+  }
+  await telegramCall(env.TOKEN,"sendMessage",params);
+}
+async function handleXpUpdate(update:TgUpdate,env:XpWorkerEnv):Promise<boolean>{
+  if(!env.DB||!env.TOKEN)return false;
+  const message=update.message;
+  const callback=update.callback_query;
+  if(message?.text&&message.chat.id<0&&message.chat.type!=="private"&&message.from&&!message.from.is_bot){
+    const command=message.text.trim().split(/\s+/,1)[0].split("@",1)[0].toLowerCase();
+    if(["/xp","/shop","/rank","/inventory","/daily"].includes(command)){
+      const screen=command==="/shop"?"shop":command==="/rank"?"rank":command==="/inventory"?"inventory":"profile";
+      await showXpScreen(env,message.chat.id,message.from.id,undefined,screen);
+      return true;
+    }
+  }
+  if(callback?.data?.startsWith("shaki_xp:")&&callback.message&&callback.message.chat.id<0){
+    const chatId=callback.message.chat.id,userId=callback.from.id,messageId=callback.message.message_id;
+    const parts=callback.data.split(":");
+    const action=parts[1];
+    let notice="انجام شد";
+    if(action==="daily"){
+      const result=await claimDailyXp(env.DB,chatId,userId);
+      notice=result.awarded?"🎁 "+result.amount+" XP دریافت کردی":"امروز پاداش روزانه‌ات را قبلاً گرفتی.";
+      await showXpScreen(env,chatId,userId,messageId,"profile");
+    }else if(action==="buy"&&parts[2]){
+      const result=await purchaseXpItem(env.DB,chatId,userId,parts[2],callback.id);
+      notice=result.purchased?"خرید انجام شد؛ "+result.item.name:"XP کافی نیست یا این آیتم را قبلاً خریده‌ای.";
+      await showXpScreen(env,chatId,userId,messageId,"inventory",undefined,notice);
+    }else if(action==="category"&&parts[2]){
+      await showXpScreen(env,chatId,userId,messageId,"category",parts[2] as XpItemCategory);
+    }else if(["shop","profile","inventory","rank"].includes(action)){
+      await showXpScreen(env,chatId,userId,messageId,action);
+    }else{
+      notice="این گزینه معتبر نیست.";
+    }
+    await telegramCall(env.TOKEN,"answerCallbackQuery",{callback_query_id:callback.id,text:notice,show_alert:false}).catch(()=>{});
+    return true;
+  }
+  return false;
+}
+
 
 type ExistingWorker = {
   fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response>;
@@ -62,6 +162,16 @@ export default {
         }
       } catch {
         // Malformed updates or a temporary Telegram API failure must not break the original webhook.
+      }
+    }
+
+    if (request.method === "POST" && env.TOKEN && env.WEBHOOK_SECRET &&
+      request.headers.get("X-Telegram-Bot-Api-Secret-Token") === env.WEBHOOK_SECRET) {
+      try {
+        const update = await request.clone().json() as TgUpdate;
+        if (await handleXpUpdate(update, env as XpWorkerEnv)) return ok();
+      } catch {
+        // Keep the existing bot handler as the safe fallback for unrelated updates.
       }
     }
 
