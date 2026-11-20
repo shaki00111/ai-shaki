@@ -981,120 +981,40 @@ input,select,textarea{background:rgba(5,10,27,.82)!important;border-color:rgba(1
 @media(max-width:700px){.page-head{padding:13px 14px!important;border-radius:15px!important}.card{border-radius:15px!important}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
-<style id="shaki-companion-motion-polish">
-#shaki-companion{will-change:left,top;contain:layout style;isolation:isolate}
-#shaki-companion .bot{transform-origin:50% 88%;animation:shaki-bob 2.65s cubic-bezier(.45,.05,.55,.95) infinite,shaki-breathe 4.8s ease-in-out infinite}
-#shaki-companion .face{overflow:hidden}
-#shaki-companion .eye{transform:translate(var(--look-x,0),var(--look-y,0));transition:transform .12s ease-out, height .16s ease,border-radius .16s ease}
-#shaki-companion .eye:first-child{animation:shaki-blink 5.1s infinite}
-#shaki-companion .eye:nth-child(2){animation:shaki-blink 5.1s .12s infinite}
-#shaki-companion .bow{animation:shaki-bow-sway 3.2s ease-in-out infinite}
-#shaki-companion .spark{pointer-events:none}
-#shaki-companion .bubble{max-width:42px;white-space:nowrap;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4))}
-#shaki-companion.curious .bot{animation:shaki-curious .42s ease-in-out 2,shaki-breathe 4.8s ease-in-out infinite}
-#shaki-companion.curious .eye{height:13px;width:8px}
-#shaki-companion.thinking .bot{animation:shaki-think .55s ease-in-out 2,shaki-breathe 4.8s ease-in-out infinite}
-#shaki-companion.thinking .eye{height:5px;width:8px}
-#shaki-companion.sad .bot{animation:shaki-sad .4s ease-in-out 2}
-#shaki-companion.sad .bow{transform:rotate(-18deg)}
-@keyframes shaki-blink{0%,46%,50%,100%{transform:translate(var(--look-x,0),var(--look-y,0)) scaleY(1)}48%{transform:translate(var(--look-x,0),var(--look-y,0)) scaleY(.12)}}
-@keyframes shaki-breathe{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}
-@keyframes shaki-bow-sway{0%,100%{rotate:8deg}50%{rotate:-9deg}}
-@keyframes shaki-curious{0%,100%{rotate:0}35%{rotate:8deg}70%{rotate:-5deg}}
-@keyframes shaki-think{0%,100%{translate:0 0}50%{translate:0 -5px}}
-@keyframes shaki-sad{0%,100%{translate:0 0}50%{translate:0 3px}}
-@media(prefers-reduced-motion:reduce){#shaki-companion *,#shaki-companion *:before{animation:none!important;transition:none!important}}
+
+<style id="shaki-reference-owner-rebuild">
+:root{--bg:#04020a;--surface-1:#0b0719;--surface-2:#160d2b;--surface-3:#241343;--border:rgba(157,84,255,.26);--border-strong:rgba(75,165,255,.36);--accent:#a52cff;--accent-2:#20d9ff;--text:#fbf7ff;--text-soft:#d6c8ed;--muted:#a297ba}
+html,body{background:#030108!important;color:#fbf7ff!important}
+body{background:radial-gradient(ellipse 75% 30% at 50% 0%,rgba(113,24,255,.27),transparent 70%),radial-gradient(ellipse 44% 30% at 100% 38%,rgba(0,118,255,.17),transparent 72%),linear-gradient(180deg,#030108,#080719 62%,#030108)!important}
+#app{background:transparent!important}
+.topbar{min-height:54px!important;padding:7px 10px!important;gap:8px!important;background:linear-gradient(105deg,rgba(15,7,31,.97),rgba(5,9,26,.95))!important;border-bottom:1px solid rgba(155,76,255,.34)!important;box-shadow:0 7px 26px rgba(0,0,0,.4)!important;backdrop-filter:blur(22px)!important}
+.logo{width:36px!important;height:36px!important;border-radius:12px!important;background:linear-gradient(145deg,#7925e9,#26105b 62%,#064078)!important;border:1px solid rgba(207,163,255,.52)!important;box-shadow:0 0 17px rgba(147,42,255,.4)!important;color:#fff!important}
+.logo svg{width:23px;height:23px;filter:drop-shadow(0 0 5px #c77bff)}
+.brand b{font-size:15px!important;color:#d5aaff!important;text-shadow:0 0 13px rgba(160,68,255,.6)!important;letter-spacing:.04em}
+.brand span{font-size:9px!important;color:#a99ac4!important}
+.main{padding:10px 10px calc(72px + env(safe-area-inset-bottom))!important}
+.page-head{margin:0 0 9px!important;padding:10px 12px!important;border:1px solid rgba(157,86,255,.36)!important;border-radius:14px!important;background:linear-gradient(130deg,rgba(37,17,78,.88),rgba(8,15,40,.94))!important;box-shadow:0 7px 20px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.08)!important}
+.page-head:after{display:none!important}
+.page-head h1{font-size:15px!important;color:#f6eaff!important;text-shadow:0 0 12px rgba(166,79,255,.28)!important}
+.page-head p{font-size:9px!important;color:#b5a7d0!important}
+.metrics{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;margin:0 0 9px!important}
+.metric{min-height:70px!important;padding:9px 10px!important;border-radius:13px!important;background:linear-gradient(145deg,rgba(42,22,91,.95),rgba(8,16,43,.98))!important;border:1px solid rgba(153,91,255,.38)!important;box-shadow:0 6px 17px rgba(0,0,0,.32),inset 0 1px rgba(255,255,255,.09)!important}
+.metric:before{height:2px!important;background:linear-gradient(90deg,#a42cff,#21d9ff,#18e4ad)!important}
+.metric span{font-size:9px!important;color:#c3b5dd!important}
+.metric b{font-size:18px!important;margin-top:4px!important;background:linear-gradient(90deg,#fff,#d5b4ff 56%,#6be0ff)!important;-webkit-background-clip:text!important;background-clip:text!important;color:transparent!important}
+.card{margin-bottom:9px!important;padding:10px!important;border-radius:14px!important;background:linear-gradient(145deg,rgba(27,16,60,.95),rgba(7,13,35,.98))!important;border:1px solid rgba(144,86,255,.32)!important;box-shadow:0 7px 20px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.06)!important}
+.section-head{padding:0 0 7px!important;margin-bottom:7px!important;border-bottom:1px solid rgba(150,91,255,.2)!important}
+.section-head h2{font-size:11px!important;color:#f2e7ff!important}
+#mobileQuickNav{background:rgba(5,4,18,.97)!important;border:1px solid rgba(151,74,255,.34)!important;border-bottom:0!important;box-shadow:0 -7px 25px rgba(0,0,0,.45),0 0 16px rgba(112,39,255,.12)!important;backdrop-filter:blur(22px)!important;padding:5px 6px calc(5px + env(safe-area-inset-bottom))!important;gap:4px!important}
+#mobileQuickNav .navitem{min-height:45px!important;padding:4px 2px!important;border-radius:10px!important;font-size:9px!important;color:#b7a9d2!important}
+#mobileQuickNav .navitem .ni{width:17px!important;height:17px!important;color:#69dcff!important}
+#mobileQuickNav .navitem[aria-current=page]{background:linear-gradient(145deg,rgba(130,38,235,.42),rgba(10,109,200,.2))!important;border:1px solid rgba(173,104,255,.45)!important;color:#fff!important}
+button,.btn{border-radius:11px!important}
+button.primary,.primary{background:linear-gradient(110deg,#7623e8,#a32cff 58%,#126fe2)!important;border:1px solid rgba(214,174,255,.34)!important;box-shadow:0 5px 17px rgba(126,37,255,.3)!important}
+input,select,textarea{background:rgba(5,9,27,.96)!important;border-color:rgba(145,85,255,.3)!important;color:#fff!important}
+#shaki-companion{display:none!important}
+@media(max-width:560px){.main{padding:8px 8px calc(66px + env(safe-area-inset-bottom))!important}.metrics{gap:6px!important}.metric{min-height:66px!important;padding:8px!important}.metric b{font-size:17px!important}.card{padding:9px!important}}
 </style>
-
-
-<style id="shaki-reference-owner-v1">
-:root{
- --bg:#02030a!important;--accent:#a12cff!important;--accent-2:#20d9ff!important;
- --border:rgba(155,74,255,.27)!important;--border-strong:rgba(75,157,255,.4)!important;
- --text:#f8f4ff!important;--text-soft:#d4c8ed!important;--muted:#a49abf!important;
-}
-html,body{background:#020208!important;color:#f8f4ff!important}
-body{
- background:radial-gradient(ellipse 70% 36% at 50% 0%,rgba(112,20,255,.28),transparent 70%),
- radial-gradient(ellipse 44% 36% at 100% 20%,rgba(0,112,255,.17),transparent 72%),
- linear-gradient(180deg,#03030a,#08091b 60%,#02030a)!important;
-}
-body:before{opacity:.13!important;background-image:linear-gradient(rgba(151,74,255,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(54,139,255,.12) 1px,transparent 1px)!important;background-size:42px 42px!important}
-.topbar{
- background:linear-gradient(105deg,rgba(14,7,31,.97),rgba(5,9,27,.95))!important;
- border-bottom:1px solid rgba(151,74,255,.32)!important;
- box-shadow:0 9px 34px rgba(0,0,0,.42),0 0 26px rgba(119,40,255,.12)!important;
- backdrop-filter:blur(24px) saturate(160%)!important;
-}
-.logo{background:linear-gradient(145deg,#b65cff,#6b36e9 55%,#138fe9)!important;border:1px solid rgba(255,255,255,.3)!important;box-shadow:0 0 0 5px rgba(139,48,255,.1),0 0 30px rgba(139,48,255,.48)!important}
-.sidebar{background:linear-gradient(180deg,rgba(15,8,36,.98),rgba(4,8,25,.98))!important;border-color:rgba(151,74,255,.25)!important}
-.main{background:transparent!important}
-.page-head{
- background:linear-gradient(125deg,rgba(40,16,83,.78),rgba(8,16,43,.76))!important;
- border:1px solid rgba(154,86,255,.38)!important;border-radius:20px!important;
- box-shadow:0 12px 34px rgba(0,0,0,.34),0 0 24px rgba(127,40,255,.12),inset 0 1px rgba(255,255,255,.08)!important;
-}
-.page-head h1{color:#f6eaff!important;text-shadow:0 0 20px rgba(166,79,255,.3)!important}
-.card{
- background:linear-gradient(150deg,rgba(29,18,65,.94),rgba(7,13,36,.97))!important;
- border:1px solid rgba(148,91,255,.32)!important;border-radius:19px!important;
- box-shadow:0 12px 32px rgba(0,0,0,.34),0 0 18px rgba(111,44,255,.08),inset 0 1px rgba(255,255,255,.055)!important;
- backdrop-filter:blur(18px) saturate(140%)!important;
-}
-.metric{
- background:linear-gradient(145deg,rgba(55,27,112,.84),rgba(10,18,49,.98))!important;
- border:1px solid rgba(153,94,255,.38)!important;border-radius:17px!important;
- box-shadow:0 8px 24px rgba(0,0,0,.3),0 0 18px rgba(128,48,255,.13),inset 0 1px rgba(255,255,255,.1)!important;
-}
-.metric b{background:linear-gradient(90deg,#fff,#d4b4ff 55%,#69dcff)!important;-webkit-background-clip:text!important;background-clip:text!important;color:transparent!important}
-.tag,.pill{background:linear-gradient(110deg,rgba(113,43,218,.2),rgba(10,118,205,.12))!important;border-color:rgba(157,99,255,.35)!important}
-button,.navitem,.nav-item,.tab-btn{border-radius:14px!important;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease,filter .2s ease!important}
-button.primary,.primary,.btn-primary{
- background:linear-gradient(115deg,#7d25e8,#a02cff 55%,#146fe4)!important;
- border:1px solid rgba(216,182,255,.35)!important;color:#fff!important;
- box-shadow:0 7px 22px rgba(132,40,255,.34),inset 0 1px rgba(255,255,255,.18)!important;
-}
-button:hover:not(:disabled){filter:brightness(1.12);box-shadow:0 8px 24px rgba(124,44,255,.2)!important}
-input,textarea,select{background:rgba(5,9,29,.94)!important;border-color:rgba(145,88,255,.31)!important;color:#f8f4ff!important;border-radius:13px!important}
-input:focus,textarea:focus,select:focus{border-color:#28caff!important;box-shadow:0 0 0 3px rgba(40,202,255,.12),0 0 18px rgba(142,45,255,.1)!important}
-#mobileQuickNav{
- background:rgba(5,6,22,.95)!important;border:1px solid rgba(151,74,255,.3)!important;
- box-shadow:0 -10px 34px rgba(0,0,0,.48),0 0 22px rgba(112,39,255,.12)!important;
- backdrop-filter:blur(22px) saturate(150%)!important;
-}
-#mobileQuickNav .navitem[aria-current=page],#mobileQuickNav .navitem.active{
- color:#fff!important;background:linear-gradient(145deg,rgba(125,39,231,.34),rgba(15,116,220,.18))!important;
- border:1px solid rgba(164,94,255,.38)!important;box-shadow:0 0 16px rgba(139,48,255,.15)!important;
-}
-.provider-row{background:linear-gradient(120deg,rgba(112,40,210,.16),rgba(0,128,220,.10))!important;border-color:rgba(151,91,255,.3)!important;border-radius:16px!important}
-.provider-icon{background:linear-gradient(135deg,rgba(126,47,230,.4),rgba(0,141,223,.28))!important;box-shadow:0 0 18px rgba(137,57,255,.16)!important}
-.tablewrap{border-color:rgba(151,91,255,.25)!important}
-thead th{background:rgba(42,24,86,.96)!important}
-@keyframes shakiOwnerPulse{0%,100%{filter:drop-shadow(0 0 4px rgba(145,56,255,.24))}50%{filter:drop-shadow(0 0 13px rgba(34,197,255,.48))}}
-.logo{animation:shakiOwnerPulse 4.2s ease-in-out infinite}
-@media(max-width:560px){
- .page-head{border-radius:17px!important}
- .card{border-radius:16px!important}
- .metric{min-height:88px}
-}
-@media(prefers-reduced-motion:reduce){.logo{animation:none!important}}
-</style>
-
-
-<style id="shaki-compact-owner-controls">
-/* Dense controls: more dashboard content visible without oversized buttons. */
-button,.btn,.navitem,.nav-item,.tab-btn,[role=button]{
- min-height:34px!important;padding:7px 10px!important;border-radius:11px!important;
- font-size:12px!important;line-height:1.25!important;
-}
-button svg,.btn svg,.navitem svg,.nav-item svg{width:17px!important;height:17px!important}
-input,select,textarea{min-height:36px!important;font-size:13px!important;padding:8px 10px!important}
-.card,.metric{border-radius:14px!important}
-@media(max-width:560px){
- button,.btn,.navitem,.nav-item,.tab-btn,[role=button]{min-height:32px!important;padding:6px 8px!important;font-size:11px!important}
-}
-</style>
-
 </head>
 <body>
 <a class="skip-link" href="#mainContent">پرش به محتوای اصلی</a>
@@ -1107,10 +1027,10 @@ input,select,textarea{min-height:36px!important;font-size:13px!important;padding
   <header class="topbar">
     <button class="hamb icon-btn" id="hamburger" aria-label="باز کردن منو" aria-expanded="false" aria-controls="drawer">☰</button>
     <div class="brand">
-      <div class="logo" aria-hidden="true">S</div>
+      <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m3 7 4.2 3.2L12 4l4.8 6.2L21 7l-2 11H5L3 7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 21h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="12" cy="3" r="1" fill="currentColor"/><circle cx="21" cy="6" r="1" fill="currentColor"/></svg></div>
       <div>
-        <b>AI SHAKI Control Center</b>
-        <span id="version">در حال اتصال…</span>
+        <b>AI SHAKI</b>
+        <span id="version">Owner Panel</span>
       </div>
     </div>
     <button class="sm icon-btn" id="refreshBtn" aria-label="تازه‌سازی این بخش" title="تازه‌سازی">↻</button>
@@ -3925,84 +3845,6 @@ async function init(){
   startPolling();
 }
 init();
-})();
-</script>
-
-<script>
-(()=> {
- if(window.__shakiCompanionReady) return;
- window.__shakiCompanionReady=true;
- const root=document.createElement("div");
- root.id="shaki-companion";
- root.setAttribute("aria-hidden","true");
- root.innerHTML='<span class="spark">✦</span><span class="bow"></span><div class="bot"><div class="face"><i class="eye"></i><i class="eye"></i><i class="mouth"></i></div></div><span class="bubble">💖</span>';
- document.body.appendChild(root);
- const eyes=[...root.querySelectorAll(".eye")];
- const bubble=root.querySelector(".bubble");
- let moodTimer=0, moveFrame=0, lastMoodAt=0;
- const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
- const mood=(name,emoji,duration=1500)=>{
-  root.classList.remove("happy","sad","curious","thinking");
-  if(name) root.classList.add(name);
-  bubble.textContent=emoji;
-  clearTimeout(moodTimer);
-  if(name) moodTimer=setTimeout(()=>root.classList.remove(name),duration);
- };
- const moveNear=(target,x,y)=>{
-  const w=window.innerWidth,h=window.innerHeight,box=target?.getBoundingClientRect?.();
-  const size=76,gap=10,pad=8;
-  let left=Math.max(pad,Math.min(w-size-pad,x-size/2));
-  let top=Math.max(76,Math.min(h-size-100,y-size/2));
-  if(box && box.width && box.height){
-   const candidates=[
-    {left:box.left-size-gap,top:box.top+(box.height-size)/2},
-    {left:box.right+gap,top:box.top+(box.height-size)/2},
-    {left:box.left+(box.width-size)/2,top:box.top-size-gap},
-    {left:box.left+(box.width-size)/2,top:box.bottom+gap}
-   ].filter(p=>p.left>=pad&&p.left<=w-size-pad&&p.top>=76&&p.top<=h-size-100);
-   if(candidates.length){candidates.sort((a,b)=>Math.hypot(a.left-left,a.top-top)-Math.hypot(b.left-left,b.top-top));left=candidates[0].left;top=candidates[0].top;}
-  }
-  root.style.left=left+"px";root.style.top=top+"px";root.style.bottom="auto";
- };
- const lookAt=(x,y)=>{
-  const r=root.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
-  const dx=Math.max(-3,Math.min(3,(x-cx)/42)),dy=Math.max(-2,Math.min(2,(y-cy)/48));
-  eyes.forEach(eye=>{eye.style.setProperty("--look-x",dx+"px");eye.style.setProperty("--look-y",dy+"px");});
- };
- document.addEventListener("pointermove",e=>{
-  if(reduced||moveFrame) return;
-  moveFrame=requestAnimationFrame(()=>{lookAt(e.clientX,e.clientY);moveFrame=0;});
- },{passive:true});
- document.addEventListener("click",e=>{
-  const target=e.target?.closest?.("button,a,[role=button],summary,.navitem,.card,.metric,[data-action]");
-  if(!target||root.contains(target)) return;
-  const rect=target.getBoundingClientRect();
-  moveNear(target,rect.left+rect.width/2,rect.top+rect.height/2);
-  mood("happy",["💖","✨","😊","💕"][Math.floor(Math.random()*4)]);
- },true);
- document.addEventListener("focusin",e=>{
-  const target=e.target;
-  if(!target?.matches?.("input,textarea,select,[contenteditable=true]")) return;
-  const r=target.getBoundingClientRect();
-  moveNear(target,r.left+r.width/2,r.top+r.height/2);
-  mood("curious","👀",2200);
- });
- document.addEventListener("shaki:companion-sad",()=>mood("sad","💧",2200));
- document.addEventListener("shaki:companion-happy",()=>mood("happy","💖"));
- document.addEventListener("shaki:companion-thinking",()=>mood("thinking","💭",2600));
- const originalFetch=window.fetch;
- if(originalFetch) window.fetch=function(...args){
-  return originalFetch.apply(this,args).then(response=>{
-   if(!response.ok&&response.status>=500) mood("sad","💧",2200);
-   else if(response.ok&&Date.now()-lastMoodAt>12000){lastMoodAt=Date.now();mood("happy","✨",900);}
-   return response;
-  }).catch(error=>{mood("sad","💧",2200);throw error;});
- };
- const intro=()=>mood("happy","👋",1800);
- if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",()=>setTimeout(intro,650),{once:true});
- else setTimeout(intro,650);
- const idle=()=>{if(document.hidden||Date.now()-lastMoodAt<9000)return;lastMoodAt=Date.now();mood("curious","✨",1100);};
- document.addEventListener("visibilitychange",()=>{if(!document.hidden) idle();});
 })();
 </script>
 
