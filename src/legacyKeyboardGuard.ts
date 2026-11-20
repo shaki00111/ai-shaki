@@ -25,7 +25,8 @@ const LEGACY_MENU_LABELS = new Set([
 
 function normalizeLabel(value: string): string {
   return value.normalize("NFKC")
-    .replace(/[\u200b-\u200f\uFEFF]/g, "")
+    .replace(/\u200c/g, " ")
+    .replace(/[\u200b\u200d-\u200f\uFEFF]/g, "")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim()
