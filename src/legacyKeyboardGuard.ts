@@ -5,6 +5,10 @@ export type LegacyKeyboardUpdate = {
     text?: string;
     chat?: { id?: number };
   };
+  callback_query?: {
+    data?: string;
+    message?: { chat?: { id?: number } };
+  };
 };
 
 const LEGACY_MENU_LABELS = new Set([
@@ -35,6 +39,12 @@ function normalizeLabel(value: string): string {
 
 /** Detects stale ReplyKeyboard buttons without touching ordinary user messages. */
 export function classifyLegacyKeyboardUpdate(update: LegacyKeyboardUpdate): LegacyKeyboardDecision {
+  const callback = update?.callback_query;
+  if (callback?.data === "home:close") {
+    const callbackChatId = callback.message?.chat?.id;
+    return typeof callbackChatId === "number" && Number.isSafeInteger(callbackChatId) ? "clear" : "none";
+  }
+
   const message = update?.message;
   if (!message || typeof message.chat?.id !== "number" || !Number.isSafeInteger(message.chat.id)) return "none";
   const text = String(message.text ?? "").trim();
