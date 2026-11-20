@@ -50,7 +50,7 @@ export default {
           // Taps on old ReplyKeyboard buttons must never be sent to SHAKI as prompts.
           if (decision === "close") return ok();
           if (decision === "reopen") {
-            update.message!.text = "/start";
+            update.message!.text = update.message!.chat?.type === "private" ? "/start" : "/panel";
             const headers = new Headers(request.headers);
             headers.delete("content-length");
             request = new Request(request.url, {
