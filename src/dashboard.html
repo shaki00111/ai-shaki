@@ -3091,6 +3091,56 @@ body:before{opacity:.12!important;background-image:linear-gradient(rgba(151,74,2
 @media(prefers-reduced-motion:reduce){#hero:before,#hero .heroOrb{animation:none!important}}
 </style>
 
+
+<style id="shaki-compact-keyboard-fix">
+/* Remove mascot layers completely; keep the welcome message clean. */
+.heroOrb,#shaki-companion{display:none!important}
+#hero{padding:15px 12px 12px!important;margin:8px 8px 6px!important}
+#hero:after{display:none!important}
+#hero h1{font-size:18px!important;margin:0 0 6px!important}
+#hero p{font-size:12px!important;line-height:1.55!important;margin:0!important}
+.group-growth{margin:10px 0 7px!important;padding:10px!important;border-radius:15px!important}
+.group-growth-head{gap:7px!important;margin-bottom:8px!important}
+.group-growth-icon{width:32px!important;height:32px!important;font-size:17px!important;border-radius:10px!important}
+.group-growth-head b{font-size:12px!important}
+.group-growth-head small{font-size:10px!important}
+.group-growth-actions{gap:6px!important}
+.group-growth-btn{min-height:36px!important;padding:7px 8px!important;font-size:11px!important;border-radius:11px!important}
+.group-growth-games{gap:5px!important;margin-top:8px!important}
+.group-growth-games span{font-size:9px!important;padding:4px 7px!important}
+.group-growth-note{font-size:9px!important;margin-top:6px!important}
+#suggestGrid{gap:6px!important;margin:8px 7px 10px!important}
+#suggestGrid .suggest,.suggest{
+ min-height:54px!important;padding:7px 5px!important;border-radius:12px!important;
+ font-size:10px!important;line-height:1.25!important;gap:4px!important;
+ box-shadow:0 4px 12px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.07)!important;
+}
+#suggestGrid .suggest svg,.suggest svg{width:19px!important;height:19px!important}
+#composerWrap{padding:4px 6px max(4px,env(safe-area-inset-bottom))!important}
+#composerBar{gap:4px!important;padding:4px!important;border-radius:15px!important}
+#composerBar .iconBtn{width:32px!important;height:32px!important;min-width:32px!important;flex:0 0 32px!important}
+#composerBar .iconBtn svg{width:17px!important;height:17px!important}
+#sendBtn{width:34px!important;height:34px!important;min-width:34px!important;flex:0 0 34px!important}
+#inp{font-size:16px!important;min-height:32px!important;max-height:96px!important}
+#app{height:var(--app-height,100dvh)!important;max-height:var(--app-height,100dvh)!important;min-height:0!important}
+html.keyboard-open #app{height:var(--app-height)!important;max-height:var(--app-height)!important}
+html.keyboard-open #hero{display:none!important}
+html.keyboard-open #chatScroll{min-height:0!important;flex:1 1 0!important;padding-top:4px!important}
+html.keyboard-open #composerWrap{flex:0 0 auto!important;padding:3px 5px max(3px,env(safe-area-inset-bottom))!important}
+html.keyboard-open #composerBar{min-height:40px!important}
+html.keyboard-open #capSheet{max-height:30dvh!important}
+@media(max-width:560px){
+ #suggestGrid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ #suggestGrid .suggest{min-height:52px!important}
+ .group-growth{padding:9px!important}
+}
+@media(max-height:520px){
+ #hero{display:none!important}
+ #composerWrap{padding-top:2px!important;padding-bottom:2px!important}
+}
+@media(prefers-reduced-motion:reduce){#suggestGrid .suggest{transition:none!important}}
+</style>
+
 </head>
 <body>
     <a class="skipLink" href="#chatScroll">پرش به گفتگو</a>
@@ -3134,12 +3184,6 @@ body:before{opacity:.12!important;background-image:linear-gradient(rgba(151,74,2
 
         <main id="chatScroll" role="log" aria-live="polite" aria-relevant="additions text" aria-label="گفتگو با شاکی" tabindex="-1">
             <div id="hero">
-                <div class="heroOrb">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 6.5C16.5 4.8 14.5 4 12 4C8.5 4 6 5.8 6 8.4C6 11 8.2 11.8 12 12.4C15.8 13 18 13.8 18 16.5C18 19.2 15.5 21 12 21C9.2 21 7 20.1 5.5 18.5"/>
-                        <circle cx="12" cy="12" r="9" stroke-width="0.8" stroke-dasharray="3 2" opacity="0.5"/>
-                    </svg>
-                </div>
                 <h1>چی می‌خوای انجام بدم؟</h1>
                 <p>من شاکی‌ام؛ بی‌تعارف حرف می‌زنم، عکس می‌سازم، ویس می‌فرستم، توی وب می‌گردم و برات وب‌اپ می‌سازم. فقط بگو چی می‌خوای.</p>
                 <section class="group-growth" aria-label="دعوت و سرگرمی گروهی">
@@ -4249,84 +4293,6 @@ body:before{opacity:.12!important;background-image:linear-gradient(rgba(151,74,2
             decideGate();
         })();
     </script>
-
-<script>
-(()=> {
- if(window.__shakiCompanionReady) return;
- window.__shakiCompanionReady=true;
- const root=document.createElement("div");
- root.id="shaki-companion";
- root.setAttribute("aria-hidden","true");
- root.innerHTML='<span class="spark">✦</span><span class="bow"></span><div class="bot"><div class="face"><i class="eye"></i><i class="eye"></i><i class="mouth"></i></div></div><span class="bubble">💖</span>';
- document.body.appendChild(root);
- const eyes=[...root.querySelectorAll(".eye")];
- const bubble=root.querySelector(".bubble");
- let moodTimer=0, moveFrame=0, lastMoodAt=0;
- const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
- const mood=(name,emoji,duration=1500)=>{
-  root.classList.remove("happy","sad","curious","thinking");
-  if(name) root.classList.add(name);
-  bubble.textContent=emoji;
-  clearTimeout(moodTimer);
-  if(name) moodTimer=setTimeout(()=>root.classList.remove(name),duration);
- };
- const moveNear=(target,x,y)=>{
-  const w=window.innerWidth,h=window.innerHeight,box=target?.getBoundingClientRect?.();
-  const size=76,gap=10,pad=8;
-  let left=Math.max(pad,Math.min(w-size-pad,x-size/2));
-  let top=Math.max(76,Math.min(h-size-100,y-size/2));
-  if(box && box.width && box.height){
-   const candidates=[
-    {left:box.left-size-gap,top:box.top+(box.height-size)/2},
-    {left:box.right+gap,top:box.top+(box.height-size)/2},
-    {left:box.left+(box.width-size)/2,top:box.top-size-gap},
-    {left:box.left+(box.width-size)/2,top:box.bottom+gap}
-   ].filter(p=>p.left>=pad&&p.left<=w-size-pad&&p.top>=76&&p.top<=h-size-100);
-   if(candidates.length){candidates.sort((a,b)=>Math.hypot(a.left-left,a.top-top)-Math.hypot(b.left-left,b.top-top));left=candidates[0].left;top=candidates[0].top;}
-  }
-  root.style.left=left+"px";root.style.top=top+"px";root.style.bottom="auto";
- };
- const lookAt=(x,y)=>{
-  const r=root.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
-  const dx=Math.max(-3,Math.min(3,(x-cx)/42)),dy=Math.max(-2,Math.min(2,(y-cy)/48));
-  eyes.forEach(eye=>{eye.style.setProperty("--look-x",dx+"px");eye.style.setProperty("--look-y",dy+"px");});
- };
- document.addEventListener("pointermove",e=>{
-  if(reduced||moveFrame) return;
-  moveFrame=requestAnimationFrame(()=>{lookAt(e.clientX,e.clientY);moveFrame=0;});
- },{passive:true});
- document.addEventListener("click",e=>{
-  const target=e.target?.closest?.("button,a,[role=button],summary,.navitem,.card,.metric,[data-action]");
-  if(!target||root.contains(target)) return;
-  const rect=target.getBoundingClientRect();
-  moveNear(target,rect.left+rect.width/2,rect.top+rect.height/2);
-  mood("happy",["💖","✨","😊","💕"][Math.floor(Math.random()*4)]);
- },true);
- document.addEventListener("focusin",e=>{
-  const target=e.target;
-  if(!target?.matches?.("input,textarea,select,[contenteditable=true]")) return;
-  const r=target.getBoundingClientRect();
-  moveNear(target,r.left+r.width/2,r.top+r.height/2);
-  mood("curious","👀",2200);
- });
- document.addEventListener("shaki:companion-sad",()=>mood("sad","💧",2200));
- document.addEventListener("shaki:companion-happy",()=>mood("happy","💖"));
- document.addEventListener("shaki:companion-thinking",()=>mood("thinking","💭",2600));
- const originalFetch=window.fetch;
- if(originalFetch) window.fetch=function(...args){
-  return originalFetch.apply(this,args).then(response=>{
-   if(!response.ok&&response.status>=500) mood("sad","💧",2200);
-   else if(response.ok&&Date.now()-lastMoodAt>12000){lastMoodAt=Date.now();mood("happy","✨",900);}
-   return response;
-  }).catch(error=>{mood("sad","💧",2200);throw error;});
- };
- const intro=()=>mood("happy","👋",1800);
- if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",()=>setTimeout(intro,650),{once:true});
- else setTimeout(intro,650);
- const idle=()=>{if(document.hidden||Date.now()-lastMoodAt<9000)return;lastMoodAt=Date.now();mood("curious","✨",1100);};
- document.addEventListener("visibilitychange",()=>{if(!document.hidden) idle();});
-})();
-</script>
 
 </body>
 </html>
