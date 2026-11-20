@@ -74,7 +74,7 @@ test("group management opens for verified admins", async () => {
   });
   assert.ok(calls.at(-1).params.text.includes("/poll"));
   assert.ok(!calls.at(-1).params.text.includes("/promo"));
-  assert.equal(calls.at(-1).params.reply_markup, undefined);
+  assert.deepEqual(calls.at(-1).params.reply_markup, { remove_keyboard: true });
   assert.match(calls.at(-1).params.text, /پنل شیشه‌ای/);
 });
 
@@ -155,7 +155,7 @@ test("joining AI SHAKI sends a Persian group usage guide without a reply keyboar
   assert.match(calls[0].params.text, /AI SHAKI به گروه/);
   assert.match(calls[0].params.text, /\/leaderboard/);
   assert.match(calls[0].params.text, /\/poll/);
-  assert.equal(calls[0].params.reply_markup, undefined);
+  assert.deepEqual(calls[0].params.reply_markup, { remove_keyboard: true });
   assert.match(calls[0].params.text, /پنل شیشه‌ای/);
 });
 
