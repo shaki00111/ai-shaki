@@ -215,7 +215,7 @@ test("group /panel never displays a reply keyboard", async () => {
   }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
   assert.equal(handled, true);
   assert.equal(calls[0].method, "sendMessage");
-  assert.equal(calls[0].params.reply_markup, undefined);
+  assert.deepEqual(calls[0].params.reply_markup, { remove_keyboard: true });
   assert.match(calls[0].params.text, /پنل شیشه‌ای قبلی/);
 });
 
