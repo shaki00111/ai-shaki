@@ -3722,7 +3722,7 @@ async function handlePanelCommand(msg: TgMessage, env: Env): Promise<void> {
   }
   const canManage = await isUserAdmin(from.id, chat.id);
   const rows: InlineBtn[][] = [
-    [btn("👤 پنل شخصی من", "home:open")],
+    [btn("👤 پنل شخصی", "home:open")],
     [btn("🎮 بازی‌ها و سرگرمی‌های گروه", "games:open")],
   ];
   if (canManage) rows.push([btn("🛡 مدیریت گروه", "group_settings")]);
@@ -23828,7 +23828,7 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
     const isGroup = chat.type !== "private";
     const lang = session.language;
     // معرفی مالک فقط وقتی پاسخ داده می‌شود که سؤال صریحاً درباره صاحب/سازنده باشد.
-    const asksAboutCreator = /(?:مالکت|صاحبت|سازند(?:ه|ت)|خالقت|بنیان.?گذارت|پدرت|بابات|بابای\s+تو|پدر(?:ت)?\s+کیه|کی\s+(?:ساختت|درستت\s+کرد|برنامه.?نویسی.?ت\s+کرد)|چه\s+کسی\s+(?:تو\s+را\s+)?(?:ساخت|خلق\s+کرد)|who\s+(?:made|created|built)\s+you|your\s+(?:owner|creator|developer|maker|father))/iu.test(text);
+    const asksAboutCreator = /(?:مالک(?:ت|\s+تو)?|صاحب(?:ت|\s+تو)?|سازند(?:ه|ت|ه\s+تو)|خالقت|بنیان.?گذارت|پدرت|بابات|بابای\s+تو|پدر(?:ت)?\s+کیه|کی\s+(?:ساختت|درستت\s+کرد|برنامه.?نویسی.?ت\s+کرد)|(?:تو\s+رو|تورو|تو\s+را)\s*(?:کی\s*)?(?:ساخته|ساخت|خلق\s+کرد)|چه\s+کسی\s+(?:تو\s+را\s+)?(?:ساخت|خلق\s+کرد)|who\s+(?:made|created|built)\s+you|who\s+is\s+your\s+(?:owner|creator|developer|maker|father)|your\s+(?:owner|creator|developer|maker|father))/iu.test(text);
     if (asksAboutCreator) {
       const answer = /مالکت|صاحبت|owner/iu.test(text)
         ? "👑 مالک و صاحب من <b>@SHAKI0030</b> هست؛ همون کسی که مسیر AI SHAKI رو هدایت می‌کنه."
