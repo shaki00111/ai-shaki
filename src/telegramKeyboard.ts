@@ -71,6 +71,16 @@ export function isKeyboardCommand(text: string): boolean {
   return ["/panel", "/keyboard", "/keypanel"].includes(command);
 }
 
+export function parsePollCommand(text: string): { question: string; options: string[] } | null {
+  const match = text.trim().match(/^\/poll(?:@[^\s]+)?\s+([\s\S]+)$/i);
+  if (!match) return null;
+  const parts = match[1].split("|").map(value => value.trim()).filter(Boolean);
+  if (parts.length < 3 || parts.length > 11) return null;
+  const [question, ...options] = parts;
+  if (question.length > 300 || options.some(option => option.length > 100)) return null;
+  return { question, options };
+}
+
 export function isGroupAdminStatus(status: string): boolean {
   return status === "creator" || status === "administrator";
 }
@@ -178,7 +188,7 @@ async function showGroupAdminPanel(call: TelegramCall, chatId: number, userId: n
   }
   await call("sendMessage", {
     chat_id: chatId,
-    text: "👥 مدیریت گروه\n\n• تبلیغ روزانه اختیاری: /promo on یا /promo off\n• ساخت نظرسنجی: /poll سؤال | گزینه ۱ | گزینه ۲\n• جدول امتیازها: /leaderboard\n\nتنظیمات مدیریتی فقط با دسترسی ادمین گروه اجرا می‌شن.",
+    text: "👥 مدیریت گروه\n\n• ساخت نظرسنجی: /poll سؤال | گزینه ۱ | گزینه ۲\n• جدول امتیازها: /leaderboard\n• پنل کیبوردی: /panel\n\nابزارهای مدیریتی فقط با دسترسی مدیر گروه اجرا می‌شن.",
     reply_markup: replyKeyboard(),
   });
 }
@@ -303,6 +313,22 @@ export async function handleTelegramKeyboardUpdate(
   const chatId = message?.chat?.id;
   const userId = message?.from?.id;
   if (!message || !text || typeof chatId !== "number" || !Number.isSafeInteger(chatId)) return false;
+
+  if (/^\/poll(?:@[^\s]+)?(?:\s|$)/i.test(text)) {
+    const poll = parsePollCommand(text);
+    if (!poll) {
+      await telegram("sendMessage", { chat_id: chatId, text: "📊 قالب درست نظرسنجی:\n/poll سؤال؟ | گزینه اول | گزینه دوم\n\nحداقل ۲ و حداکثر ۱۰ گزینه؛ هر گزینه حداکثر ۱۰۰ نویسه." });
+      return true;
+    }
+    await telegram("sendPoll", {
+      chat_id: chatId,
+      question: poll.question,
+      options: poll.options.map(option => ({ text: option })),
+      is_anonymous: false,
+      allows_multiple_answers: false,
+    });
+    return true;
+  }
 
   if (isKeyboardCommand(text)) {
     await sendPanel(telegram, chatId, message.from?.first_name);
