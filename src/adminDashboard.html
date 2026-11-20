@@ -1006,6 +1006,80 @@ input,select,textarea{background:rgba(5,10,27,.82)!important;border-color:rgba(1
 @media(prefers-reduced-motion:reduce){#shaki-companion *,#shaki-companion *:before{animation:none!important;transition:none!important}}
 </style>
 
+
+<style id="shaki-reference-owner-v1">
+:root{
+ --bg:#02030a!important;--accent:#a12cff!important;--accent-2:#20d9ff!important;
+ --border:rgba(155,74,255,.27)!important;--border-strong:rgba(75,157,255,.4)!important;
+ --text:#f8f4ff!important;--text-soft:#d4c8ed!important;--muted:#a49abf!important;
+}
+html,body{background:#020208!important;color:#f8f4ff!important}
+body{
+ background:radial-gradient(ellipse 70% 36% at 50% 0%,rgba(112,20,255,.28),transparent 70%),
+ radial-gradient(ellipse 44% 36% at 100% 20%,rgba(0,112,255,.17),transparent 72%),
+ linear-gradient(180deg,#03030a,#08091b 60%,#02030a)!important;
+}
+body:before{opacity:.13!important;background-image:linear-gradient(rgba(151,74,255,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(54,139,255,.12) 1px,transparent 1px)!important;background-size:42px 42px!important}
+.topbar{
+ background:linear-gradient(105deg,rgba(14,7,31,.97),rgba(5,9,27,.95))!important;
+ border-bottom:1px solid rgba(151,74,255,.32)!important;
+ box-shadow:0 9px 34px rgba(0,0,0,.42),0 0 26px rgba(119,40,255,.12)!important;
+ backdrop-filter:blur(24px) saturate(160%)!important;
+}
+.logo{background:linear-gradient(145deg,#b65cff,#6b36e9 55%,#138fe9)!important;border:1px solid rgba(255,255,255,.3)!important;box-shadow:0 0 0 5px rgba(139,48,255,.1),0 0 30px rgba(139,48,255,.48)!important}
+.sidebar{background:linear-gradient(180deg,rgba(15,8,36,.98),rgba(4,8,25,.98))!important;border-color:rgba(151,74,255,.25)!important}
+.main{background:transparent!important}
+.page-head{
+ background:linear-gradient(125deg,rgba(40,16,83,.78),rgba(8,16,43,.76))!important;
+ border:1px solid rgba(154,86,255,.38)!important;border-radius:20px!important;
+ box-shadow:0 12px 34px rgba(0,0,0,.34),0 0 24px rgba(127,40,255,.12),inset 0 1px rgba(255,255,255,.08)!important;
+}
+.page-head h1{color:#f6eaff!important;text-shadow:0 0 20px rgba(166,79,255,.3)!important}
+.card{
+ background:linear-gradient(150deg,rgba(29,18,65,.94),rgba(7,13,36,.97))!important;
+ border:1px solid rgba(148,91,255,.32)!important;border-radius:19px!important;
+ box-shadow:0 12px 32px rgba(0,0,0,.34),0 0 18px rgba(111,44,255,.08),inset 0 1px rgba(255,255,255,.055)!important;
+ backdrop-filter:blur(18px) saturate(140%)!important;
+}
+.metric{
+ background:linear-gradient(145deg,rgba(55,27,112,.84),rgba(10,18,49,.98))!important;
+ border:1px solid rgba(153,94,255,.38)!important;border-radius:17px!important;
+ box-shadow:0 8px 24px rgba(0,0,0,.3),0 0 18px rgba(128,48,255,.13),inset 0 1px rgba(255,255,255,.1)!important;
+}
+.metric b{background:linear-gradient(90deg,#fff,#d4b4ff 55%,#69dcff)!important;-webkit-background-clip:text!important;background-clip:text!important;color:transparent!important}
+.tag,.pill{background:linear-gradient(110deg,rgba(113,43,218,.2),rgba(10,118,205,.12))!important;border-color:rgba(157,99,255,.35)!important}
+button,.navitem,.nav-item,.tab-btn{border-radius:14px!important;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease,filter .2s ease!important}
+button.primary,.primary,.btn-primary{
+ background:linear-gradient(115deg,#7d25e8,#a02cff 55%,#146fe4)!important;
+ border:1px solid rgba(216,182,255,.35)!important;color:#fff!important;
+ box-shadow:0 7px 22px rgba(132,40,255,.34),inset 0 1px rgba(255,255,255,.18)!important;
+}
+button:hover:not(:disabled){filter:brightness(1.12);box-shadow:0 8px 24px rgba(124,44,255,.2)!important}
+input,textarea,select{background:rgba(5,9,29,.94)!important;border-color:rgba(145,88,255,.31)!important;color:#f8f4ff!important;border-radius:13px!important}
+input:focus,textarea:focus,select:focus{border-color:#28caff!important;box-shadow:0 0 0 3px rgba(40,202,255,.12),0 0 18px rgba(142,45,255,.1)!important}
+#mobileQuickNav{
+ background:rgba(5,6,22,.95)!important;border:1px solid rgba(151,74,255,.3)!important;
+ box-shadow:0 -10px 34px rgba(0,0,0,.48),0 0 22px rgba(112,39,255,.12)!important;
+ backdrop-filter:blur(22px) saturate(150%)!important;
+}
+#mobileQuickNav .navitem[aria-current=page],#mobileQuickNav .navitem.active{
+ color:#fff!important;background:linear-gradient(145deg,rgba(125,39,231,.34),rgba(15,116,220,.18))!important;
+ border:1px solid rgba(164,94,255,.38)!important;box-shadow:0 0 16px rgba(139,48,255,.15)!important;
+}
+.provider-row{background:linear-gradient(120deg,rgba(112,40,210,.16),rgba(0,128,220,.10))!important;border-color:rgba(151,91,255,.3)!important;border-radius:16px!important}
+.provider-icon{background:linear-gradient(135deg,rgba(126,47,230,.4),rgba(0,141,223,.28))!important;box-shadow:0 0 18px rgba(137,57,255,.16)!important}
+.tablewrap{border-color:rgba(151,91,255,.25)!important}
+thead th{background:rgba(42,24,86,.96)!important}
+@keyframes shakiOwnerPulse{0%,100%{filter:drop-shadow(0 0 4px rgba(145,56,255,.24))}50%{filter:drop-shadow(0 0 13px rgba(34,197,255,.48))}}
+.logo{animation:shakiOwnerPulse 4.2s ease-in-out infinite}
+@media(max-width:560px){
+ .page-head{border-radius:17px!important}
+ .card{border-radius:16px!important}
+ .metric{min-height:88px}
+}
+@media(prefers-reduced-motion:reduce){.logo{animation:none!important}}
+</style>
+
 </head>
 <body>
 <a class="skip-link" href="#mainContent">پرش به محتوای اصلی</a>
