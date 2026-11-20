@@ -34,7 +34,7 @@ async function showXpScreen(env:XpWorkerEnv,chatId:number,userId:number,messageI
   let rows:unknown[][]=[];
   if(screen==="profile"){
     const p=await getXpProfile(db,chatId,userId);
-    text="👤 پروفایل بازیکن\n\n⭐ موجودی XP: "+p.xp+"\n🏅 سطح: "+p.level+"\n📈 پیشرفت سطح: "+p.progress+"٪\n\nبا بازی و مأموریت XP جمع کن و در فروشگاه خرجش کن.";
+    text=(note?note+"\n\n":"")+"👤 پروفایل بازیکن\n\n⭐ موجودی XP: "+p.xp+"\n🏅 سطح: "+p.level+"\n📈 پیشرفت سطح: "+p.progress+"٪\n\nبا بازی و مأموریت XP جمع کن و در فروشگاه خرجش کن.";
     rows=XP_HOME;
   }else if(screen==="shop"){
     text="🛒 فروشگاه XP شاکی\n\nیک دسته را انتخاب کن:";
@@ -47,7 +47,7 @@ async function showXpScreen(env:XpWorkerEnv,chatId:number,userId:number,messageI
     rows.push([{text:"⬅️ دسته‌ها",callback_data:"shaki_xp:shop"},{text:"👤 پروفایل",callback_data:"shaki_xp:profile"}]);
   }else if(screen==="inventory"){
     const inventory=await getXpInventory(db,chatId,userId);
-    text="🎒 کوله‌پشتی من\n\n"+(inventory.length?inventory.map(x=>"• "+x.item.name+" × "+x.quantity).join("\n"):"هنوز آیتمی نخریدی.")+"\n\nآیتم‌های مصرفی در بازی‌های پشتیبانی‌شده قابل استفاده‌اند.";
+    text="🎒 کوله‌پشتی من\n\n"+(inventory.length?inventory.map(x=>"• "+x.item.name+" × "+x.quantity).join("\n"):"هنوز آیتمی نخریدی.")+"\n\nاثر آیتم‌ها با اتصال هر قابلیت به بازی مربوط فعال می‌شود.";
     rows=[[{text:"🛒 فروشگاه",callback_data:"shaki_xp:shop"},{text:"👤 پروفایل",callback_data:"shaki_xp:profile"}]];
   }else if(screen==="rank"){
     const list=await getXpLeaderboard(db,chatId,10);
@@ -74,8 +74,14 @@ async function handleXpUpdate(update:TgUpdate,env:XpWorkerEnv):Promise<boolean>{
   if(message?.text&&message.chat.id<0&&message.chat.type!=="private"&&message.from&&!message.from.is_bot){
     const command=message.text.trim().split(/\s+/,1)[0].split("@",1)[0].toLowerCase();
     if(["/xp","/shop","/rank","/inventory","/daily"].includes(command)){
-      const screen=command==="/shop"?"shop":command==="/rank"?"rank":command==="/inventory"?"inventory":"profile";
-      await showXpScreen(env,message.chat.id,message.from.id,undefined,screen);
+      if(command==="/daily"){
+        const reward=await claimDailyXp(env.DB,message.chat.id,message.from.id);
+        const note=reward.awarded?"🎁 پاداش روزانه دریافت شد: +"+reward.amount+" XP":"⏳ پاداش امروزت را قبلاً دریافت کرده‌ای.";
+        await showXpScreen(env,message.chat.id,message.from.id,undefined,"profile",undefined,note);
+      }else{
+        const screen=command==="/shop"?"shop":command==="/rank"?"rank":command==="/inventory"?"inventory":"profile";
+        await showXpScreen(env,message.chat.id,message.from.id,undefined,screen);
+      }
       return true;
     }
   }
