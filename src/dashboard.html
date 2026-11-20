@@ -2984,16 +2984,20 @@ header.topbar{background:linear-gradient(110deg,rgba(9,5,24,.97),rgba(13,8,35,.9
             <div id="hero">
                 <h1>چی می‌خوای انجام بدم؟</h1>
                 <p>من شاکی‌ام؛ بی‌تعارف حرف می‌زنم، عکس می‌سازم، ویس می‌فرستم، توی وب می‌گردم و برات وب‌اپ می‌سازم. فقط بگو چی می‌خوای.</p>
-                <section class="group-growth" aria-label="دعوت و سرگرمی گروهی">
- <div class="group-growth-head"><div class="group-growth-icon" aria-hidden="true">🚀</div><div><b>AI SHAKI رو به گروهت بیار</b><small>گروهت رو به فضای هوشمند و سرگرم‌کننده تبدیل کن</small></div></div>
- <div class="group-growth-actions">
-  <a class="group-growth-btn primary" href="https://t.me/AI_SHAKI_BOT?startgroup=true" target="_blank" rel="noopener">➕ اضافه کردن به گروه</a>
-  <a class="group-growth-btn" href="https://t.me/share/url?url=https%3A%2F%2Ft.me%2FAI_SHAKI_BOT&text=%D8%A8%DB%8C%D8%A7%20AI%20SHAKI%20%D8%B1%D9%88%20%D8%A8%D9%87%20%DA%AF%D8%B1%D9%88%D9%87%D8%AA%20%D8%A7%D8%B6%D8%A7%D9%81%D9%87%20%DA%A9%D9%86%20%F0%9F%9A%80" target="_blank" rel="noopener">📣 دعوت از دوستان</a>
+                <section class="shaki-welcome" aria-label="خوش‌آمدگویی شاکی">
+ <div class="shaki-bot-art" aria-hidden="true">
+  <div class="shaki-bot-aura"></div><div class="shaki-bot-head"><span class="shaki-bot-ear left"></span><span class="shaki-bot-ear right"></span><div class="shaki-bot-face"><i></i><i></i></div><b>AI</b></div>
+  <div class="shaki-ai-orb">AI</div>
  </div>
- <div class="group-growth-games" aria-label="امکانات گروه"><span>🧠 مسابقه اطلاعات عمومی /quiz</span><span>📊 نظرسنجی /poll</span><span>🔥 چالش روزانه /challenge</span><span>🏆 رتبه‌بندی /leaderboard</span></div>
- <p class="group-growth-note">بعد از افزودن ربات، دستورهای بازی و سرگرمی را داخل گروه اجرا کن. برای نظرسنجی و مسابقه، دسترسی‌های لازم ربات را فعال نگه دار.</p>
+ <div class="shaki-welcome-copy"><span class="shaki-online"><i></i> آنلاین</span><b>سلام دوست من 👋</b><small>به دنیای اپلیکیشن هوشمند خوش اومدی؛ من AI SHAKI هستم، همراهت برای هر کاری.</small>
+ <button type="button" id="shakiHeroStart">شروع گفتگو با شاکی <span>‹</span></button></div>
 </section>
 <div id="suggestGrid"></div>
+<section class="shaki-vip-card"><div class="shaki-vip-crown">♛</div><div><b>حساب کاربری شما <span>VIP</span></b><small>مشاهده وضعیت اشتراک و سهمیه حساب</small></div><button type="button" id="shakiVipOpen" aria-label="مشاهده اشتراک">＋</button></section>
+<section class="group-growth shaki-group-compact" aria-label="دعوت و سرگرمی گروهی">
+ <div class="group-growth-head"><div class="group-growth-icon" aria-hidden="true">🚀</div><div><b>AI SHAKI رو به گروهت بیار</b><small>بازی‌ها و امکانات گروهی</small></div></div>
+ <div class="group-growth-actions"><a class="group-growth-btn primary" href="https://t.me/AI_SHAKI_BOT?startgroup=true" target="_blank" rel="noopener">➕ اضافه کردن به گروه</a><a class="group-growth-btn" href="https://t.me/share/url?url=https%3A%2F%2Ft.me%2FAI_SHAKI_BOT&text=%D8%A8%DB%8C%D8%A7%20AI%20SHAKI%20%D8%B1%D9%88%20%D8%A8%D9%87%20%DA%AF%D8%B1%D9%88%D9%87%D8%AA" target="_blank" rel="noopener">📣 دعوت</a></div>
+</section>
             </div>
         </main>
 
@@ -4092,5 +4096,36 @@ header.topbar{background:linear-gradient(110deg,rgba(9,5,24,.97),rgba(13,8,35,.9
         })();
     </script>
 
+<style id="shaki-reference-user-home">
+.shaki-welcome{position:relative;display:grid;grid-template-columns:42% 58%;align-items:center;min-height:166px;padding:10px 12px;border:1px solid rgba(161,91,255,.42);border-radius:22px;background:linear-gradient(130deg,rgba(28,10,65,.96),rgba(7,13,38,.97));box-shadow:0 0 24px rgba(128,42,255,.23),inset 0 1px rgba(255,255,255,.08);overflow:hidden}
+.shaki-welcome:after{content:"";position:absolute;width:190px;height:190px;left:4%;top:-65px;border-radius:50%;background:radial-gradient(circle,rgba(117,43,255,.36),transparent 70%);pointer-events:none}
+.shaki-bot-art{position:relative;height:142px;display:grid;place-items:center}
+.shaki-bot-aura{position:absolute;width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,rgba(0,170,255,.32),rgba(143,37,255,.18) 48%,transparent 72%);filter:blur(4px)}
+.shaki-bot-head{position:relative;width:92px;height:82px;border-radius:44% 44% 38% 38%;background:linear-gradient(145deg,#242a64,#060b23 62%);border:2px solid #6e4cff;box-shadow:0 0 16px #672cff, inset 0 0 15px rgba(29,179,255,.36);transform:rotate(-9deg)}
+.shaki-bot-ear{position:absolute;top:19px;width:13px;height:36px;border:3px solid #27caff;border-radius:9px;background:#151044;box-shadow:0 0 10px #159dff}
+.shaki-bot-ear.left{left:-10px}.shaki-bot-ear.right{right:-10px}
+.shaki-bot-face{position:absolute;inset:14px 12px 17px;border-radius:40%;background:linear-gradient(145deg,#02071b,#071a42);display:flex;justify-content:center;align-items:center;gap:17px;box-shadow:inset 0 0 13px #0a8bff}
+.shaki-bot-face i{width:10px;height:17px;border-radius:50%;background:#24dfff;box-shadow:0 0 9px #12bfff}
+.shaki-bot-head>b{position:absolute;bottom:-12px;right:-16px;font-size:17px;color:#fff;background:linear-gradient(135deg,#7135ff,#087dff);border:1px solid #65caff;border-radius:50%;padding:8px;box-shadow:0 0 15px #286fff}
+.shaki-ai-orb{position:absolute;right:2px;bottom:5px;border:1px solid #38cfff;border-radius:50%;width:39px;height:39px;display:grid;place-items:center;color:#fff;font-weight:900;background:radial-gradient(circle,#2165ff,#3510a3);box-shadow:0 0 18px #147fff}
+.shaki-welcome-copy{display:flex;flex-direction:column;gap:6px;position:relative;z-index:1}
+.shaki-online{font-size:9px;color:#45ff8b;display:flex;align-items:center;gap:5px}.shaki-online i{width:6px;height:6px;border-radius:50%;background:#30f47b;box-shadow:0 0 8px #30f47b}
+.shaki-welcome-copy>b{font-size:14px;color:#fff}.shaki-welcome-copy>small{font-size:9px;line-height:1.65;color:#cdbcf0}
+.shaki-welcome-copy button{align-self:stretch;border:1px solid rgba(174,117,255,.55);border-radius:13px;padding:9px 8px;background:linear-gradient(110deg,#6417d5,#9a25ff,#125fda);color:white;font-size:10px;font-weight:800;box-shadow:0 0 17px rgba(132,39,255,.35)}
+.shaki-welcome-copy button span{float:left;font-size:17px;line-height:10px}
+.shaki-vip-card{display:flex;align-items:center;gap:9px;margin-top:8px;padding:10px;border:1px solid rgba(161,91,255,.46);border-radius:16px;background:linear-gradient(105deg,rgba(63,23,128,.92),rgba(12,12,43,.96));box-shadow:0 0 18px rgba(131,42,255,.2)}
+.shaki-vip-crown{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;font-size:23px;color:#ffd44e;background:rgba(255,197,52,.12);box-shadow:0 0 14px rgba(255,197,52,.28)}
+.shaki-vip-card>div:nth-child(2){flex:1;min-width:0}.shaki-vip-card b{display:block;font-size:10px;color:#fff}.shaki-vip-card b span{color:#ffd44e}.shaki-vip-card small{display:block;font-size:9px;color:#cbb8eb;margin-top:3px}
+.shaki-vip-card button{width:29px;height:29px;border:1px solid #a44cff;border-radius:10px;background:rgba(132,38,255,.28);color:#fff;font-size:18px}
+.shaki-group-compact{margin-top:8px;padding:9px!important}.shaki-group-compact .group-growth-games,.shaki-group-compact .group-growth-note{display:none}
+@media(max-width:380px){.shaki-welcome{grid-template-columns:38% 62%;padding:8px;min-height:154px}.shaki-bot-head{transform:scale(.88) rotate(-9deg)}.shaki-welcome-copy>b{font-size:12px}}
+</style>
+<script id="shaki-reference-user-actions">
+document.addEventListener("DOMContentLoaded",function(){
+ const start=document.getElementById("shakiHeroStart"),vip=document.getElementById("shakiVipOpen");
+ if(start)start.addEventListener("click",()=>{const b=document.getElementById("newChatBtn");if(b)b.click();const i=document.querySelector("#composerBar textarea,#composerBar input,textarea#messageInput");if(i)i.focus()});
+ if(vip)vip.addEventListener("click",()=>{const b=document.getElementById("statusPill");if(b)b.click()});
+});
+</script>
 </body>
 </html>
