@@ -103,6 +103,24 @@ test("webhook interception requires Telegram's configured secret header", async 
   const body = JSON.stringify({ message: { message_id: 1, text: "/panel", chat: { id: 7, type: "private" }, from: { id: 7 } } });
   const denied = await maybeHandleKeyboardWebhook(new Request("https://worker.example/hook", { method: "POST", headers: { "content-type": "application/json" }, body }), { TOKEN: "t", WEBHOOK_SECRET: "secret" });
   assert.equal(denied, null);
-  const accepted = await maybeHandleKeyboardWebhook(new Request("https://worker.example/hook", { method: "POST", headers: { "content-type": "application/json", "X-Telegram-Bot-Api-Secret-Token": "secret" }, body }), { TOKEN: "t", WEBHOOK_SECRET: "secret" });
+  const accepted = await maybeHandleKeyboardWebhook(new Request("https://worker.example/hook", { method: "POST", headers: { "content-type": "application/json", "X-Telegram-Bot-Api-Secret-Token": "secret" }, body }), { TOKEN: "t", WEBHOOK_SECRET: "secret" }, async () => ({}));
   assert.equal(accepted?.status, 200);
+});
+
+test("RPS replay callback is routed before ordinary choice validation", async () => {
+  const calls = [];
+  const handled = await handleTelegramKeyboardUpdate({
+    callback_query: { id: "cb2", data: "shaki:rps:again", from: { id: 4 }, message: { message_id: 3, chat: { id: 7, type: "private" } } },
+  }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
+  assert.equal(handled, true);
+  assert.ok(calls.some(call => call.method === "editMessageText" && call.params.reply_markup.inline_keyboard[0].length === 3));
+});
+
+test("next word callback is routed before answer parsing", async () => {
+  const calls = [];
+  const handled = await handleTelegramKeyboardUpdate({
+    callback_query: { id: "cb3", data: "shaki:word:next:0", from: { id: 4 }, message: { message_id: 3, chat: { id: 7, type: "private" } } },
+  }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
+  assert.equal(handled, true);
+  assert.ok(calls.some(call => call.method === "editMessageText" && call.params.reply_markup.inline_keyboard[0].length === 3));
 });
