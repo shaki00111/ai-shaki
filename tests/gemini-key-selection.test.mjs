@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { selectGeminiKeyIndex } from "../src/geminiKeySelection.ts";
+import { numberedGeminiKeysFromEnv } from "../src/geminiKeyring.ts";
 
 test("selects the least-recently-used key among keys outside cooldown", () => {
   const keys = ["a", "b", "c"];
@@ -34,4 +35,17 @@ test("selection order is deterministic when last-used timestamps tie", () => {
 
 test("empty key pools return -1", () => {
   assert.equal(selectGeminiKeyIndex([], {}, new Map(), 10), -1);
+});
+
+test("discovers all numbered Gemini secrets, including key six and keys above ten", () => {
+  assert.deepEqual(numberedGeminiKeysFromEnv({
+    GEMINI_KEY_1: " first ",
+    GEMINI_KEY_5: "fifth",
+    GEMINI_KEY_6: " sixth ",
+    GEMINI_KEY_10: "tenth",
+    GEMINI_KEY_100: "hundredth",
+    GEMINI_KEY_101: "outside-limit",
+    GEMINI_KEY_BAD: "ignored",
+    GEMINI_KEY_2: "   ",
+  }), ["first", "fifth", "sixth", "tenth", "hundredth"]);
 });

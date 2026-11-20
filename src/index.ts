@@ -18,7 +18,7 @@ import { canUseWusRouterTextFallback, getWusRouterModelCandidates } from "./prov
 import { callGroqText, buildGroqMessages, groqKeysFromEnv, joinTextParts } from "./groqProvider";
 import { selectGeminiKeyIndex, shouldRetryGeminiQuotaImmediately } from "./geminiKeySelection";
 import { geminiErrorWithHttpStatus, geminiStreamError } from "./geminiErrors";
-import { mergeGeminiKeys, hasGeminiKeyAfterUpdate } from "./geminiKeyring";
+import { mergeGeminiKeys, hasGeminiKeyAfterUpdate, numberedGeminiKeysFromEnv } from "./geminiKeyring";
 import { persistCooldown, readCooldowns, migrateLegacyCooldowns, clearCooldowns } from "./keyCooldownStore";
 import { dailyChallengeText } from "./dailyChallenge";
 import { isTelegramMemberPresent, shouldSendGroupOnboarding } from "./groupOnboarding";
@@ -1291,7 +1291,7 @@ async function managedGeminiKeyInventory(env: Env) {
   return items.map(describeManagedGeminiKey);
 }
 function environmentGeminiKeys(env: Env): (string | undefined)[] {
-  return [env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3, env.GEMINI_KEY_4, env.GEMINI_KEY_5];
+  return numberedGeminiKeysFromEnv(env as unknown as Record<string, unknown>);
 }
 async function syncManagedGeminiKeysIntoConfig(env: Env): Promise<void> {
   try {
@@ -1880,10 +1880,7 @@ function createConfig(env: Env, botConfig: BotConfig) {
   return {
     TOKEN: env.TOKEN,
     BOT_OWNER_ID: parseInt(ownerRaw, 10),
-    GEMINI_KEYS: [
-      env.GEMINI_KEY_1, env.GEMINI_KEY_2, env.GEMINI_KEY_3,
-      env.GEMINI_KEY_4, env.GEMINI_KEY_5,
-    ].filter((k): k is string => Boolean(k)),
+    GEMINI_KEYS: numberedGeminiKeysFromEnv(env as unknown as Record<string, unknown>).filter((k): k is string => Boolean(k)),
     // Include the legacy single secret as a real synthesis fallback too.
     // Previously it was visible in diagnostics but silently omitted from cfg,
     // which made TTS report "no API keys configured" on older deployments.
