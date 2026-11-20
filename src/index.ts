@@ -11845,7 +11845,7 @@ async function handleGeminiRequest(
         const groqKeys=groqKeysFromEnv(env as unknown as Record<string,unknown>);
         if(providerSettings.groq&&groqKeys.length&&plainTextTurn&&plainTextHistory&&fallbackIntentAllowed&&!toolPolicy?.force){
             try{
-                const answer=await callGroqText(groqKeys,buildGroqMessages(systemPromptText,parts.map(part=>part.text??"").join("\\\\n"),history),Math.max(5000,Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart))),4096);
+                const answer=await callGroqText(groqKeys,buildGroqMessages(systemPromptText,parts.map(part=>part.text??"").join("\n"),history),Math.max(5000,Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart))),4096);
                 engine.consecutiveErrors=0;
                 logger.info("[AI provider] Gemini disabled/unconfigured; Groq text fallback succeeded");
                 return {text:answer,functionCalls:[],modelParts:[{text:answer}],finishReason:"STOP"};
@@ -11853,7 +11853,7 @@ async function handleGeminiRequest(
         }
         if (!providerSettings.wusrouter || !env.WUSROUTER_API_KEY?.trim()) throw new Error("No enabled text AI provider is configured. Configure Groq or WusRouter, or enable Gemini.");
         if (!plainTextTurn || !plainTextHistory || !fallbackIntentAllowed || toolPolicy?.force) throw new Error("Text fallbacks only support ordinary text chat. Enable Gemini for image, file, and tool-based requests.");
-        const fallbackText=await callWusRouterText(systemPromptText,parts.map(part=>part.text??"").join("\\\\n"),history,WUSROUTER_CHAT_MODEL,Math.max(5000,Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart))),4096);
+        const fallbackText=await callWusRouterText(systemPromptText,parts.map(part=>part.text??"").join("\n"),history,WUSROUTER_CHAT_MODEL,Math.max(5000,Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart))),4096);
         engine.consecutiveErrors=0;
         logger.info("[AI provider] Gemini disabled/unconfigured; WusRouter direct fallback succeeded");
         return {text:fallbackText,functionCalls:[],modelParts:[{text:fallbackText}],finishReason:"STOP"};
@@ -11920,7 +11920,7 @@ for (let offset = 0; offset < cfg.GEMINI_KEYS.length; offset++) {
     const groqKeys=groqKeysFromEnv(env as unknown as Record<string,unknown>);
     if(canUseTextFallback&&providerSettings.groq&&groqKeys.length){
       try{
-        const fallbackText=await callGroqText(groqKeys,buildGroqMessages(systemPromptText,parts.map(part=>part.text??"").join("\\\\n"),history),Math.max(5000,Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart))),4096);
+        const fallbackText=await callGroqText(groqKeys,buildGroqMessages(systemPromptText,parts.map(part=>part.text??"").join("\n"),history),Math.max(5000,Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart))),4096);
         engine.consecutiveErrors=0;
         logger.info(`[AI provider] Gemini exhausted; Groq text fallback succeeded (${fallbackText.length} chars)`);
         return {text:fallbackText,functionCalls:[],modelParts:[{text:fallbackText}],finishReason:"STOP"};
@@ -11929,7 +11929,7 @@ for (let offset = 0; offset < cfg.GEMINI_KEYS.length; offset++) {
     const textOnlyFallback=canUseTextFallback&&providerSettings.wusrouter&&Boolean(env.WUSROUTER_API_KEY?.trim());
     if(textOnlyFallback){
       try{
-        const fallbackText=await callWusRouterText(systemPromptText,parts.map(part=>part.text??"").join("\\\\n"),history,WUSROUTER_CHAT_MODEL,Math.max(5000,Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart))),4096);
+        const fallbackText=await callWusRouterText(systemPromptText,parts.map(part=>part.text??"").join("\n"),history,WUSROUTER_CHAT_MODEL,Math.max(5000,Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart))),4096);
         engine.consecutiveErrors=0;
         logger.info(`[AI provider] Gemini exhausted; WusRouter text fallback succeeded (${fallbackText.length} chars)`);
         return {text:fallbackText,functionCalls:[],modelParts:[{text:fallbackText}],finishReason:"STOP"};
