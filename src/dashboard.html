@@ -2685,6 +2685,41 @@ header.topbar {
   .suggest,.capItem,.menuBtn,#sendBtn,.imgGrid img {transition:none!important}
 }
 
+
+/* SHAKI companion + neon ambience: does not replace the existing chat controls. */
+body{background:radial-gradient(ellipse at 10% 8%,rgba(105,35,255,.20),transparent 42%),radial-gradient(ellipse at 92% 42%,rgba(0,175,255,.13),transparent 40%),#02030a}
+#app{background:linear-gradient(180deg,rgba(9,7,24,.97),rgba(3,6,16,.99))}
+header.topbar{background:rgba(5,5,18,.88);border-bottom-color:rgba(124,79,255,.25)}
+.orb,.heroOrb{box-shadow:0 0 28px rgba(124,65,255,.30),0 0 46px rgba(0,180,255,.12)}
+#hero{position:relative}
+#hero:before{content:"";position:absolute;inset:0 -12px auto;height:230px;pointer-events:none;background:radial-gradient(ellipse at 50% 25%,rgba(117,47,255,.18),transparent 68%);z-index:0}
+#hero>*{position:relative}
+#shaki-companion{position:fixed;z-index:9999;width:76px;height:92px;left:14px;top:auto;bottom:calc(var(--safe-bottom,0px) + 78px);pointer-events:none;transform:translate3d(0,0,0);transition:left .38s cubic-bezier(.2,.9,.2,1),top .38s cubic-bezier(.2,.9,.2,1);filter:drop-shadow(0 8px 18px rgba(107,53,255,.48))}
+#shaki-companion .bot{position:absolute;inset:12px 7px 0;border:2px solid #a78bff;border-radius:28px 28px 24px 24px;background:linear-gradient(145deg,#24205a,#090d24 72%);box-shadow:inset 0 0 18px rgba(37,197,255,.22),0 0 20px rgba(124,77,255,.38);animation:shaki-bob 2.8s ease-in-out infinite}
+#shaki-companion .bot:before{content:"";position:absolute;width:30px;height:9px;border-radius:9px;left:14px;top:-9px;background:#9e69ff;box-shadow:0 0 12px #9e69ff}
+#shaki-companion .bow{position:absolute;right:4px;top:2px;width:17px;height:17px;transform:rotate(25deg);background:linear-gradient(135deg,#ff82d2,#9c4bff);clip-path:polygon(50% 0,64% 34%,100% 20%,78% 55%,100% 90%,58% 72%,35% 100%,34% 62%,0 48%,38% 34%);filter:drop-shadow(0 0 5px #ff71cb)}
+#shaki-companion .face{position:absolute;left:9px;right:9px;top:22px;height:35px;border-radius:13px;background:#050a1a;border:1px solid rgba(0,214,255,.5);display:flex;justify-content:center;align-items:center;gap:12px;box-shadow:inset 0 0 14px rgba(0,194,255,.15)}
+#shaki-companion .eye{width:7px;height:10px;border-radius:50%;background:#36e8ff;box-shadow:0 0 8px #28dfff}
+#shaki-companion .mouth{position:absolute;left:50%;bottom:5px;width:12px;height:5px;border-bottom:2px solid #ff8bd8;border-radius:50%;transform:translateX(-50%)}
+#shaki-companion .spark{position:absolute;top:-5px;left:-2px;color:#55eaff;font-size:15px;animation:shaki-twinkle 1.8s ease-in-out infinite}
+#shaki-companion .bubble{position:absolute;top:-13px;right:-13px;font-size:17px;opacity:0;transform:scale(.4);transition:.2s}
+#shaki-companion.happy .mouth{height:9px;width:17px;border-bottom-width:3px}
+#shaki-companion.happy .bubble{opacity:1;transform:scale(1)}
+#shaki-companion.sad .eye{height:7px;border-radius:8px 8px 2px 2px}
+#shaki-companion.sad .mouth{bottom:3px;border-bottom:0;border-top:2px solid #8feaff;border-radius:50%}
+#shaki-companion.sad .bubble{opacity:1;transform:scale(1)}
+@keyframes shaki-bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-9px) rotate(2deg)}}
+@keyframes shaki-twinkle{0%,100%{opacity:.45;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+@media(prefers-reduced-motion:reduce){#shaki-companion .bot,#shaki-companion .spark{animation:none}#shaki-companion{transition:none}}
+@media(max-width:520px){#shaki-companion{transform:scale(.86);transform-origin:bottom left}}
+
+
+.group-growth{width:min(100%,680px);margin:22px auto 8px;padding:16px;border:1px solid rgba(155,123,255,.38);border-radius:22px;background:linear-gradient(135deg,rgba(124,55,247,.22),rgba(0,177,255,.10));box-shadow:0 12px 38px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.06);text-align:right;position:relative;z-index:1}
+.group-growth-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}.group-growth-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:14px;background:rgba(155,123,255,.2);font-size:22px}.group-growth-head b{display:block;font-size:15px}.group-growth-head small{display:block;color:var(--text-dim);font-size:11px;margin-top:2px}
+.group-growth-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.group-growth-btn{min-height:48px;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:14px;padding:10px 12px;font:700 13px var(--font);text-decoration:none!important;border:1px solid var(--border-strong);background:var(--bg-2);color:var(--text)!important;transition:transform .18s,filter .18s}.group-growth-btn.primary{background:linear-gradient(120deg,#8c36ff,#4c5bff 55%,#00aeea);color:white!important;border-color:transparent;box-shadow:0 8px 22px rgba(91,91,220,.32)}.group-growth-btn:active{transform:scale(.97)}
+.group-growth-games{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.group-growth-games span{font-size:11px;color:var(--text-2);padding:6px 9px;border:1px solid var(--border);border-radius:999px;background:var(--glass)}.group-growth-note{font-size:11px;color:var(--text-dim);margin-top:9px;line-height:1.7}
+@media(max-width:380px){.group-growth{padding:12px}.group-growth-actions{grid-template-columns:1fr}.group-growth-btn{min-height:44px}}
+
 </style>
 
     <meta name="theme-color" content="#090a0e">
@@ -2958,7 +2993,16 @@ a{color:#7dd3fc!important}*{scrollbar-color:#5d50a4 transparent}
                 </div>
                 <h1>چی می‌خوای انجام بدم؟</h1>
                 <p>من شاکی‌ام؛ بی‌تعارف حرف می‌زنم، عکس می‌سازم، ویس می‌فرستم، توی وب می‌گردم و برات وب‌اپ می‌سازم. فقط بگو چی می‌خوای.</p>
-                <div id="suggestGrid"></div>
+                <section class="group-growth" aria-label="دعوت و سرگرمی گروهی">
+ <div class="group-growth-head"><div class="group-growth-icon" aria-hidden="true">🚀</div><div><b>AI SHAKI رو به گروهت بیار</b><small>گروهت رو به فضای هوشمند و سرگرم‌کننده تبدیل کن</small></div></div>
+ <div class="group-growth-actions">
+  <a class="group-growth-btn primary" href="https://t.me/AI_SHAKI_BOT?startgroup=true" target="_blank" rel="noopener">➕ اضافه کردن به گروه</a>
+  <a class="group-growth-btn" href="https://t.me/share/url?url=https%3A%2F%2Ft.me%2FAI_SHAKI_BOT&text=%D8%A8%DB%8C%D8%A7%20AI%20SHAKI%20%D8%B1%D9%88%20%D8%A8%D9%87%20%DA%AF%D8%B1%D9%88%D9%87%D8%AA%20%D8%A7%D8%B6%D8%A7%D9%81%D9%87%20%DA%A9%D9%86%20%F0%9F%9A%80" target="_blank" rel="noopener">📣 دعوت از دوستان</a>
+ </div>
+ <div class="group-growth-games" aria-label="امکانات گروه"><span>🧠 مسابقه اطلاعات عمومی /quiz</span><span>📊 نظرسنجی /poll</span><span>🔥 چالش روزانه /challenge</span><span>🏆 رتبه‌بندی /leaderboard</span></div>
+ <p class="group-growth-note">بعد از افزودن ربات، دستورهای بازی و سرگرمی را داخل گروه اجرا کن. برای نظرسنجی و مسابقه، دسترسی‌های لازم ربات را فعال نگه دار.</p>
+</section>
+<div id="suggestGrid"></div>
             </div>
         </main>
 
@@ -4056,5 +4100,56 @@ a{color:#7dd3fc!important}*{scrollbar-color:#5d50a4 transparent}
             decideGate();
         })();
     </script>
+
+<script>
+(()=> {
+ if(window.__shakiCompanionReady) return;
+ window.__shakiCompanionReady=true;
+ const root=document.createElement("div");
+ root.id="shaki-companion";
+ root.setAttribute("aria-hidden","true");
+ root.innerHTML='<span class="spark">✦</span><span class="bow"></span><div class="bot"><div class="face"><i class="eye"></i><i class="eye"></i><i class="mouth"></i></div></div><span class="bubble">💖</span>';
+ document.body.appendChild(root);
+ let moodTimer=0;
+ const mood=(name,emoji,duration=1350)=>{
+  root.classList.remove("happy","sad");
+  if(name) root.classList.add(name);
+  root.querySelector(".bubble").textContent=emoji;
+  clearTimeout(moodTimer);
+  if(name) moodTimer=setTimeout(()=>root.classList.remove(name),duration);
+ };
+ const moveNear=(target,x,y)=>{
+  const w=window.innerWidth,h=window.innerHeight,box=target?.getBoundingClientRect?.();
+  const size=76,gap=8;
+  let left=Math.max(6,Math.min(w-size-6,x-size/2));
+  let top=Math.max(72,Math.min(h-size-92,y-size/2));
+  if(box && box.width && box.height){
+   if(box.left-size-gap>=6) left=box.left-size-gap;
+   else if(box.right+size+gap<=w-6) left=box.right+gap;
+   else if(box.top-size-gap>=72) {top=box.top-size-gap;left=Math.max(6,Math.min(w-size-6,box.left+(box.width-size)/2));}
+   else if(box.bottom+size+gap<=h-72) {top=box.bottom+gap;left=Math.max(6,Math.min(w-size-6,box.left+(box.width-size)/2));}
+  }
+  root.style.left=left+"px";root.style.top=top+"px";root.style.bottom="auto";
+ };
+ document.addEventListener("click",e=>{
+  const target=e.target?.closest?.("button,a,[role=button],summary,.navitem,.card,.metric");
+  if(!target) return;
+  const rect=target.getBoundingClientRect();
+  moveNear(target,rect.left+rect.width/2,rect.top+rect.height/2);
+  mood("happy",["💖","✨","😊","💕"][Math.floor(Math.random()*4)]);
+ },true);
+ document.addEventListener("shaki:companion-sad",()=>mood("sad","💧",1900));
+ document.addEventListener("shaki:companion-happy",()=>mood("happy","💖"));
+ const originalFetch=window.fetch;
+ if(originalFetch) window.fetch=function(...args){
+  return originalFetch.apply(this,args).then(response=>{
+   if(!response.ok && response.status>=500) mood("sad","💧",1900);
+   return response;
+  });
+ };
+ setTimeout(()=>mood("happy","👋",1600),700);
+})();
+</script>
+
 </body>
 </html>
