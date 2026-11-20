@@ -2942,6 +2942,31 @@ a{color:#7dd3fc!important}*{scrollbar-color:#5d50a4 transparent}
 @media(max-width:560px){#hero{border-radius:19px!important;margin-inline:8px!important}#composerBar{border-radius:18px!important}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
+<style id="shaki-companion-motion-polish">
+#shaki-companion{will-change:left,top;contain:layout style;isolation:isolate}
+#shaki-companion .bot{transform-origin:50% 88%;animation:shaki-bob 2.65s cubic-bezier(.45,.05,.55,.95) infinite,shaki-breathe 4.8s ease-in-out infinite}
+#shaki-companion .face{overflow:hidden}
+#shaki-companion .eye{transform:translate(var(--look-x,0),var(--look-y,0));transition:transform .12s ease-out, height .16s ease,border-radius .16s ease}
+#shaki-companion .eye:first-child{animation:shaki-blink 5.1s infinite}
+#shaki-companion .eye:nth-child(2){animation:shaki-blink 5.1s .12s infinite}
+#shaki-companion .bow{animation:shaki-bow-sway 3.2s ease-in-out infinite}
+#shaki-companion .spark{pointer-events:none}
+#shaki-companion .bubble{max-width:42px;white-space:nowrap;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4))}
+#shaki-companion.curious .bot{animation:shaki-curious .42s ease-in-out 2,shaki-breathe 4.8s ease-in-out infinite}
+#shaki-companion.curious .eye{height:13px;width:8px}
+#shaki-companion.thinking .bot{animation:shaki-think .55s ease-in-out 2,shaki-breathe 4.8s ease-in-out infinite}
+#shaki-companion.thinking .eye{height:5px;width:8px}
+#shaki-companion.sad .bot{animation:shaki-sad .4s ease-in-out 2}
+#shaki-companion.sad .bow{transform:rotate(-18deg)}
+@keyframes shaki-blink{0%,46%,50%,100%{transform:translate(var(--look-x,0),var(--look-y,0)) scaleY(1)}48%{transform:translate(var(--look-x,0),var(--look-y,0)) scaleY(.12)}}
+@keyframes shaki-breathe{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}
+@keyframes shaki-bow-sway{0%,100%{rotate:8deg}50%{rotate:-9deg}}
+@keyframes shaki-curious{0%,100%{rotate:0}35%{rotate:8deg}70%{rotate:-5deg}}
+@keyframes shaki-think{0%,100%{translate:0 0}50%{translate:0 -5px}}
+@keyframes shaki-sad{0%,100%{translate:0 0}50%{translate:0 3px}}
+@media(prefers-reduced-motion:reduce){#shaki-companion *,#shaki-companion *:before{animation:none!important;transition:none!important}}
+</style>
+
 </head>
 <body>
     <a class="skipLink" href="#chatScroll">پرش به گفتگو</a>
@@ -4110,44 +4135,72 @@ a{color:#7dd3fc!important}*{scrollbar-color:#5d50a4 transparent}
  root.setAttribute("aria-hidden","true");
  root.innerHTML='<span class="spark">✦</span><span class="bow"></span><div class="bot"><div class="face"><i class="eye"></i><i class="eye"></i><i class="mouth"></i></div></div><span class="bubble">💖</span>';
  document.body.appendChild(root);
- let moodTimer=0;
- const mood=(name,emoji,duration=1350)=>{
-  root.classList.remove("happy","sad");
+ const eyes=[...root.querySelectorAll(".eye")];
+ const bubble=root.querySelector(".bubble");
+ let moodTimer=0, moveFrame=0, lastMoodAt=0;
+ const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+ const mood=(name,emoji,duration=1500)=>{
+  root.classList.remove("happy","sad","curious","thinking");
   if(name) root.classList.add(name);
-  root.querySelector(".bubble").textContent=emoji;
+  bubble.textContent=emoji;
   clearTimeout(moodTimer);
   if(name) moodTimer=setTimeout(()=>root.classList.remove(name),duration);
  };
  const moveNear=(target,x,y)=>{
   const w=window.innerWidth,h=window.innerHeight,box=target?.getBoundingClientRect?.();
-  const size=76,gap=8;
-  let left=Math.max(6,Math.min(w-size-6,x-size/2));
-  let top=Math.max(72,Math.min(h-size-92,y-size/2));
+  const size=76,gap=10,pad=8;
+  let left=Math.max(pad,Math.min(w-size-pad,x-size/2));
+  let top=Math.max(76,Math.min(h-size-100,y-size/2));
   if(box && box.width && box.height){
-   if(box.left-size-gap>=6) left=box.left-size-gap;
-   else if(box.right+size+gap<=w-6) left=box.right+gap;
-   else if(box.top-size-gap>=72) {top=box.top-size-gap;left=Math.max(6,Math.min(w-size-6,box.left+(box.width-size)/2));}
-   else if(box.bottom+size+gap<=h-72) {top=box.bottom+gap;left=Math.max(6,Math.min(w-size-6,box.left+(box.width-size)/2));}
+   const candidates=[
+    {left:box.left-size-gap,top:box.top+(box.height-size)/2},
+    {left:box.right+gap,top:box.top+(box.height-size)/2},
+    {left:box.left+(box.width-size)/2,top:box.top-size-gap},
+    {left:box.left+(box.width-size)/2,top:box.bottom+gap}
+   ].filter(p=>p.left>=pad&&p.left<=w-size-pad&&p.top>=76&&p.top<=h-size-100);
+   if(candidates.length){candidates.sort((a,b)=>Math.hypot(a.left-left,a.top-top)-Math.hypot(b.left-left,b.top-top));left=candidates[0].left;top=candidates[0].top;}
   }
   root.style.left=left+"px";root.style.top=top+"px";root.style.bottom="auto";
  };
+ const lookAt=(x,y)=>{
+  const r=root.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+  const dx=Math.max(-3,Math.min(3,(x-cx)/42)),dy=Math.max(-2,Math.min(2,(y-cy)/48));
+  eyes.forEach(eye=>{eye.style.setProperty("--look-x",dx+"px");eye.style.setProperty("--look-y",dy+"px");});
+ };
+ document.addEventListener("pointermove",e=>{
+  if(reduced||moveFrame) return;
+  moveFrame=requestAnimationFrame(()=>{lookAt(e.clientX,e.clientY);moveFrame=0;});
+ },{passive:true});
  document.addEventListener("click",e=>{
-  const target=e.target?.closest?.("button,a,[role=button],summary,.navitem,.card,.metric");
-  if(!target) return;
+  const target=e.target?.closest?.("button,a,[role=button],summary,.navitem,.card,.metric,[data-action]");
+  if(!target||root.contains(target)) return;
   const rect=target.getBoundingClientRect();
   moveNear(target,rect.left+rect.width/2,rect.top+rect.height/2);
   mood("happy",["💖","✨","😊","💕"][Math.floor(Math.random()*4)]);
  },true);
- document.addEventListener("shaki:companion-sad",()=>mood("sad","💧",1900));
+ document.addEventListener("focusin",e=>{
+  const target=e.target;
+  if(!target?.matches?.("input,textarea,select,[contenteditable=true]")) return;
+  const r=target.getBoundingClientRect();
+  moveNear(target,r.left+r.width/2,r.top+r.height/2);
+  mood("curious","👀",2200);
+ });
+ document.addEventListener("shaki:companion-sad",()=>mood("sad","💧",2200));
  document.addEventListener("shaki:companion-happy",()=>mood("happy","💖"));
+ document.addEventListener("shaki:companion-thinking",()=>mood("thinking","💭",2600));
  const originalFetch=window.fetch;
  if(originalFetch) window.fetch=function(...args){
   return originalFetch.apply(this,args).then(response=>{
-   if(!response.ok && response.status>=500) mood("sad","💧",1900);
+   if(!response.ok&&response.status>=500) mood("sad","💧",2200);
+   else if(response.ok&&Date.now()-lastMoodAt>12000){lastMoodAt=Date.now();mood("happy","✨",900);}
    return response;
-  });
+  }).catch(error=>{mood("sad","💧",2200);throw error;});
  };
- setTimeout(()=>mood("happy","👋",1600),700);
+ const intro=()=>mood("happy","👋",1800);
+ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",()=>setTimeout(intro,650),{once:true});
+ else setTimeout(intro,650);
+ const idle=()=>{if(document.hidden||Date.now()-lastMoodAt<9000)return;lastMoodAt=Date.now();mood("curious","✨",1100);};
+ document.addEventListener("visibilitychange",()=>{if(!document.hidden) idle();});
 })();
 </script>
 
