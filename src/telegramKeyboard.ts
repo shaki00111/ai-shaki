@@ -323,7 +323,7 @@ export async function handleTelegramKeyboardUpdate(
     try {
       const rows = await getGroupLeaderboard(env.DB, chatId, 10);
       const lines = rows.map((row, index) => `${index + 1}. شناسه ${row.userId} — ${row.xp} XP`);
-      await telegram("sendMessage", { chat_id: chatId, text: lines.length ? "🏆 رتبه‌بندی گروه\\n\\n" + lines.join("\\n") : "🏆 هنوز امتیازی ثبت نشده؛ با بازی‌کردن اولین نفر جدول شو!" });
+      await telegram("sendMessage", { chat_id: chatId, text: lines.length ? "🏆 رتبه‌بندی گروه\n\n" + lines.join("\n") : "🏆 هنوز امتیازی ثبت نشده؛ با بازی‌کردن اولین نفر جدول شو!" });
     } catch {
       await telegram("sendMessage", { chat_id: chatId, text: "الان دسترسی به جدول امتیازها ممکن نیست؛ کمی بعد دوباره امتحان کن." });
     }
