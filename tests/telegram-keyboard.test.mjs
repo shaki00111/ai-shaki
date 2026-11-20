@@ -227,3 +227,12 @@ test("private /panel still displays the Telegram reply keyboard", async () => {
   assert.equal(handled, true);
   assert.ok(calls[0].params.reply_markup.keyboard.flat().some(button => button.text === "🎮 بازی‌ها"));
 });
+
+
+test("group /panel removes an already displayed Telegram reply keyboard", async () => {
+  const calls = [];
+  await handleTelegramKeyboardUpdate({
+    message: { message_id: 122, text: "/panel", chat: { id: -100123, type: "supergroup" }, from: { id: 5, first_name: "Test" } },
+  }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
+  assert.deepEqual(calls[0].params.reply_markup, { remove_keyboard: true });
+});
