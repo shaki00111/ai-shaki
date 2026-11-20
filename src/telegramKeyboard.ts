@@ -355,12 +355,12 @@ export async function handleTelegramKeyboardUpdate(
 }
 
 /** Intercepts only authenticated Telegram webhook updates; all other traffic remains on the original Worker. */
-export async function maybeHandleKeyboardWebhook(request: Request, env: ShakiTelegramEnv): Promise<Response | null> {
+export async function maybeHandleKeyboardWebhook(request: Request, env: ShakiTelegramEnv, call?: TelegramCall): Promise<Response | null> {
   if (request.method !== "POST" || !env.WEBHOOK_SECRET || !env.TOKEN) return null;
   if (request.headers.get("X-Telegram-Bot-Api-Secret-Token") !== env.WEBHOOK_SECRET) return null;
   let update: TelegramUpdate;
   try { update = await request.clone().json() as TelegramUpdate; }
   catch { return null; }
-  const handled = await handleTelegramKeyboardUpdate(update, env);
+  const handled = await handleTelegramKeyboardUpdate(update, env, call);
   return handled ? new Response('{"ok":true}', { status: 200, headers: { "content-type": "application/json" } }) : null;
 }
