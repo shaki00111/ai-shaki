@@ -169,21 +169,31 @@ async function handleCallback(update: TelegramUpdate, call: TelegramCall): Promi
   }
 
   const parts = query.data.split(":");
-  if (parts[1] === "rps" && parts[2] === "again") {
+  if (parts[1] === "rps" && parts[3] === "again") {
+    const ownerId = Number(parts[2]);
+    if (ownerId !== query.from.id) {
+      await call("answerCallbackQuery", { callback_query_id: query.id, text: "این بازی برای شخص دیگریه." });
+      return true;
+    }
     await call("answerCallbackQuery", { callback_query_id: query.id });
     await call("editMessageText", {
       chat_id: chatId, message_id: messageId, text: "✊ دوباره انتخاب کن:",
       reply_markup: { inline_keyboard: [[
-        { text: "🪨 سنگ", callback_data: "shaki:rps:سنگ" },
-        { text: "📄 کاغذ", callback_data: "shaki:rps:کاغذ" },
-        { text: "✂️ قیچی", callback_data: "shaki:rps:قیچی" },
+        { text: "🪨 سنگ", callback_data: `shaki:rps:${ownerId}:سنگ` },
+        { text: "📄 کاغذ", callback_data: `shaki:rps:${ownerId}:کاغذ` },
+        { text: "✂️ قیچی", callback_data: `shaki:rps:${ownerId}:قیچی` },
       ]] },
     });
     return true;
   }
 
   if (parts[1] === "rps") {
-    const player = parts[2] as RpsChoice;
+    const ownerId = Number(parts[2]);
+    if (ownerId !== query.from.id) {
+      await call("answerCallbackQuery", { callback_query_id: query.id, text: "این بازی برای شخص دیگریه." });
+      return true;
+    }
+    const player = parts[3] as RpsChoice;
     if (!RPS.includes(player)) {
       await call("answerCallbackQuery", { callback_query_id: query.id, text: "انتخاب نامعتبره." });
       return true;
@@ -196,7 +206,7 @@ async function handleCallback(update: TelegramUpdate, call: TelegramCall): Promi
       chat_id: chatId, message_id: messageId,
       text: `✊ سنگ‌کاغذقیچی\n\nانتخاب تو: ${player}\nانتخاب شاکی: ${bot}\n\n${label}`,
       reply_markup: { inline_keyboard: [[
-        { text: "🔁 بازی دوباره", callback_data: "shaki:rps:again" },
+        { text: "🔁 بازی دوباره", callback_data: `shaki:rps:${query.from.id}:again` },
       ]] },
     });
     return true;
@@ -311,9 +321,9 @@ export async function handleTelegramKeyboardUpdate(
       await telegram("sendMessage", {
         chat_id: chatId, text: "✊ انتخاب کن:",
         reply_markup: { inline_keyboard: [[
-          { text: "🪨 سنگ", callback_data: "shaki:rps:سنگ" },
-          { text: "📄 کاغذ", callback_data: "shaki:rps:کاغذ" },
-          { text: "✂️ قیچی", callback_data: "shaki:rps:قیچی" },
+          { text: "🪨 سنگ", callback_data: `shaki:rps:${userId}:سنگ` },
+          { text: "📄 کاغذ", callback_data: `shaki:rps:${userId}:کاغذ` },
+          { text: "✂️ قیچی", callback_data: `shaki:rps:${userId}:قیچی` },
         ]] },
       });
       return true;
