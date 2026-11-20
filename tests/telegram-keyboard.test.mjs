@@ -110,7 +110,7 @@ test("webhook interception requires Telegram's configured secret header", async 
 test("RPS replay callback is routed before ordinary choice validation", async () => {
   const calls = [];
   const handled = await handleTelegramKeyboardUpdate({
-    callback_query: { id: "cb2", data: "shaki:rps:again", from: { id: 4 }, message: { message_id: 3, chat: { id: 7, type: "private" } } },
+    callback_query: { id: "cb2", data: "shaki:rps:4:again", from: { id: 4 }, message: { message_id: 3, chat: { id: 7, type: "private" } } },
   }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
   assert.equal(handled, true);
   assert.ok(calls.some(call => call.method === "editMessageText" && call.params.reply_markup.inline_keyboard[0].length === 3));
@@ -123,4 +123,14 @@ test("next word callback is routed before answer parsing", async () => {
   }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
   assert.equal(handled, true);
   assert.ok(calls.some(call => call.method === "editMessageText" && call.params.reply_markup.inline_keyboard[0].length === 3));
+});
+
+test("RPS callbacks are bound to the user who opened the game", async () => {
+  const calls = [];
+  const handled = await handleTelegramKeyboardUpdate({
+    callback_query: { id: "cb4", data: "shaki:rps:55:سنگ", from: { id: 99 }, message: { message_id: 4, chat: { id: -1001, type: "supergroup" } } },
+  }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
+  assert.equal(handled, true);
+  assert.ok(calls.some(call => call.method === "answerCallbackQuery" && /شخص دیگری/.test(call.params.text)));
+  assert.equal(calls.some(call => call.method === "editMessageText"), false);
 });
