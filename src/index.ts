@@ -21,6 +21,7 @@ import { geminiErrorWithHttpStatus, geminiStreamError } from "./geminiErrors";
 import { mergeGeminiKeys, hasGeminiKeyAfterUpdate } from "./geminiKeyring";
 import { persistCooldown, readCooldowns, migrateLegacyCooldowns, clearCooldowns } from "./keyCooldownStore";
 import { dailyChallengeText } from "./dailyChallenge";
+import { isTelegramMemberPresent } from "./groupOnboarding";
 import { parsePollDraft, sendAnonymousPoll } from "./polls";
 import { creativeImagePrompt, type CreativeImageKind } from "./creativeImages";
 import { quoteCardSvg } from "./quoteCard";
@@ -21542,7 +21543,7 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
         `• \`/start\` — منوی شخصی شما در این گروه\n` +
         `• \`/new\` — پاک کردن حافظه‌ی گفتگوی شما در این گروه\n` +
         `• \`/challenge\` — چالش روزانه شاکی\n` +
-        `• \`/img [توضیح]\` — درخواست ساخت تصویر با هوش مصنوعی\n` +
+        `• \`/img [توضیح]\` — ساخت تصویر (با تنظیم موتور تصویر در پنل مالک)\n` +
         `• \`/tts [متن]\` — تبدیل متن به ویس\n` +
         `• \`/read [لینک]\` — خلاصه صفحه وب؛ \`/ocr\` — استخراج متن از عکس\n` +
         `• \`/summarize\` — خلاصه گفتگوی اخیر گروه\n` +
@@ -27568,7 +27569,8 @@ async function dispatchUpdate(update: TgUpdate, env: Env): Promise<void> {
     if(update.my_chat_member){
       const {chat,new_chat_member:member}=update.my_chat_member;
       const oldMember=update.my_chat_member.old_chat_member;
-      const wasPresent=Boolean(oldMember&&(["member","administrator","creator"].includes(oldMember.status)||(oldMember.status==="restricted"&&oldMember.is_member!==false)));
+      const wasPresent=isTelegramMemberPresent(oldMember);
+      const present=isTelegramMemberPresent(member);
       const present=["member","administrator","creator"].includes(member.status)||(member.status==="restricted"&&member.is_member!==false);
       if(present&&member.can_send_messages!==false){
         await clearDeliveryFailure(env.DB,chat.id);
@@ -27581,7 +27583,7 @@ async function dispatchUpdate(update: TgUpdate, env: Env): Promise<void> {
               "📖 <b>راهنمای کامل:</b> دستور <code>/help</code> را بفرست.\n"+
               "👤 <code>/start</code> — پنل شخصی هر عضو؛ تنظیمات و شخصیت هر نفر جداست.\n"+
               "🆕 <code>/new</code> — پاک کردن حافظه گفتگوی خودت، نه بقیه اعضا.\n"+
-              "🖼 <code>/img توضیح تصویر</code> — درخواست ساخت تصویر.\n"+
+              "🖼 <code>/img توضیح تصویر</code> — ساخت تصویر (در صورت تنظیم موتور تصویر در پنل مالک).\n"+
               "🎙 <code>/tts متن</code> — تبدیل متن به ویس.\n"+
               "📄 <code>/read لینک</code> — خلاصه صفحه وب؛ <code>/ocr</code> — استخراج متن از عکس.\n"+
               "⚡ <code>/challenge</code> — چالش روزانه؛ <code>/summarize</code> — خلاصه گفتگوی اخیر.\n"+
