@@ -1046,6 +1046,14 @@ input,select,textarea{background:rgba(5,9,27,.96)!important;border-color:rgba(14
         <div class="metrics" id="metrics"></div>
         <div class="card"><div class="section-head"><h2>وضعیت لحظه‌ای</h2><span class="tag" id="overviewState">—</span></div><div class="list" id="overviewLive"></div></div>
         <div class="card"><div class="section-head"><h2>مصرف امروز</h2></div><div class="list" id="overviewUsage"></div></div>
+<div class="card shaki-owner-shortcuts"><div class="section-head"><h2>مدیریت اصلی</h2><span class="tag">مالک</span></div><div class="shaki-owner-grid">
+<button type="button" data-shaki-tab="keys"><b>✦</b><span>Gemini و WusRouter</span></button>
+<button type="button" data-shaki-tab="personalization"><b>⚙</b><span>تنظیمات ربات</span></button>
+<button type="button" data-shaki-tab="vip"><b>♛</b><span>مدیریت VIP</span></button>
+<button type="button" data-shaki-tab="users"><b>♙</b><span>کاربران</span></button>
+<button type="button" data-shaki-tab="groups"><b>▦</b><span>مدیریت گروه‌ها</span></button>
+<button type="button" data-shaki-tab="system"><b>▤</b><span>گزارش و سیستم</span></button>
+</div><button type="button" class="shaki-return-main" id="shakiReturnMain">⌂ بازگشت به منوی اصلی</button></div>
       </section>
 
       <section class="panel" id="panel-runs" role="tabpanel" aria-labelledby="tab-runs">
@@ -3880,5 +3888,22 @@ button.primary{background:linear-gradient(110deg,#7020e8,#a52dff,#2568ee)!import
 @media(max-width:420px){.main{padding-inline:8px!important}.metrics{gap:6px!important}.metric{padding:8px!important;min-height:68px!important}.metric b{font-size:19px!important}}
 </style>
 
+<style id="shaki-owner-shortcuts-style">
+.shaki-owner-shortcuts{margin-top:10px!important}.shaki-owner-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:10px}
+.shaki-owner-grid button{min-width:0;min-height:66px;border:1px solid rgba(141,94,255,.35);border-radius:13px;background:linear-gradient(145deg,rgba(41,20,91,.94),rgba(9,15,42,.96));color:#eee5ff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:7px 4px;font-size:9px}
+.shaki-owner-grid button b{font-size:20px;color:#38d5ff;text-shadow:0 0 10px rgba(45,185,255,.55)}
+.shaki-owner-grid button:active{transform:scale(.96)}
+.shaki-return-main{display:block;width:calc(100% - 20px);margin:0 10px 10px;min-height:38px;border:0;border-radius:13px;background:linear-gradient(110deg,#7020e8,#a52dff,#2568ee);color:white;font-size:11px;font-weight:800;box-shadow:0 0 18px rgba(133,37,255,.3)}
+@media(max-width:380px){.shaki-owner-grid{gap:5px;padding:8px}.shaki-owner-grid button{font-size:8px}}
+</style>
+<script id="shaki-owner-shortcuts-actions">
+document.addEventListener("DOMContentLoaded",function(){
+ document.querySelectorAll("[data-shaki-tab]").forEach(b=>b.addEventListener("click",()=>{
+  const id=b.getAttribute("data-shaki-tab"),target=document.querySelector('#sidebarNav [data-tab="'+id+'"]');
+  if(target)target.click();
+ }));
+ const back=document.getElementById("shakiReturnMain");if(back)back.addEventListener("click",()=>{const b=document.getElementById("closeBtn");if(b)b.click()});
+});
+</script>
 </body>
 </html>
