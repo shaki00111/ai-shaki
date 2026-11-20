@@ -3721,11 +3721,16 @@ async function handlePanelCommand(msg: TgMessage, env: Env): Promise<void> {
     return;
   }
   const canManage = await isUserAdmin(from.id, chat.id);
-  const rows: InlineBtn[][] = [[btn("👤 پنل شخصی", "home:open")]];
+  const rows: InlineBtn[][] = [
+    [btn("👤 پنل شخصی من", "home:open")],
+    [btn("🎮 بازی‌ها و سرگرمی‌های گروه", "games:open")],
+  ];
   if (canManage) rows.push([btn("🛡 مدیریت گروه", "group_settings")]);
   await sendMessage(chat.id,
-    canManage ? "╭━━━ ⚡ AI SHAKI ━━━╮\nپنل موردنظرت رو انتخاب کن:" : "⚡ پنل شخصی AI SHAKI",
-    { reply_to_message_id: msg.message_id, reply_markup: JSON.stringify({ inline_keyboard: rows }) });
+    canManage
+      ? "╭━━━ ⚡ <b>مرکز کنترل AI SHAKI</b> ━━━╮\nاز اینجا شخصیتت رو تنظیم کن، بازی راه بنداز یا گروه رو مدیریت کن.\n╰━━━━━━━━━━━━━━━━━━━━━━╯"
+      : "╭━━━ ⚡ <b>پنل AI SHAKI</b> ━━━╮\nشخصیت خودت رو تنظیم کن یا با بقیه اعضای گروه بازی کن!\n╰━━━━━━━━━━━━━━━━━━━━━━╯",
+    { reply_to_message_id: msg.message_id, parse_mode: "HTML", reply_markup: JSON.stringify({ inline_keyboard: rows }) });
 }
 
 
@@ -23822,6 +23827,17 @@ async function handleTextMessage(msg: TgMessage, env: Env): Promise<void> {
 
     const isGroup = chat.type !== "private";
     const lang = session.language;
+    // معرفی مالک فقط وقتی پاسخ داده می‌شود که سؤال صریحاً درباره صاحب/سازنده باشد.
+    const asksAboutCreator = /(?:مالکت|صاحبت|سازند(?:ه|ت)|خالقت|بنیان.?گذارت|پدرت|بابات|بابای\s+تو|پدر(?:ت)?\s+کیه|کی\s+(?:ساختت|درستت\s+کرد|برنامه.?نویسی.?ت\s+کرد)|چه\s+کسی\s+(?:تو\s+را\s+)?(?:ساخت|خلق\s+کرد)|who\s+(?:made|created|built)\s+you|your\s+(?:owner|creator|developer|maker|father))/iu.test(text);
+    if (asksAboutCreator) {
+      const answer = /مالکت|صاحبت|owner/iu.test(text)
+        ? "👑 مالک و صاحب من <b>@SHAKI0030</b> هست؛ همون کسی که مسیر AI SHAKI رو هدایت می‌کنه."
+        : /بابات|پدرت|پدر|father/iu.test(text)
+          ? "😄 اگه منظورت بابای سازنده‌مه، می‌رسیم به <b>@SHAKI0030</b>؛ خالق و صاحب AI SHAKI."
+          : "🛠️ من توسط <b>@SHAKI0030</b> ساخته و توسعه داده می‌شم؛ صاحب پروژه AI SHAKI.";
+      await sendMessage(chat.id, answer, { reply_to_message_id: msg.message_id, parse_mode: "HTML" });
+      return;
+    }
     let shortcutPrecharged = false;
     
     if (isGroup) {
@@ -26292,7 +26308,7 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
 
   if (chat.type !== "private") {
     const _pk = `${chat.id}:${message.message_id}`;
-    const _excluded = data === "home:open" || data.startsWith("admin_") || data.startsWith("broadcast_") ||
+    const _excluded = data === "home:open" || data.startsWith("games:") || data.startsWith("admin_") || data.startsWith("broadcast_") ||
       data.startsWith("log_") || data.startsWith("db_") || data.startsWith("group_settings") ||
        data.startsWith("gset_");
     if (!_excluded) {
@@ -26317,6 +26333,63 @@ async function handleCallback(cb: TgCallbackQuery, env: Env): Promise<void> {
         const _now = Date.now();
         for (const [k, v] of panelOwners) if (_now - v.ts > 60 * 60 * 1000) panelOwners.delete(k);
       }
+    }
+  }
+
+  if (ns === "games") {
+    const fa = session.language === "fa";
+    const ar = session.language === "ar";
+    if (chat.type === "private") {
+      await answerCb(cb.id);
+      const addUrl = BOT_INFO?.username ? `https://t.me/${BOT_INFO.username}?startgroup=add_shaki` : null;
+      await editMessageText(chat.id, message.message_id,
+        fa
+          ? "🎮 <b>اتاق بازی‌های AI SHAKI</b>\n\nبازی‌ها برای جمع‌های گروهی ساخته شدن: مسابقه اطلاعات عمومی، جرئت و حقیقت، جدول امتیاز و پروفایل اعضا.\n\nشاکی رو به گروهت اضافه کن و از همون‌جا بازی رو شروع کن."
+          : ar
+          ? "🎮 <b>ألعاب AI SHAKI</b>\n\nألعاب جماعية: المسابقة، الصراحة والجرأة، الترتيب وملفات الأعضاء. أضف شاكی إلى مجموعتك للعب."
+          : "🎮 <b>AI SHAKI Game Room</b>\n\nGroup games include daily quiz, truth or dare, leaderboards and member profiles. Add SHAKI to a group to play.",
+        { parse_mode: "HTML", reply_markup: JSON.stringify({ inline_keyboard: [
+          ...(addUrl ? [[urlBtn(fa ? "➕ افزودن شاکی به گروه" : ar ? "➕ أضف شاكی إلى مجموعة" : "➕ Add SHAKI to a group", addUrl)]] : []),
+          [btn(fa ? "🔙 بازگشت به پنل" : ar ? "🔙 العودة" : "🔙 Back", "home:open")],
+        ]}) });
+      return;
+    }
+    if (action === "open") {
+      await answerCb(cb.id);
+      await editMessageText(chat.id, message.message_id,
+        fa
+          ? "🎮 <b>میدان بازی AI SHAKI</b>\n━━━━━━━━━━━━━━━━━━\n🧠 مسابقه روزانه — <code>/quiz</code> (شروع با ادمین)\n🔥 جرئت — <code>/dare</code>\n🧩 حقیقت — <code>/truth</code>\n🏆 جدول افتخار — <code>/leaderboard</code>\n👤 پروفایل تو — <code>/profile</code>\n📊 نظرسنجی — <code>/poll سؤال | گزینه۱ | گزینه۲</code> (ادمین)\n\nهرچی بیشتر بازی کنی و تعامل داشته باشی، XP بیشتری می‌گیری."
+          : ar
+          ? "🎮 <b>ساحة ألعاب AI SHAKI</b>\n🧠 المسابقة <code>/quiz</code> · 🔥 الجرأة <code>/dare</code> · 🧩 الصراحة <code>/truth</code> · 🏆 الترتيب <code>/leaderboard</code> · 👤 ملفك <code>/profile</code>"
+          : "🎮 <b>AI SHAKI Game Arena</b>\n🧠 Daily quiz <code>/quiz</code> (admins start)\n🔥 Dare <code>/dare</code>\n🧩 Truth <code>/truth</code>\n🏆 Leaderboard <code>/leaderboard</code>\n👤 Your profile <code>/profile</code>\n📊 Poll <code>/poll question | option 1 | option 2</code> (admins)\n\nPlay and interact to earn group XP.",
+        { parse_mode: "HTML", reply_markup: JSON.stringify({ inline_keyboard: [
+          [btn(fa ? "🧠 شروع مسابقه" : ar ? "🧠 ابدأ المسابقة" : "🧠 Start quiz", "games:quiz")],
+          [btn(fa ? "🔥 جرئت" : ar ? "🔥 الجرأة" : "🔥 Dare", "games:dare"), btn(fa ? "🧩 حقیقت" : ar ? "🧩 الصراحة" : "🧩 Truth", "games:truth")],
+          [btn(fa ? "🏆 جدول امتیاز" : ar ? "🏆 الترتيب" : "🏆 Leaderboard", "games:rank"), btn(fa ? "👤 پروفایل من" : ar ? "👤 ملفي" : "👤 My profile", "games:profile")],
+          [btn(fa ? "🔙 بازگشت به پنل" : ar ? "🔙 العودة" : "🔙 Back", "home:open")],
+        ]}) });
+      return;
+    }
+    if (action === "quiz") {
+      if (from.id !== cfg.BOT_OWNER_ID && !await isUserAdmin(from.id, chat.id)) {
+        await answerCb(cb.id, fa ? "فقط ادمین‌های گروه می‌تونن مسابقه رو شروع کنن." : "Only group admins can start the quiz.", true);
+        return;
+      }
+      await answerCb(cb.id, fa ? "🧠 مسابقه در حال شروعه!" : "🧠 Starting quiz!");
+      try {
+        await sendGroupQuiz(tg, chat.id, message.message_id, dailyQuiz(new Date(), session.language));
+      } catch {
+        await sendMessage(chat.id, fa ? "ارسال مسابقه انجام نشد؛ دوباره کمی بعد امتحان کن." : "Quiz could not be sent. Try again shortly.");
+      }
+      return;
+    }
+    if (["truth", "dare", "rank", "profile"].includes(action)) {
+      await answerCb(cb.id);
+      const syntheticMessage = { ...message, from, text: action === "rank" ? "/leaderboard" : action === "profile" ? "/profile" : `/${action}` } as TgMessage;
+      if (action === "truth" || action === "dare") await handleTruthDare(syntheticMessage, session, env, action);
+      else if (action === "rank") await handleGroupLeaderboard(syntheticMessage, session, env);
+      else await handleGroupProfile(syntheticMessage, session, env);
+      return;
     }
   }
 
@@ -27272,9 +27345,18 @@ async function buildHomeKeyboard(session: ChatSession, userId: number, env: Env,
     rows.push([userDashboardButton(lang, session.type === "private")]);
   }
 
-  if (session.type !== "private" && await isUserAdmin(userId, session.id)) {
-    rows.push([btn(isFa ? "👥 تنظیمات گروه" : isAr ? "👥 إعدادات المجموعة" : "👥 Group Settings", "group_settings")]);
+  if (session.type !== "private") {
+    const personal = userDashboardButton(lang, false);
+    if (await isUserAdmin(userId, session.id)) {
+      rows.push([
+        btn(isFa ? "🛡 مدیریت گروه" : isAr ? "🛡 إدارة المجموعة" : "🛡 Group Management", "group_settings"),
+        personal,
+      ]);
+    } else {
+      rows.push([personal]);
+    }
   }
+  rows.push([btn(isFa ? "🎮 بازی‌ها و سرگرمی" : isAr ? "🎮 الألعاب والترفيه" : "🎮 Games & Fun", "games:open")]);
   rows.push([btn(isFa ? "✖️ بستن منو" : isAr ? "✖️ إغلاق" : "✖️ Close", "home:close")]);
   const personalization = personalizationOverride === undefined
     ? normalizeOwnerPersonalization(await env.SESSIONS.get("owner_personalization", "json").catch(() => null))
