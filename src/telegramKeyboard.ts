@@ -62,8 +62,10 @@ const RPS = ["سنگ", "کاغذ", "قیچی"] as const;
 type RpsChoice = typeof RPS[number];
 
 export function isKeyboardCommand(text: string): boolean {
-  const command = text.trim().split(/\s+/, 1)[0].toLowerCase().replace(/@[^@]+$/, "");
-  return ["/panel", "/keyboard", "/keypanel", "پنل", "⌨️ پنل کیبوردی"].includes(command);
+  const value = text.trim().toLowerCase();
+  if (value === "پنل" || value === "⌨️ پنل کیبوردی") return true;
+  const command = value.split(/\s+/, 1)[0].replace(/@[^@]+$/, "");
+  return ["/panel", "/keyboard", "/keypanel"].includes(command);
 }
 
 export function isGroupAdminStatus(status: string): boolean {
@@ -200,18 +202,6 @@ async function handleCallback(update: TelegramUpdate, call: TelegramCall): Promi
     return true;
   }
 
-  if (parts[1] === "rps" && parts[2] === "again") {
-    await call("answerCallbackQuery", { callback_query_id: query.id });
-    await call("editMessageText", {
-      chat_id: chatId, message_id: messageId, text: "✊ دوباره انتخاب کن:",
-      reply_markup: { inline_keyboard: [[
-        { text: "🪨 سنگ", callback_data: "shaki:rps:سنگ" },
-        { text: "📄 کاغذ", callback_data: "shaki:rps:کاغذ" },
-        { text: "✂️ قیچی", callback_data: "shaki:rps:قیچی" },
-      ]] },
-    });
-    return true;
-  }
 
   if (parts[1] === "word" && parts[2] === "next") {
     await call("answerCallbackQuery", { callback_query_id: query.id });
@@ -242,16 +232,6 @@ async function handleCallback(update: TelegramUpdate, call: TelegramCall): Promi
     return true;
   }
 
-  if (parts[1] === "word" && parts[2] === "next") {
-    await call("answerCallbackQuery", { callback_query_id: query.id });
-    const index = Math.floor(Math.random() * WORD_QUIZZES.length);
-    const question = WORD_QUIZZES[index];
-    await call("editMessageText", {
-      chat_id: chatId, message_id: messageId, text: `🔤 حدس کلمه\n\n${question.question}`,
-      reply_markup: { inline_keyboard: [question.options.map((option, i) => ({ text: option, callback_data: `shaki:word:${index}:${i}` }))] },
-    });
-    return true;
-  }
 
   if (parts[1] === "truth" || parts[1] === "dare") {
     const prompts = parts[1] === "truth" ? TRUTH_PROMPTS : DARE_PROMPTS;
