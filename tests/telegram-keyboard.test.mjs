@@ -72,7 +72,7 @@ test("group management opens for verified admins", async () => {
     if (method === "getChatMember") return { status: "administrator" };
     return {};
   });
-  assert.ok(calls.at(-1).params.text.includes("/promo on"));
+  assert.ok(calls.at(-1).params.text.includes("/poll"));\n  assert.ok(!calls.at(-1).params.text.includes("/promo"));
 });
 
 test("game buttons invoke native Telegram poll and interactive callback keyboards", async () => {
@@ -176,7 +176,7 @@ test("poll parser validates Telegram question and option limits", () => {
   });
   assert.equal(parsePollCommand("/poll فقط یک گزینه"), null);
   assert.equal(parsePollCommand("/poll سؤال | گزینه اول"), null);
-  assert.equal(parsePollCommand("/poll سؤال | الف | ب | ج | د | هـ | و | ز | ح | ط | ی"), null);
+  assert.equal(parsePollCommand("/poll سؤال | الف | ب | ج | د | هـ | و | ز | ح | ط | ی | ک"), null);
   assert.equal(parsePollCommand("/poll " + "س".repeat(301) + " | الف | ب"), null);
   assert.equal(parsePollCommand("/poll سؤال | " + "الف".repeat(101) + " | ب"), null);
 });
