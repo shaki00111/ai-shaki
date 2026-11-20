@@ -15,6 +15,7 @@ import { governDatabase, storageGovernor, NoticeGate, friendlyFailure } from "./
 import { normalizeOwnerPersonalization, DEFAULT_OWNER_PERSONALIZATION, applyOwnerMenuPersonalization, applyOwnerPersonaLabels, ownerPersonalizationWelcome } from "./ownerPersonalization";
 import { ttsKeyCooldowns, elevenLabsKeyCooldowns, retryAfterDurationMs, isAudioContentType, getTelegramAudioDeliveryPlan } from "./ttsReliability";
 import { canUseWusRouterTextFallback, getWusRouterModelCandidates } from "./providerRouting";
+import { callGroqText, buildGroqMessages, groqKeysFromEnv } from "./groqProvider";
 import { selectGeminiKeyIndex, shouldRetryGeminiQuotaImmediately } from "./geminiKeySelection";
 import { geminiErrorWithHttpStatus, geminiStreamError } from "./geminiErrors";
 import { mergeGeminiKeys, hasGeminiKeyAfterUpdate } from "./geminiKeyring";
@@ -1170,6 +1171,7 @@ interface Env {
   GEMINI_KEY_4?: string;
   GEMINI_KEY_5?: string;
   WUSROUTER_API_KEY?: string; // Optional OpenAI-compatible fallback; store only as a Cloudflare Secret.
+  /** Numbered Groq secrets: GROQ_API_KEY_1, GROQ_API_KEY_2, ... */
   /** 32+ character secret used to encrypt API keys managed from the owner panel. */
   KEYRING_MASTER_KEY?: string;
   GOOGLE_SEARCH_API_KEY?: string;
@@ -1207,20 +1209,20 @@ interface Env {
 
 
 const AI_PROVIDER_SETTINGS_KEY = "ai:provider-settings:v1";
-type AIProviderName = "gemini" | "wusrouter";
-interface AIProviderSettings { gemini: boolean; wusrouter: boolean; }
+type AIProviderName = "gemini" | "groq" | "wusrouter";
+interface AIProviderSettings { gemini: boolean; groq: boolean; wusrouter: boolean; }
 async function getAIProviderSettings(env: Env): Promise<AIProviderSettings> {
   try {
     const raw = await env.SESSIONS.get(AI_PROVIDER_SETTINGS_KEY);
-    if (!raw) return { gemini:true, wusrouter:true };
+    if (!raw) return { gemini:true, groq:true, wusrouter:true };
     const parsed = JSON.parse(raw) as Partial<AIProviderSettings>;
-    return { gemini:parsed.gemini !== false, wusrouter:parsed.wusrouter !== false };
-  } catch { return { gemini:true, wusrouter:true }; }
+    return { gemini:parsed.gemini !== false, groq:parsed.groq !== false, wusrouter:parsed.wusrouter !== false };
+  } catch { return { gemini:true, groq:true, wusrouter:true }; }
 }
 async function setAIProviderEnabled(env: Env, provider: AIProviderName, enabled: boolean): Promise<AIProviderSettings> {
   const current = await getAIProviderSettings(env);
   const next = { ...current, [provider]:enabled };
-  if (!next.gemini && !next.wusrouter) throw new Error("حداقل یک موتور هوش مصنوعی باید روشن بماند.");
+  if (!next.gemini && !next.groq && !next.wusrouter) throw new Error("حداقل یک موتور هوش مصنوعی باید روشن بماند.");
   await env.SESSIONS.put(AI_PROVIDER_SETTINGS_KEY, JSON.stringify(next));
   return next;
 }
@@ -5590,13 +5592,13 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
   }
   if (request.method === "GET" && path === "providers") {
     const providers = await getAIProviderSettings(env);
-    return json({ ok:true, providers, configured:{gemini:cfg.GEMINI_KEYS.length>0,wusrouter:Boolean(env.WUSROUTER_API_KEY?.trim())} });
+    return json({ ok:true, providers, configured:{gemini:cfg.GEMINI_KEYS.length>0,groq:groqKeysFromEnv(env as unknown as Record<string, unknown>).length>0,wusrouter:Boolean(env.WUSROUTER_API_KEY?.trim())} });
   }
   if (request.method === "POST" && path === "providers") {
     let body: Record<string, unknown> = {};
     try { body = await request.json() as Record<string, unknown>; } catch { return json({ok:false,error:"invalid_json"},400); }
     const provider = body.provider;
-    if ((provider !== "gemini" && provider !== "wusrouter") || typeof body.enabled !== "boolean") return json({ok:false,error:"invalid_provider_setting"},400);
+    if ((provider !== "gemini" && provider !== "groq" && provider !== "wusrouter") || typeof body.enabled !== "boolean") return json({ok:false,error:"invalid_provider_setting"},400);
     try {
       const providers = await setAIProviderEnabled(env, provider, body.enabled);
       return json({ok:true,providers,configured:{gemini:cfg.GEMINI_KEYS.length>0,wusrouter:Boolean(env.WUSROUTER_API_KEY?.trim())}});
@@ -6381,29 +6383,26 @@ async function callGeminiForWebApp(
   const geminiBudgetMs = reserveFallbackBudget ? OVERALL_BUDGET_MS - 5_000 : OVERALL_BUDGET_MS;
 
   if (!providerSettings.gemini || !maxAttempts) {
-    if (!wusRouterConfigured || !providerSettings.wusrouter) {
-      throw new Error("No enabled AI provider is configured.");
+    const groqKeys=groqKeysFromEnv(env as unknown as Record<string,unknown>);
+    const canFallbackToGroq=canUseWusRouterTextFallback({enabled:providerSettings.groq,configured:groqKeys.length>0,plainTextTurn,plainTextHistory,intentCategory:routing.category,remainingMs:Math.min(OVERALL_BUDGET_MS-(Date.now()-overallStart),run?.remainingMs??Infinity),modelBudgetAvailable:!ct?.cancelled&&(!run||run.modelCalls<run.maxRounds+2)});
+    if(canFallbackToGroq){
+      try{
+        const timeoutMs=Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart),run?.remainingMs??Infinity);
+        if(run)run.modelCalls++;
+        const answer=await callGroqText(groqKeys,buildGroqMessages(systemPromptText+"\\n"+AGENT_WORKFLOW+(run?.context()??""),userPrompt,history),timeoutMs,4096);
+        engine.consecutiveErrors=0;
+        logger.info("[AI provider] Mini App Gemini disabled/unconfigured; Groq fallback succeeded");
+        return {text:answer,functionCalls:[],modelParts:[{text:answer}],finishReason:"STOP"};
+      }catch(groqError){logger.warn("[AI provider] Mini App direct Groq fallback failed: "+(groqError instanceof Error?groqError.message:String(groqError)).slice(0,220));}
     }
-    if (!canFallbackToWusRouter()) {
-      throw new Error("WusRouter text fallback only supports ordinary text chat. Enable Gemini for image, file, and tool-based requests.");
-    }
-    const timeoutMs = Math.min(
-      25_000,
-      OVERALL_BUDGET_MS - (Date.now() - overallStart),
-      run?.remainingMs ?? Infinity,
-    );
-    if (run) run.modelCalls++;
-    const answer = await callWusRouterText(
-      systemPromptText,
-      userPrompt,
-      history,
-      WUSROUTER_CHAT_MODEL,
-      timeoutMs,
-      4096,
-    );
-    engine.consecutiveErrors = 0;
-    logger.info("[AI provider] Mini App Gemini disabled/unconfigured; WusRouter text fallback succeeded");
-    return { text: answer, functionCalls: [], modelParts: [{ text: answer }], finishReason: "STOP" };
+    if (!wusRouterConfigured || !providerSettings.wusrouter) throw new Error("No enabled text AI provider is configured. Configure Groq or WusRouter, or enable Gemini.");
+    if (!canFallbackToWusRouter()) throw new Error("Text fallbacks only support ordinary text chat. Enable Gemini for image, file, and tool-based requests.");
+    const timeoutMs=Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart),run?.remainingMs??Infinity);
+    if(run)run.modelCalls++;
+    const answer=await callWusRouterText(systemPromptText,userPrompt,history,WUSROUTER_CHAT_MODEL,timeoutMs,4096);
+    engine.consecutiveErrors=0;
+    logger.info("[AI provider] Mini App Gemini disabled/unconfigured; WusRouter fallback succeeded");
+    return {text:answer,functionCalls:[],modelParts:[{text:answer}],finishReason:"STOP"};
   }
 
   await refreshDisabledKeysFromKV(env);
@@ -6450,6 +6449,18 @@ async function callGeminiForWebApp(
     }
   }
 
+  const groqKeysForWebApp=groqKeysFromEnv(env as unknown as Record<string,unknown>);
+  const canFallbackToGroq=canUseWusRouterTextFallback({enabled:providerSettings.groq,configured:groqKeysForWebApp.length>0,plainTextTurn,plainTextHistory,intentCategory:routing.category,remainingMs:Math.min(OVERALL_BUDGET_MS-(Date.now()-overallStart),run?.remainingMs??Infinity),modelBudgetAvailable:!ct?.cancelled&&(!run||run.modelCalls<run.maxRounds+2)});
+  if(canFallbackToGroq){
+    try{
+      const timeoutMs=Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart),run?.remainingMs??Infinity);
+      if(run)run.modelCalls++;
+      const answer=await callGroqText(groqKeysForWebApp,buildGroqMessages(systemPromptText+"\\n"+AGENT_WORKFLOW+(run?.context()??""),userPrompt,history),timeoutMs,4096);
+      engine.consecutiveErrors=0;
+      logger.info("[AI provider] Mini App Gemini exhausted; Groq fallback succeeded");
+      return {text:answer,functionCalls:[],modelParts:[{text:answer}],finishReason:"STOP"};
+    }catch(groqError){const message=groqError instanceof Error?groqError.message:String(groqError);logger.warn("[AI provider] Mini App Groq fallback failed: "+message.slice(0,220));lastError=new Error(`${lastError.message}; Groq fallback: ${message.slice(0,220)}`);}
+  }
   if (canFallbackToWusRouter()) {
     try {
       const timeoutMs = Math.min(
@@ -11830,23 +11841,21 @@ async function handleGeminiRequest(
     const fallbackIntentAllowed = !routing || ["conversation", "general_knowledge", "activation"].includes(routing.category);
 
     if (!providerSettings.gemini || cfg.GEMINI_KEYS.length === 0) {
-        if (!providerSettings.wusrouter || !env.WUSROUTER_API_KEY?.trim()) {
-            throw new Error("No enabled AI provider is configured. Enable WusRouter or configure its API key.");
+        const groqKeys=groqKeysFromEnv(env as unknown as Record<string,unknown>);
+        if(providerSettings.groq&&groqKeys.length&&plainTextTurn&&plainTextHistory&&fallbackIntentAllowed&&!toolPolicy?.force){
+            try{
+                const answer=await callGroqText(groqKeys,buildGroqMessages(systemPromptText,parts.map(part=>part.text??"").join("\\\\n"),history),Math.max(5000,Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart))),4096);
+                engine.consecutiveErrors=0;
+                logger.info("[AI provider] Gemini disabled/unconfigured; Groq text fallback succeeded");
+                return {text:answer,functionCalls:[],modelParts:[{text:answer}],finishReason:"STOP"};
+            }catch(groqError){logger.warn("[AI provider] Groq direct fallback failed: "+(groqError instanceof Error?groqError.message:String(groqError)).slice(0,220));}
         }
-        if (!plainTextTurn || !plainTextHistory || !fallbackIntentAllowed || toolPolicy?.force) {
-            throw new Error("WusRouter text fallback only supports ordinary text chat. Enable Gemini for image, file, and tool-based requests.");
-        }
-        const fallbackText = await callWusRouterText(
-            systemPromptText,
-            parts.map(part => part.text ?? "").join("\n"),
-            history,
-            WUSROUTER_CHAT_MODEL,
-            Math.max(5_000, Math.min(25_000, OVERALL_BUDGET_MS - (Date.now() - overallStart))),
-            4096,
-        );
-        engine.consecutiveErrors = 0;
+        if (!providerSettings.wusrouter || !env.WUSROUTER_API_KEY?.trim()) throw new Error("No enabled text AI provider is configured. Configure Groq or WusRouter, or enable Gemini.");
+        if (!plainTextTurn || !plainTextHistory || !fallbackIntentAllowed || toolPolicy?.force) throw new Error("Text fallbacks only support ordinary text chat. Enable Gemini for image, file, and tool-based requests.");
+        const fallbackText=await callWusRouterText(systemPromptText,parts.map(part=>part.text??"").join("\\\\n"),history,WUSROUTER_CHAT_MODEL,Math.max(5000,Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart))),4096);
+        engine.consecutiveErrors=0;
         logger.info("[AI provider] Gemini disabled/unconfigured; WusRouter direct fallback succeeded");
-        return { text:fallbackText, functionCalls:[], modelParts:[{text:fallbackText}], finishReason:"STOP" };
+        return {text:fallbackText,functionCalls:[],modelParts:[{text:fallbackText}],finishReason:"STOP"};
     }
 
     let lastError = new Error("No Gemini attempt succeeded");
@@ -11906,38 +11915,24 @@ for (let offset = 0; offset < cfg.GEMINI_KEYS.length; offset++) {
       
     }
 
-    const textOnlyFallback =
-      providerSettings.wusrouter &&
-      Boolean(env.WUSROUTER_API_KEY?.trim()) &&
-      fallbackIntentAllowed &&
-      plainTextTurn &&
-      plainTextHistory &&
-      !toolPolicy?.force &&
-      Date.now() - overallStart < OVERALL_BUDGET_MS;
-
-    if (textOnlyFallback) {
-      try {
-        const fallbackText = await callWusRouterText(
-          systemPromptText,
-          parts.map(part => part.text ?? "").join("\n"),
-          history,
-          WUSROUTER_CHAT_MODEL,
-          Math.max(5_000, Math.min(25_000, OVERALL_BUDGET_MS - (Date.now() - overallStart))),
-          4096,
-        );
-        engine.consecutiveErrors = 0;
+    const canUseTextFallback=fallbackIntentAllowed&&plainTextTurn&&plainTextHistory&&!toolPolicy?.force&&Date.now()-overallStart<OVERALL_BUDGET_MS;
+    const groqKeys=groqKeysFromEnv(env as unknown as Record<string,unknown>);
+    if(canUseTextFallback&&providerSettings.groq&&groqKeys.length){
+      try{
+        const fallbackText=await callGroqText(groqKeys,buildGroqMessages(systemPromptText,parts.map(part=>part.text??"").join("\\\\n"),history),Math.max(5000,Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart))),4096);
+        engine.consecutiveErrors=0;
+        logger.info(`[AI provider] Gemini exhausted; Groq text fallback succeeded (${fallbackText.length} chars)`);
+        return {text:fallbackText,functionCalls:[],modelParts:[{text:fallbackText}],finishReason:"STOP"};
+      }catch(groqError){const message=groqError instanceof Error?groqError.message:String(groqError);logger.warn("[AI provider] Groq fallback failed: "+message.slice(0,220));lastError=new Error(`${lastError.message}; Groq fallback: ${message.slice(0,220)}`);}
+    }
+    const textOnlyFallback=canUseTextFallback&&providerSettings.wusrouter&&Boolean(env.WUSROUTER_API_KEY?.trim());
+    if(textOnlyFallback){
+      try{
+        const fallbackText=await callWusRouterText(systemPromptText,parts.map(part=>part.text??"").join("\\\\n"),history,WUSROUTER_CHAT_MODEL,Math.max(5000,Math.min(25000,OVERALL_BUDGET_MS-(Date.now()-overallStart))),4096);
+        engine.consecutiveErrors=0;
         logger.info(`[AI provider] Gemini exhausted; WusRouter text fallback succeeded (${fallbackText.length} chars)`);
-        return {
-          text: fallbackText,
-          functionCalls: [],
-          modelParts: [{ text: fallbackText }],
-          finishReason: "STOP",
-        };
-      } catch (fallbackError) {
-        const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
-        logger.warn(`[AI provider] WusRouter text fallback failed: ${fallbackMessage.slice(0, 220)}`);
-        lastError = new Error(`${lastError.message}; WusRouter fallback: ${fallbackMessage.slice(0, 220)}`);
-      }
+        return {text:fallbackText,functionCalls:[],modelParts:[{text:fallbackText}],finishReason:"STOP"};
+      }catch(fallbackError){const fallbackMessage=fallbackError instanceof Error?fallbackError.message:String(fallbackError);logger.warn(`[AI provider] WusRouter text fallback failed: ${fallbackMessage.slice(0,220)}`);lastError=new Error(`${lastError.message}; WusRouter fallback: ${fallbackMessage.slice(0,220)}`);}
     }
 
     engine.consecutiveErrors = (engine.consecutiveErrors ?? 0) + 1;
@@ -25419,6 +25414,7 @@ type ProbeService =
   | "telegram"
   | "gemini"
   | "wusrouter"
+  | "groq"
   | "cloudflare"
   | "elevenlabs"
   | "google_search"
@@ -25541,6 +25537,23 @@ async function probeGeminiKey(key: string, index: number): Promise<CredentialPro
   );
 }
 
+
+
+function environmentGroqKeyEntries(env: Env): Array<{index:number;key:string}> {
+  return Object.entries(env as unknown as Record<string,unknown>).map(([name,value])=>{
+    const match=/^GROQ_API_KEY_(\\d+)$/.exec(name);
+    return match&&typeof value==="string"&&value.trim()?{index:Number(match[1]),key:value.trim()}:null;
+  }).filter((item):item is {index:number;key:string}=>item!==null&&Number.isSafeInteger(item.index)&&item.index>0).sort((a,b)=>a.index-b.index).slice(0,100);
+}
+async function probeGroqKey(key:string,index:number):Promise<CredentialProbe>{
+  return await runProbe({id:"groq:"+index,service:"groq",label:"GROQ_API_KEY_"+index,masked:maskSecret(key)},async():Promise<ProbeOutcome>=>{
+    const res=await fetchWithTimeout("https://api.groq.com/openai/v1/models",{headers:{authorization:"Bearer "+key,accept:"application/json"}},PROBE_TIMEOUT_MS);
+    if(res.ok){const body=await probeJson<{data?:unknown[]}>(res);return {status:"ok",info:{check:"GET /openai/v1/models",modelsVisible:Array.isArray(body?.data)?body!.data!.length:0}};}
+    const body=await probeJson<{error?:{message?:string};message?:string}>(res);
+    const detail=redactSecrets(body?.error?.message||body?.message||"HTTP "+res.status,key).slice(0,160);
+    return {status:res.status===400||res.status===401?"invalid":res.status===403?"forbidden":res.status===429?"rate_limited":"unreachable",detail};
+  });
+}
 
 async function probeWusRouter(key: string): Promise<CredentialProbe> {
   return await runProbe(
@@ -25878,6 +25891,11 @@ function buildCredentialInventory(env: Env): CredentialInventoryEntry[] {
       }),
     },
     {
+      service:"groq",label:"Groq · OpenAI-compatible",configured:environmentGroqKeyEntries(env).length>0,
+      credentials:environmentGroqKeyEntries(env).map(entry=>({id:"groq:"+entry.index,label:"GROQ_API_KEY_"+entry.index,masked:maskSecret(entry.key)})),
+      note:"Text-only fallback. Numbered keys rotate automatically after quota or provider failures.",
+    },
+    {
       service: "wusrouter",
       label: "WusRouter · Qwen",
       configured: Boolean(env.WUSROUTER_API_KEY?.trim()),
@@ -25951,6 +25969,9 @@ async function probeAllCredentials(env: Env, opts: { deep?: boolean } = {}): Pro
 
   if (cfg.GEMINI_KEYS.length) cfg.GEMINI_KEYS.forEach((k, i) => jobs.push(probeGeminiKey(k, i + 1)));
   else missing.push("gemini");
+  const groqEntries=environmentGroqKeyEntries(env);
+  if(groqEntries.length)groqEntries.slice(0,10).forEach(entry=>jobs.push(probeGroqKey(entry.key,entry.index)));
+  else missing.push("groq");
   if (env.WUSROUTER_API_KEY?.trim()) jobs.push(probeWusRouter(env.WUSROUTER_API_KEY));
   else missing.push("wusrouter");
 

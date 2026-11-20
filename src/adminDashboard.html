@@ -1246,7 +1246,7 @@ input,select,textarea{background:rgba(5,10,27,.82)!important;border-color:rgba(1
         <div class="card">
           <div class="section-head"><h2>کنترل موتورهای هوش مصنوعی</h2><span class="tag">ذخیره روی سرور</span></div>
           <div class="section-body">
-            <p class="hint">هر موتور را دستی روشن یا خاموش کن. اگر Gemini روشن باشد و سهمیه‌اش تمام شود، شاکی به‌صورت خودکار سراغ WusRouter می‌رود؛ اگر Gemini را خاموش کنی، درخواست‌های متنی و کدنویسی مستقیماً از موتور جایگزین استفاده می‌کنند.</p>
+            <p class="hint">هر موتور را دستی روشن یا خاموش کن. اگر Gemini روشن باشد و سهمیه‌اش تمام شود، شاکی ابتدا Groq و سپس WusRouter را برای گفت‌وگوی متنی امتحان می‌کند. ابزارها، تصویر و فایل همچنان به موتورهای تخصصی خود نیاز دارند.</p>
             <div id="providerToggles" class="provider-toggles"><div class="skel"><i></i><i></i></div></div>
           </div>
         </div>
@@ -3322,8 +3322,8 @@ function renderKeyServices(services){
 }
 
 
-let providerState = { gemini:true, wusrouter:true };
-let providerConfigured = { gemini:false, wusrouter:false };
+let providerState = { gemini:true, groq:true, wusrouter:true };
+let providerConfigured = { gemini:false, groq:false, wusrouter:false };
 async function loadProviderSettings(){
   const host=$("providerToggles");
   if(!host) return;
@@ -3333,11 +3333,12 @@ async function loadProviderSettings(){
     providerConfigured=d.configured||providerConfigured;
     const rows=[
       {id:"gemini",name:"Google Gemini",desc:"موتور اصلی پاسخ‌گویی و ابزارهای هوشمند",icon:"🔷"},
-      {id:"wusrouter",name:"WusRouter · Qwen",desc:"موتور جایگزین برای چت و تولید کد",icon:"⚡"}
+      {id:"groq",name:"Groq · چند کلید",desc:"جایگزین سریع چت متنی با چرخش خودکار کلیدها",icon:"🚀"},
+      {id:"wusrouter",name:"WusRouter · Qwen",desc:"موتور جایگزین ثانویه برای چت متنی",icon:"⚡"}
     ];
     host.innerHTML=rows.map(p=>{
       const on=!!providerState[p.id], ready=!!providerConfigured[p.id];
-      return '<div class="provider-row"><div class="provider-info"><span class="provider-icon">'+p.icon+'</span><div><b>'+p.name+'</b><small>'+p.desc+'</small><small class="'+(ready?'good-text':'bad-text')+'">'+(ready?'اعتبارنامه تنظیم شده':'کلید API در Cloudflare تنظیم نشده')+'</small></div></div><button class="provider-switch '+(on?'is-on':'')+'" data-provider-toggle="'+p.id+'" aria-pressed="'+on+'" '+(!ready&&p.id==="wusrouter"?'disabled':'')+'><span></span>'+(on?'روشن':'خاموش')+'</button></div>';
+      return '<div class="provider-row"><div class="provider-info"><span class="provider-icon">'+p.icon+'</span><div><b>'+p.name+'</b><small>'+p.desc+'</small><small class="'+(ready?'good-text':'bad-text')+'">'+(ready?'اعتبارنامه تنظیم شده':'کلید API در Cloudflare تنظیم نشده')+'</small></div></div><button class="provider-switch '+(on?'is-on':'')+'" data-provider-toggle="'+p.id+'" aria-pressed="'+on+'" '+(!ready&&p.id!=="gemini"?'disabled':'')+'><span></span>'+(on?'روشن':'خاموش')+'</button></div>';
     }).join("");
   }catch(e){host.innerHTML='<div class="state err">خواندن وضعیت موتورهای AI ناموفق بود: '+esc(e.message||"خطا")+'</div>';}
 }
