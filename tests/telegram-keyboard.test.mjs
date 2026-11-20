@@ -72,7 +72,8 @@ test("group management opens for verified admins", async () => {
     if (method === "getChatMember") return { status: "administrator" };
     return {};
   });
-  assert.ok(calls.at(-1).params.text.includes("/poll"));\n  assert.ok(!calls.at(-1).params.text.includes("/promo"));
+  assert.ok(calls.at(-1).params.text.includes("/poll"));
+  assert.ok(!calls.at(-1).params.text.includes("/promo"));
 });
 
 test("game buttons invoke native Telegram poll and interactive callback keyboards", async () => {
