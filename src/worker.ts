@@ -43,7 +43,8 @@ export default {
         const update = await request.clone().json() as Parameters<typeof classifyLegacyKeyboardUpdate>[0];
         const decision = classifyLegacyKeyboardUpdate(update);
         if (decision !== "none") {
-          const chatId = update.message!.chat!.id!;
+          const chatId = update.message?.chat?.id ?? update.callback_query?.message?.chat?.id;
+          if (typeof chatId !== "number") return existing.fetch(request, env, ctx);
           await removeLegacyReplyKeyboard(chatId, (method, params) => telegramCall(env.TOKEN!, method, params)).catch(() => {});
 
           // Taps on old ReplyKeyboard buttons must never be sent to SHAKI as prompts.
