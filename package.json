@@ -8,7 +8,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
-    "test": "node --experimental-loader ./tests/ts-resolve.mjs --test tests/core.test.mjs tests/engines.test.mjs tests/regression.test.mjs tests/storage-health.test.mjs tests/tts-reliability.test.mjs tests/provider-routing.test.mjs tests/gemini-key-selection.test.mjs && node tests/source-regression.mjs && node --experimental-loader ./tests/ts-resolve.mjs --test tests/personalization.test.mjs tests/vip-entitlement.test.mjs",
+    "test": "node --experimental-loader ./tests/ts-resolve.mjs --test tests/core.test.mjs tests/engines.test.mjs tests/regression.test.mjs tests/storage-health.test.mjs tests/tts-reliability.test.mjs tests/provider-routing.test.mjs tests/gemini-key-selection.test.mjs tests/groq-provider.test.mjs tests/gemini-failover.test.mjs tests/key-cooldown-store.test.mjs tests/daily-challenge.test.mjs tests/polls.test.mjs tests/creative-images.test.mjs tests/quote-card.test.mjs tests/roadmap-features.test.mjs tests/shortcuts.test.mjs tests/docx-text.test.mjs tests/group-onboarding.test.mjs && node tests/source-regression.mjs && node --experimental-loader ./tests/ts-resolve.mjs --test tests/personalization.test.mjs tests/vip-entitlement.test.mjs",
     "type-check": "tsc --noEmit",
     "validate": "npm run type-check && npm test && wrangler deploy --dry-run --outdir=.wrangler/dry",
     "cf-types": "wrangler types",
@@ -22,7 +22,8 @@
   },
   "dependencies": {
     "acorn": "^8.18.0",
-    "bidi-js": "^1.1.0"
+    "bidi-js": "^1.1.0",
+    "fflate": "^0.8.3"
   },
   "license": "AGPL-3.0-or-later"
 }

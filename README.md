@@ -182,6 +182,7 @@ SHAKI can operate inside Telegram groups while maintaining:
 * VIP/group access controls
 
 New groups are enabled by default. SHAKI replies when a member mentions the bot, addresses it by name, or replies to one of its messages; group administrators can disable replies.
+- Group administrators can optionally enable one daily AI SHAKI introduction with `/promo on`; disable it with `/promo off`, or check it with `/promo status`. This is opt-in per group and sends no more than one promotional post per 24 hours.
 
 ---
 
@@ -768,6 +769,8 @@ If you enjoy SHAKI and want to support its development:
 
 # 🗺️ Roadmap
 
+See [ROADMAP.md](ROADMAP.md) for the requested 48-feature roadmap and implementation status.
+
 ### Current
 
 * [x] Gemini Agent
@@ -787,6 +790,17 @@ If you enjoy SHAKI and want to support its development:
 * [x] Business Automation
 * [x] Group Activation Control
 * [x] Improved Web Search Formatting
+
+### Daily challenge
+
+Use `/challenge` in a private chat or an enabled group to get a shared creative
+prompt for the current UTC day. The 14 prompts rotate, are available in Persian,
+English and Arabic, and require no external API or extra storage. This initial
+version does not track submissions, points or winners.
+
+Use `/poll question | option 1 | option 2` for a native anonymous Telegram poll
+with 2–10 distinct options. In groups, only group administrators or the bot
+owner can create polls. SHAKI does not store a separate voting history.
 
 ### Planned
 
@@ -1043,3 +1057,8 @@ Pull Request و Contribution استقبال می‌شود.
 سفارشی‌سازی و نگهداری توسط **آرمان (@shaki0030)**\n\nاین مخزن نسخه‌ای تغییریافته از NovaAgent اثر Hsoofi82 است و تحت مجوز AGPL-3.0 منتشر می‌شود؛ اطلاعیه‌های حق‌نشر و مجوز نسخه اصلی حفظ شده‌اند.
 
 </div>
+
+
+## Groq text fallback
+
+Add Cloudflare Worker Secrets named `GROQ_API_KEY_1`, `GROQ_API_KEY_2`, `GROQ_API_KEY_3`, and so on. Numbered keys are discovered automatically (up to 100) and tried in numeric order. The bot rotates to the next key after authentication, quota/rate-limit, network, or upstream failures. Groq handles ordinary text chat only; image generation, file understanding, voice, and Gemini tool workflows still require their respective providers. The owner dashboard displays Groq as an independently switchable provider and the credential health panel lists configured key labels without exposing secret values.

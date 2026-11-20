@@ -695,6 +695,33 @@ body{
 *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 
+
+/* ── راهنمای تعاملی مالک ─────────────────────────────────────────────── */
+.guide-intro{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:16px}
+.guide-note{border:1px solid var(--border);background:linear-gradient(145deg,rgba(124,111,247,.10),rgba(47,211,167,.045));border-radius:14px;padding:13px;line-height:1.8;color:var(--text-2);font-size:var(--fs-sm)}
+.guide-group{border:1px solid var(--border);border-radius:15px;background:rgba(12,18,31,.72);overflow:hidden;margin:0 0 12px}
+.guide-group>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px;background:linear-gradient(100deg,rgba(124,111,247,.13),rgba(47,211,167,.045));font-weight:750}
+.guide-group>summary::-webkit-details-marker,.guide-item>summary::-webkit-details-marker{display:none}
+.guide-group>summary:after{content:"＋";color:var(--accent);font-size:18px}
+.guide-group[open]>summary:after{content:"−"}
+.guide-count{font-size:11px;color:var(--muted);font-weight:500}
+.guide-list{display:grid;gap:8px;padding:10px}
+.guide-item{border:1px solid var(--border);border-radius:11px;background:rgba(255,255,255,.018);overflow:hidden}
+.guide-item>summary{cursor:pointer;list-style:none;padding:12px;display:flex;align-items:center;gap:9px;font-weight:650}
+.guide-item>summary:before{content:"›";color:var(--accent-2);font-size:20px;line-height:1}
+.guide-item[open]>summary:before{content:"⌄"}
+.guide-item .guide-body{padding:0 13px 13px;color:var(--text-2);font-size:var(--fs-sm);line-height:1.95}
+.guide-body p{margin:6px 0}
+.guide-body ul{margin:6px 0;padding-inline-start:20px}
+.guide-status{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:10px;color:var(--text-soft);white-space:nowrap;margin-inline-start:auto}
+.guide-status.ready{color:var(--ok);border-color:rgba(87,214,162,.28)}
+.guide-status.partial{color:var(--warn);border-color:rgba(255,193,107,.28)}
+.guide-status.pending{color:var(--muted)}
+.guide-code{direction:ltr;text-align:left;display:inline-block;background:#080d18;border:1px solid var(--border);border-radius:7px;padding:2px 7px;color:#c9c3ff;font-family:ui-monospace,monospace;font-size:12px}
+.guide-path{display:inline-block;color:var(--accent-2);font-weight:650}
+.guide-warning{border-inline-start:3px solid var(--warn);padding:8px 11px;background:rgba(255,193,107,.07);border-radius:8px}
+.guide-search{width:100%;margin:0 0 12px}
+@media(prefers-reduced-motion:no-preference){.guide-group,.guide-item{transition:border-color .18s ease}.guide-group:hover,.guide-item:hover{border-color:var(--border-strong)}}
 </style>
 
 <style id="shaki-brand-skin">
@@ -1048,9 +1075,9 @@ input,select,textarea{background:rgba(5,10,27,.82)!important;border-color:rgba(1
           </div>
         </div>
         <div class="card"><div class="section-head"><h2>📣 ارسال‌های همگانی</h2></div><div class="section-body">
-          <p class="dim">ارسال پیام همگانی متنی و مشاهده پیشرفت در بخش «پیام‌ها» قرار دارد. برای جلوگیری از ارسال اشتباهی، هر ارسال نیازمند تأیید نهایی است.</p>
+          <p class="dim">ارسال پیام همگانی برای اعضای خصوصی و گروه‌های فعال؛ هر ارسال با تأیید نهایی مالک انجام می‌شود.</p>
           <button class="primary" id="goBroadcast" style="width:100%">رفتن به پیام همگانی ←</button>
-          <p class="dim" style="margin-top:var(--s3)">فروارد همگانی و مدیریت کمپین‌های تبلیغاتی هنوز در این نسخه به مسیر اجرایی وصل نشده‌اند؛ آن‌ها را به‌عنوان قابلیت مستقل اضافه می‌کنم، نه دکمه‌ی نمایشیِ بدون عملکرد.</p>
+          <p class="dim" style="margin-top:var(--s3)">تبلیغ روزانه داخل گروه از مسیر جداگانه و فقط با رضایت مدیر همان گروه فعال می‌شود: /promo on؛ خاموش‌کردن با /promo off و بررسی وضعیت با /promo status. هر گروهِ عضو‌شده حداکثر یک معرفی در هر ۲۴ ساعت می‌گیرد. این قابلیت پیام همگانی مالک را به کمپین تبلیغاتی تبدیل نمی‌کند؛ مدیریت کمپین‌های گسترده در پنل هنوز قابلیت مستقلی است و به‌عنوان فعال معرفی نمی‌شود.</p>
         </div></div>
       </section>
 
@@ -1058,11 +1085,11 @@ input,select,textarea{background:rgba(5,10,27,.82)!important;border-color:rgba(1
         <div class="page-head"><h1>ارسال پیام</h1><p>ارسال همگانی یا پیام مستقیم به یک کاربر</p></div>
         <div class="card"><div class="section-head"><h2>ارسال همگانی</h2></div><div class="section-body">
           <label class="lbl" for="bcAudience">مخاطبان</label>
-          <select id="bcAudience"><option value="all">همه کاربران</option><option value="vip">فقط VIP</option><option value="free">فقط رایگان</option></select>
+          <select id="bcAudience"><option value="all">همه اعضا + همه گروه‌ها</option><option value="vip">فقط VIP</option><option value="free">فقط رایگان</option></select>
           <div style="height:var(--s3)"></div>
           <label class="lbl" for="bcMessage">متن پیام (حداکثر ۴۰۰۰ کاراکتر)</label>
           <textarea id="bcMessage" maxlength="4000" placeholder="متن پیام برادکست…" style="min-height:120px"></textarea>
-          <div class="toolbar-line"><button class="primary" id="bcSend">📢 ارسال به صف</button><span class="pill" id="bcCount" aria-live="polite">۰ کاراکتر</span></div>
+          <div class="toolbar-line"><button class="sm" id="bcUpdateTemplate" type="button">📝 متن آمادهٔ آپدیت</button><button class="primary" id="bcSend">📢 ارسال به صف</button><span class="pill" id="bcCount" aria-live="polite">۰ کاراکتر</span></div>
         </div></div>
         <div class="card"><div class="section-head"><h2>وضعیت ارسال</h2><button class="sm ghost icon-btn" id="bcRefresh" aria-label="تازه‌سازی وضعیت ارسال">↻</button></div><div id="bcStatus" class="list" aria-live="polite"><div class="status">موردی در جریان نیست.</div></div></div>
         <div class="card"><div class="section-head"><h2>پیام مستقیم به یک کاربر</h2></div><div class="section-body">
@@ -1219,7 +1246,7 @@ input,select,textarea{background:rgba(5,10,27,.82)!important;border-color:rgba(1
         <div class="card">
           <div class="section-head"><h2>کنترل موتورهای هوش مصنوعی</h2><span class="tag">ذخیره روی سرور</span></div>
           <div class="section-body">
-            <p class="hint">هر موتور را دستی روشن یا خاموش کن. اگر Gemini روشن باشد و سهمیه‌اش تمام شود، شاکی به‌صورت خودکار سراغ WusRouter می‌رود؛ اگر Gemini را خاموش کنی، درخواست‌های متنی و کدنویسی مستقیماً از موتور جایگزین استفاده می‌کنند.</p>
+            <p class="hint">هر موتور را دستی روشن یا خاموش کن. اگر Gemini روشن باشد و سهمیه‌اش تمام شود، شاکی ابتدا Groq و سپس WusRouter را برای گفت‌وگوی متنی امتحان می‌کند. ابزارها، تصویر و فایل همچنان به موتورهای تخصصی خود نیاز دارند.</p>
             <div id="providerToggles" class="provider-toggles"><div class="skel"><i></i><i></i></div></div>
           </div>
         </div>
@@ -1277,6 +1304,124 @@ input,select,textarea{background:rgba(5,10,27,.82)!important;border-color:rgba(1
             <button class="sm danger" id="personalizationReset">بازگشت به پیش‌فرض</button>
           </div>
         </div></div>
+      </section>
+
+      <section class="panel" id="panel-guide" role="tabpanel" aria-labelledby="tab-guide">
+        <div class="page-head"><h1>📚 راهنمای کامل AI SHAKI</h1><p>راهنمای تعاملی پنل مالک، مسیرهای استفاده، دستورات و وضعیت واقعی ۴۸ قابلیت</p></div>
+        <div class="guide-intro">
+          <div class="guide-note"><b>شروع سریع</b><br>ربات را در گفتگوی خصوصی باز کن و <span class="guide-code">/admin</span> را بفرست. سپس از منوی کناری بخش موردنظر را انتخاب کن. این راهنما مخصوص مالک ربات است.</div>
+          <div class="guide-note"><b>مسیرهای پنل</b><br>هر کارت مسیر دقیق داخل پنل را می‌گوید. برای قابلیت‌های تلگرامی، دستور را در گفتگوی خصوصی یا گروه مجاز اجرا کن.</div>
+          <div class="guide-note"><b>وضعیت قابلیت‌ها</b><br>«نسخه اولیه» یعنی عملکرد محدود دارد؛ «بخشی موجود» یعنی زیرساخت هست اما همه حالت‌ها تأیید نشده؛ «در انتظار» یعنی هنوز قابل استفاده نیست.</div>
+        </div>
+        <div class="card"><div class="section-head"><h2>🔎 پیدا کردن راهنما</h2><span class="tag">آفلاین · داخل همین نسخه</span></div><div class="section-body">
+          <input id="guideSearch" class="guide-search" placeholder="جست‌وجو: گروه، کلید Gemini، ویس، VIP، ارسال آپدیت…">
+          <p class="dim">راهنما همراه فایل داشبورد همین نسخه منتشر می‌شود. برای توضیح قابلیت تازه، متن راهنما و یادداشت انتشار باید هم‌زمان با کد آن قابلیت به‌روزرسانی شوند؛ از روی فایل کد خام نمی‌توان روش استفاده را به‌طور مطمئن خودکار حدس زد.</p>
+        </div></div>
+
+        <details class="guide-group" open>
+          <summary>🧭 کار با خود پنل مدیریت <span class="guide-count">مسیرها و عملیات مالک</span></summary>
+          <div class="guide-list">
+            <details class="guide-item"><summary>ورود و امنیت پنل</summary><div class="guide-body"><p><b>مسیر:</b> گفتگوی خصوصی ربات ← <span class="guide-code">/admin</span> ← دکمه ورود به پنل.</p><p>پنل فقط برای مالک مجاز است و درخواست‌های API با نشست معتبر تلگرام بررسی می‌شوند. لینک پنل را عمومی منتشر نکن و اطلاعات نشست یا کلیدها را برای دیگران نفرست.</p></div></details>
+            <details class="guide-item"><summary>پایش ← داشبورد</summary><div class="guide-body"><p><b>مسیر:</b> «پایش» ← «داشبورد».</p><p>نمای کلی نسخه Worker، وضعیت سرویس‌ها، تعداد کاربران و مصرف/آمار در دسترس را نشان می‌دهد. برای تازه‌سازی از دکمه ↻ بالای پنل استفاده کن. بعضی شمارنده‌های لحظه‌ای بین نمونه‌های Worker مشترک نیستند.</p></div></details>
+            <details class="guide-item"><summary>پایش ← اجرای عامل، زمان‌بندی و تاریخچه مدیریت</summary><div class="guide-body"><p><b>مسیر:</b> «پایش» ← «اجرای عامل» یا «زمان‌بندی» یا «تاریخچه مدیریت».</p><p>برای دیدن اجرای ابزارها، وضعیت موفق/ناموفق، جزئیات عملیات و رویدادهای مدیریتی استفاده کن. اجرای ساده و موفق چت ممکن است برای کاهش نوشتن پایگاه داده در فهرست اجراها ثبت نشود.</p></div></details>
+            <details class="guide-item"><summary>کاربران ← کاربران و مدیریت VIP</summary><div class="guide-body"><p><b>مسیر:</b> «کاربران» ← «کاربران» یا «مدیریت VIP».</p><p>با شناسه/نام کاربر جست‌وجو کن، جزئیات قابل دسترس را باز کن و عملیات مجاز را انجام بده. برای VIP، کاربر را پیدا و از کنترل‌های همان کارت وضعیت را مدیریت کن. قبل از حذف/تغییر دسترسی، شناسه را دوباره بررسی کن.</p></div></details>
+            <details class="guide-item"><summary>کاربران ← گروه‌ها</summary><div class="guide-body"><p><b>مسیر:</b> «کاربران» ← «گروه‌ها».</p><p>فهرست گروه‌هایی را می‌بینی که ربات آن‌ها را شناخته و اطلاعاتشان ثبت شده است. برای تنظیمات گروه، ربات باید داخل گروه باشد و سطح دسترسی لازم را داشته باشد. تلگرام به ربات اجازه نمی‌دهد همه گروه‌هایی را که قبلاً عضو بوده به‌صورت مستقل فهرست کند.</p></div></details>
+            <details class="guide-item"><summary>کاربران ← پیام‌ها و ارسال اطلاعیه آپدیت</summary><div class="guide-body"><p><b>مسیر:</b> «کاربران» ← «پیام‌ها».</p><ol><li>مخاطب را انتخاب کن؛ «همه اعضا + همه گروه‌ها» برای کاربران خصوصی ثبت‌شده و گروه‌های شناخته‌شده است.</li><li>متن را بنویس یا «متن آمادهٔ آپدیت» را بزن.</li><li>متن را بازبینی کن و بعد ارسال را تأیید کن.</li><li>پیشرفت، تعداد اعضا/گروه‌ها و خطاها را بررسی کن؛ در صورت نیاز ارسال را لغو کن.</li></ol><p class="guide-warning">ارسال آپدیت خودکار با Deploy انجام نمی‌شود؛ مالک باید بعد از انتشار نسخه، از همین بخش ارسال را تأیید کند. گروه‌های ناشناخته، گروه‌هایی که ربات از آن‌ها حذف شده یا ربات را مسدود کرده‌اند قابل دریافت نیستند.</p></div></details>
+            <details class="guide-item"><summary>محتوا ← میزبانی‌ها، رسانه، استیکرها و کارخانه اپ</summary><div class="guide-body"><p><b>مسیر:</b> «محتوا» ← بخش موردنظر.</p><p>«میزبانی‌ها» برای مشاهده موارد میزبانی/استقرار ثبت‌شده، «رسانه» برای فهرست رسانه‌های ذخیره‌شده در سامانه، «استیکرها» برای افزودن/فعال‌سازی/غیرفعال‌سازی و عملیات دسته‌ای، و «کارخانه اپ» برای گردش کار ساخت/مدیریت اپ‌های پشتیبانی‌شده است. عملیات حذف یا گروهی را فقط پس از بررسی دسته و تعداد انتخاب‌شده انجام بده.</p></div></details>
+            <details class="guide-item"><summary>زیرساخت ← درخواست‌ها، لاگ‌ها و کلیدها</summary><div class="guide-body"><p><b>مسیر:</b> «زیرساخت» ← «درخواست‌ها» یا «لاگ‌ها» یا «کلیدها».</p><p>برای خطاها ابتدا زمان و شناسه درخواست را از لاگ‌ها بردار. در «کلیدها» سلامت کلیدهای پیکربندی‌شده را آزمایش کن و کلیدهای Gemini مدیریت‌شده را طبق کنترل‌های همان بخش اضافه/غیرفعال/حذف کن. کلید کامل را در پیام گروه یا اسکرین‌شات عمومی قرار نده.</p><p>برای کلیدهای محیطی، در Cloudflare Workers بخش Settings ← Variables and Secrets مقادیر <span class="guide-code">GEMINI_KEY_1</span> تا <span class="guide-code">GEMINI_KEY_5</span> را تنظیم کن. کلیدهای مدیریت‌شده را فقط از کنترل‌های پنل و مطابق تنظیمات واقعی Worker اضافه یا غیرفعال کن؛ نام Secret اضافه‌ای را بدون تأیید کد/تنظیمات پروژه نساز.</p></div></details>
+            <details class="guide-item"><summary>زیرساخت ← بیزینس، سیستم و شخصی‌سازی</summary><div class="guide-body"><p><b>مسیر:</b> «زیرساخت» ← بخش مربوطه.</p><p>«بیزینس» برای کنترل‌های یکپارچه‌سازی تجاری پشتیبانی‌شده، «سیستم» برای تنظیمات عمومی و محدودیت‌ها، و «شخصی‌سازی متن‌ها و دکمه‌ها» برای تغییر عنوان/نمایش/ترتیب دکمه‌ها و متن خوش‌آمدگویی است. عملکرد callback دکمه‌ها با تغییر عنوان عوض نمی‌شود.</p></div></details>
+          </div>
+        </details>
+
+        <details class="guide-group">
+          <summary>🎮 جذب و سرگرمی <span class="guide-count">قابلیت‌های ۱ تا ۱۰</span></summary><div class="guide-list">
+            <details class="guide-item"><summary>۱. تصویر آواتار از متن <span class="guide-status partial">نسخه اولیه</span></summary><div class="guide-body"><p><b>روش:</b> <span class="guide-code">/avatar توضیح تصویر</span> در چت ربات.</p><p>از توضیح متنی تصویر می‌سازد؛ ویرایش عکس آپلودشده نیست. به سرویس تصویر و سهمیه فعال نیاز دارد.</p></div></details>
+            <details class="guide-item"><summary>۲. تبدیل عکس به انیمه/کارتون <span class="guide-status partial">نسخه اولیه</span></summary><div class="guide-body"><p><b>روش:</b> روی عکس ریپلای کن و <span class="guide-code">/anime</span> یا <span class="guide-code">/cartoon</span> بفرست.</p><p>از مسیر ویرایش تصویر موجود استفاده می‌کند و به مدل/سرویس تصویر پیکربندی‌شده وابسته است.</p></div></details>
+            <details class="guide-item"><summary>۳. تصویر دونفره <span class="guide-status partial">نسخه اولیه</span></summary><div class="guide-body"><p><b>روش:</b> <span class="guide-code">/duo توضیح</span>.</p><p>تصویر دونفره را از متن می‌سازد؛ دو عکس واقعی را با هم ترکیب نمی‌کند.</p></div></details>
+            <details class="guide-item"><summary>۴. تصویر میم <span class="guide-status partial">نسخه اولیه</span></summary><div class="guide-body"><p><b>روش:</b> <span class="guide-code">/meme توضیح</span>.</p><p>خروجی تصویری طنز از متن می‌سازد؛ خوانایی دقیق متن فارسی روی تصویر تضمین نمی‌شود.</p></div></details>
+            <details class="guide-item"><summary>۵. چالش روزانه <span class="guide-status ready">پیاده‌سازی اولیه</span></summary><div class="guide-body"><p><b>روش:</b> <span class="guide-code">/challenge</span>.</p><p>۱۴ موضوع چرخشی با پشتیبانی فارسی، انگلیسی و عربی؛ روز بر اساس UTC عوض می‌شود. پاسخ‌ها، امتیاز و برنده ثبت نمی‌شوند.</p></div></details>
+            <details class="guide-item"><summary>۶. ساخت آهنگ و رپ اختصاصی <span class="guide-status pending">در انتظار</span></summary><div class="guide-body"><p>هنوز در این نسخه به‌عنوان قابلیت کامل پیاده‌سازی و تست نشده؛ دستور قابل اتکایی برای استفاده وجود ندارد.</p></div></details>
+            <details class="guide-item"><summary>۷. تصویر استوری <span class="guide-status partial">نسخه اولیه</span></summary><div class="guide-body"><p><b>روش:</b> <span class="guide-code">/story توضیح</span>.</p><p>تصویر مناسب استوری از متن می‌سازد؛ نسبت تصویر و متن گرافیکی دقیق تضمین نمی‌شود.</p></div></details>
+            <details class="guide-item"><summary>۸. کارت نقل‌قول <span class="guide-status partial">نسخه اولیه</span></summary><div class="guide-body"><p><b>روش:</b> <span class="guide-code">/card متن</span> یا ریپلای <span class="guide-code">/card</span> روی پیام.</p><p>فایل SVG تیره می‌سازد؛ نمایش فونت فارسی به فونت و نمایشگر مقصد وابسته است.</p></div></details>
+            <details class="guide-item"><summary>۹. بازی‌های هوش مصنوعی <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>روش:</b> دستورات گروهی <span class="guide-code">/truth</span> و <span class="guide-code">/dare</span>؛ ساخت بازی به درخواست متنی نیز به مدل و ابزارهای فعال وابسته است.</p><p>زیرساخت موجود است؛ اجرای زنده همه بازی‌ها و تعامل پیوسته تأیید نشده است.</p></div></details>
+            <details class="guide-item"><summary>۱۰. شخصیت مجازی قابل تنظیم <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>مسیر:</b> منوی ربات ← «تغییر شخصیت»؛ برای تنظیم پرامپت از <span class="guide-code">/prompt</span> استفاده کن.</p><p>شش شخصیت موجود است؛ شخصی‌سازی نامحدود و همه رفتارهای ممکن تضمین نشده‌اند.</p></div></details>
+          </div>
+        </details>
+
+        <details class="guide-group">
+          <summary>🧠 هوش مصنوعی پیشرفته <span class="guide-count">قابلیت‌های ۱۱ تا ۲۰</span></summary><div class="guide-list">
+            <details class="guide-item"><summary>۱۱. حافظه بلندمدت <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>دستورات:</b> <span class="guide-code">/remember</span> برای ثبت، <span class="guide-code">/mymemory</span> برای دیدن و <span class="guide-code">/forget</span> برای پاک‌کردن حافظه‌های پشتیبانی‌شده.</p><p>برای اطلاعات حساس از حافظه استفاده نکن؛ دامنه ذخیره‌سازی و پاک‌سازی باید با سیاست حریم خصوصی ربات بررسی شود.</p></div></details>
+            <details class="guide-item"><summary>۱۲. چند شخصیت هوش مصنوعی <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>مسیر:</b> منوی ربات ← «تغییر شخصیت»؛ انتخاب شخصیت برای کاربر/گروه طبق تنظیمات موجود انجام می‌شود.</p></div></details>
+            <details class="guide-item"><summary>۱۳. تحلیل تصویر <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>روش:</b> عکس را برای ربات بفرست یا همراه سؤال ارسال کن. کیفیت تحلیل به مدل بینایی و API فعال وابسته است.</p></div></details>
+            <details class="guide-item"><summary>۱۴. تحلیل PDF و DOCX <span class="guide-status partial">نسخه اولیه</span></summary><div class="guide-body"><p><b>روش:</b> فایل PDF یا DOCX را بفرست و سؤال را همراهش بنویس یا روی فایل ریپلای کن.</p><p>استخراج DOCX محدود به متن بدنه و سقف اندازه/طول تعریف‌شده است؛ تصاویر، سرصفحه، چیدمان و فرمت قدیمی DOC پوشش کامل ندارند.</p></div></details>
+            <details class="guide-item"><summary>۱۵. دستیار برنامه‌نویسی <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>روش:</b> در چت خصوصی مسئله، زبان برنامه‌نویسی و خروجی مورد انتظار را واضح بنویس. مسیر تولید کد در <span class="guide-code">src/codegen.ts</span> است.</p><p>اجرای واقعی کد و صحت خروجی بدون بررسی و تست محیط مقصد تضمین نمی‌شود.</p></div></details>
+            <details class="guide-item"><summary>۱۶. جست‌وجوی عمیق وب <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>دستور:</b> <span class="guide-code">/deepsearch موضوع</span>. برای نتایج بهتر سؤال و محدوده زمانی را دقیق بنویس؛ دسترسی به سرویس جست‌وجو لازم است.</p></div></details>
+            <details class="guide-item"><summary>۱۷. ترجمه چندزبانه <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>دستور:</b> <span class="guide-code">/tr متن</span>؛ زبان مقصد را در متن درخواست مشخص کن یا از حالت اینلاین پشتیبانی‌شده استفاده کن.</p></div></details>
+            <details class="guide-item"><summary>۱۸. تحلیل صدا و ویس <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>روش:</b> ویس یا فایل صوتی را ارسال کن و سؤال/درخواستت را همراه آن بنویس. به ارائه‌دهنده صوت و محدودیت فایل وابسته است.</p></div></details>
+            <details class="guide-item"><summary>۱۹. پاسخ صوتی هوش مصنوعی <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>دستور:</b> <span class="guide-code">/tts متن</span>. مسیرهای TTS از Gemini و ElevenLabs پشتیبانی می‌کنند؛ صدای دلخواه برای همه کاربران تضمین نشده و کلید ارائه‌دهنده لازم است.</p></div></details>
+            <details class="guide-item"><summary>۲۰. ساخت ویدئوی کوتاه <span class="guide-status pending">در انتظار</span></summary><div class="guide-body"><p>در این نسخه به‌عنوان قابلیت کامل پیاده‌سازی و تست نشده است.</p></div></details>
+          </div>
+        </details>
+
+        <details class="guide-group">
+          <summary>💬 امکانات تلگرام <span class="guide-count">قابلیت‌های ۲۱ تا ۲۸</span></summary><div class="guide-list">
+            <details class="guide-item"><summary>۲۱. پنل شخصی کاربر <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>دستور:</b> <span class="guide-code">/dashboard</span> یا گزینه «داشبورد من» در منوی شخصی.</p></div></details>
+            <details class="guide-item"><summary>۲۲. دکمه‌های پاسخ سریع <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>روش:</b> از منوی <span class="guide-code">/start</span> و دکمه‌های اینلاین استفاده کن. پاسخ‌های سریع سفارشی مستقل هنوز به‌طور کامل تأیید نشده‌اند.</p></div></details>
+            <details class="guide-item"><summary>۲۳. مکالمه هوشمند گروهی <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>روش:</b> در گروه به ربات ریپلای کن یا نام/شناسه ربات را خطاب قرار بده. پاسخ‌گویی به تنظیمات گروه و فعال‌بودن ربات وابسته است.</p></div></details>
+            <details class="guide-item"><summary>۲۴. مسابقه روزانه گروه <span class="guide-status partial">نسخه اولیه</span></summary><div class="guide-body"><p><b>روش مدیر:</b> <span class="guide-code">/quiz</span> را در گروه بفرست. رأی‌گیری ناشناس با Poll بومی تلگرام انجام می‌شود؛ جدول رتبه‌بندی و مسابقه سفارشی وجود ندارد.</p></div></details>
+            <details class="guide-item"><summary>۲۵. ضداسپم و مدیریت گروه <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>مسیر:</b> در گروه <span class="guide-code">/panel</span> یا «پنل» ← «مدیریت گروه» (ویژه مدیران). ضدلینک، محدودسازی و ابزارهای مدیریت به مجوزهای مدیر و ربات وابسته‌اند.</p><p>برای حذف پیام/محدودکردن کاربر، ربات باید مجوز تلگرام مربوطه را داشته باشد.</p><p><b>معرفی روزانهٔ اختیاری:</b> مدیر گروه می‌تواند در همان گروه <span class="guide-code">/promo on</span> بفرستد. اولین معرفی در زمان فعال‌سازی تلاش می‌شود و سپس حداکثر هر ۲۴ ساعت یک پیام معرفی با دکمهٔ شروع خصوصی، افزودن به گروه دیگر و اشتراک‌گذاری ارسال می‌شود. خاموش‌کردن فوری: <span class="guide-code">/promo off</span>؛ مشاهده وضعیت: <span class="guide-code">/promo status</span>. گروه بدون رضایت مدیر در فهرست تبلیغ قرار نمی‌گیرد.</p></div></details>
+            <details class="guide-item"><summary>۲۶. پاسخ‌های صوتی متنوع <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>دستور:</b> <span class="guide-code">/tts متن</span>. تنوع مدل/صدا به کلیدهای Gemini یا ElevenLabs و تنظیمات فعلی بستگی دارد.</p></div></details>
+            <details class="guide-item"><summary>۲۷. میان‌برهای شخصی متن <span class="guide-status partial">نسخه اولیه</span></summary><div class="guide-body"><p><b>فقط در گفتگوی خصوصی:</b> <span class="guide-code">/shortcut set name | متن</span> برای ساخت، <span class="guide-code">/shortcut list</span> برای فهرست، <span class="guide-code">/shortcut delete name</span> برای حذف و <span class="guide-code">/go name</span> برای اجرا. سقف ۲۰ میان‌بر برای هر کاربر.</p></div></details>
+            <details class="guide-item"><summary>۲۸. چت ناشناس با هوش مصنوعی <span class="guide-status pending">در انتظار</span></summary><div class="guide-body"><p>در این نسخه قابلیت کامل و قابل استفاده‌ای برای آن تأیید نشده است.</p></div></details>
+          </div>
+        </details>
+
+        <details class="guide-group">
+          <summary>💎 VIP و درآمدزایی <span class="guide-count">قابلیت‌های ۲۹ تا ۳۵</span></summary><div class="guide-list">
+            <details class="guide-item"><summary>۲۹. سیستم VIP چندسطحی <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p>سطح VIP پایه و محدودیت‌های مجزا موجود است؛ چند سطح اشتراک کامل در این نسخه تعریف نشده. مسیر مدیریت: «کاربران» ← «مدیریت VIP».</p></div></details>
+            <details class="guide-item"><summary>۳۰. اولویت پردازش VIP <span class="guide-status pending">در انتظار</span></summary><div class="guide-body"><p>صف اولویت مستقل و تضمین‌شده برای VIP در این نسخه تأیید نشده است.</p></div></details>
+            <details class="guide-item"><summary>۳۱. پنل مدیریت VIP <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>مسیر:</b> پنل مالک ← «کاربران» ← «مدیریت VIP». کاربر را جست‌وجو و وضعیت/انقضای موجود را طبق کنترل‌ها مدیریت کن.</p></div></details>
+            <details class="guide-item"><summary>۳۲. اشتراک آزمایشی <span class="guide-status pending">در انتظار</span></summary><div class="guide-body"><p>فعلاً فعال نکن؛ چرخه آزمایشی کامل و قابل اتکا در این نسخه پیاده‌سازی نشده است.</p></div></details>
+            <details class="guide-item"><summary>۳۳. بسته‌های اعتباری <span class="guide-status pending">در انتظار</span></summary><div class="guide-body"><p>فروش/شارژ بسته اعتباری در این نسخه موجود نیست.</p></div></details>
+            <details class="guide-item"><summary>۳۴. هدیه VIP <span class="guide-status pending">در انتظار</span></summary><div class="guide-body"><p>انتقال یا هدیه‌دادن VIP هنوز پیاده‌سازی نشده است.</p></div></details>
+            <details class="guide-item"><summary>۳۵. تاریخچه پرداخت <span class="guide-status pending">در انتظار</span></summary><div class="guide-body"><p>تاریخچه پرداخت و اشتراک‌ها هنوز پیاده‌سازی نشده است.</p></div></details>
+          </div>
+        </details>
+
+        <details class="guide-group">
+          <summary>🛠 مدیریت و امکانات حرفه‌ای <span class="guide-count">قابلیت‌های ۳۶ تا ۴۴</span></summary><div class="guide-list">
+            <details class="guide-item"><summary>۳۶. آمار ربات <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>مسیر:</b> «پایش» ← «داشبورد». داده‌های لحظه‌ای و شمارنده‌های runtime را ببین؛ بعضی آمارها محلی هر نمونه Worker هستند.</p></div></details>
+            <details class="guide-item"><summary>۳۷. تحلیل محبوبیت قابلیت‌ها <span class="guide-status pending">در انتظار</span></summary><div class="guide-body"><p>گزارش کامل و رتبه‌بندی استفاده از قابلیت‌ها هنوز ارائه نمی‌شود.</p></div></details>
+            <details class="guide-item"><summary>۳۸. گزارش خطاها <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>مسیر:</b> «پایش» ← «اجرای عامل» و «تاریخچه مدیریت»؛ همچنین «زیرساخت» ← «لاگ‌ها». خطاهای گروه باید با پیام دوستانه در گروه و جزئیات فنی در گفتگوی خصوصی مالک گزارش شوند؛ همه مسیرهای خطا هنوز ممیزی کامل نشده‌اند.</p></div></details>
+            <details class="guide-item"><summary>۳۹. سلامت APIها <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>مسیر:</b> «زیرساخت» ← «کلیدها» ← آزمایش کلیدها. نتیجه فقط وضعیت همان لحظه و همان کلید را نشان می‌دهد و تضمین پایداری آینده نیست.</p></div></details>
+            <details class="guide-item"><summary>۴۰. مدیریت کلیدهای API <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>مسیر:</b> «زیرساخت» ← «کلیدها». برای Gemini می‌توان کلید مدیریت‌شده را اضافه/غیرفعال/حذف کرد. <span class="guide-code">KEYRING_MASTER_KEY</span> باید به‌صورت Secret در Cloudflare تنظیم شود. کلیدهای محیطی <span class="guide-code">GEMINI_KEY_1</span> تا <span class="guide-code">GEMINI_KEY_5</span> جدا از Keyring مدیریت می‌شوند.</p></div></details>
+            <details class="guide-item"><summary>۴۱. نظرسنجی ناشناس <span class="guide-status partial">نسخه اولیه</span></summary><div class="guide-body"><p><b>دستور:</b> <span class="guide-code">/poll سؤال | گزینه ۱ | گزینه ۲</span>. بین ۲ تا ۱۰ گزینه متمایز وارد کن. در گروه فقط مدیران گروه یا مالک ربات می‌توانند نظرسنجی بسازند.</p></div></details>
+            <details class="guide-item"><summary>۴۲. اطلاع‌رسانی آپدیت <span class="guide-status ready">پیاده‌سازی اولیه</span></summary><div class="guide-body"><p><b>مسیر:</b> «کاربران» ← «پیام‌ها» ← مخاطب «همه اعضا + همه گروه‌ها».</p><p>پیام در صف دسته‌ای و قابل پیگیری ارسال می‌شود. این ارسال خودکار نیست و نیاز به تأیید مالک دارد. فقط کاربران خصوصی ثبت‌شده و گروه‌های شناخته‌شده پوشش داده می‌شوند.</p></div></details>
+            <details class="guide-item"><summary>۴۳. سیستم چندمدیره <span class="guide-status pending">در انتظار</span></summary><div class="guide-body"><p>افزودن چند مالک/مدیر با نقش‌ها و سطح دسترسی مستقل هنوز پیاده‌سازی نشده است.</p></div></details>
+            <details class="guide-item"><summary>۴۴. مدیریت کاربران و فعالیت‌ها <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>مسیر:</b> «کاربران» ← «کاربران». جست‌وجو، بازکردن جزئیات و عملیات مدیریتی موجود را از همان کارت انجام بده؛ ثبت کامل همه فعالیت‌های کاربران تضمین نشده است.</p></div></details>
+          </div>
+        </details>
+
+        <details class="guide-group">
+          <summary>🎨 ظاهر و برندینگ <span class="guide-count">قابلیت‌های ۴۵ تا ۴۸</span></summary><div class="guide-list">
+            <details class="guide-item"><summary>۴۵. رابط کاربری مدرن <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p>پنل مدیریت و داشبورد کاربر طراحی واکنش‌گرا دارند. در موبایل از منوی همبرگری و نوار دسترسی سریع پایین صفحه استفاده کن.</p></div></details>
+            <details class="guide-item"><summary>۴۶. تم تاریک <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p>تم تاریک در پنل مدیریت فعال است؛ یکپارچگی کامل رنگ‌ها در تمام صفحات و مینی‌اپ‌ها هنوز ممیزی نشده است.</p></div></details>
+            <details class="guide-item"><summary>۴۷. افکت‌های سه‌بعدی و شیشه‌ای <span class="guide-status pending">در انتظار</span></summary><div class="guide-body"><p>طراحی سه‌بعدی و افکت شیشه‌ای سراسری هنوز به‌صورت کامل پیاده‌سازی نشده است.</p></div></details>
+            <details class="guide-item"><summary>۴۸. شخصی‌سازی ظاهر و دکمه‌ها <span class="guide-status partial">بخشی موجود</span></summary><div class="guide-body"><p><b>مسیر:</b> «زیرساخت» ← «شخصی‌سازی متن‌ها و دکمه‌ها». متن خوش‌آمدگویی، عنوان، ترتیب و نمایش بعضی دکمه‌ها را تغییر بده؛ این قابلیت طراحی کامل و دلخواه همه صفحات نیست.</p></div></details>
+          </div>
+        </details>
+
+        <details class="guide-group">
+          <summary>🧯 راهنمای عیب‌یابی و نکات عمومی <span class="guide-count">پیش از گزارش خطا بخوان</span></summary><div class="guide-list">
+            <details class="guide-item"><summary>Gemini پاسخ نمی‌دهد یا خطای سهمیه می‌دهد</summary><div class="guide-body"><p>از «زیرساخت» ← «کلیدها» تست بگیر. کلیدهای فعال و سهمیه پروژه را بررسی کن. چرخش کلید می‌تواند بعضی خطاهای سهمیه را پوشش دهد، اما اگر همه کلیدها محدود/نامعتبر باشند پاسخ تضمین نمی‌شود. برای Keyring مدیریت‌شده، Secret موردنیاز را تنظیم کن.</p></div></details>
+            <details class="guide-item"><summary>WusRouter یا تولید تصویر کار نمی‌کند</summary><div class="guide-body"><p>وجود Secret و فعال بودن ارائه‌دهنده را بررسی کن. fallback متنی WusRouter الزاماً جایگزین ابزارهای تصویر، فایل و جست‌وجو نیست؛ نوع درخواست باید توسط ارائه‌دهنده پشتیبانی شود. تولید تصویر به مسیر Cloudflare/مدل تصویر و سهمیه آن وابسته است.</p></div></details>
+            <details class="guide-item"><summary>ارسال ویس ناموفق است</summary><div class="guide-body"><p>کلید TTS، پشتیبانی مدل/صدا، پاسخ سرویس و محدودیت‌های ارسال Telegram را بررسی کن. «زیرساخت» ← «لاگ‌ها» را برای خطای دقیق ببین؛ در گروه نباید جزئیات فنی یا کلید API منتشر شود.</p></div></details>
+            <details class="guide-item"><summary>ربات در گروه جواب نمی‌دهد یا مدیریت انجام نمی‌شود</summary><div class="guide-body"><p>عضویت ربات، فعال بودن گروه، مجوزهای ادمین ربات (حذف پیام/محدودکردن اعضا) و نحوه خطاب/ریپلای را بررسی کن. دستور <span class="guide-code">/panel</span> پنل شخصی را برای اعضا و مدیریت گروه را فقط برای ادمین‌های مجاز باز می‌کند.</p></div></details>
+            <details class="guide-item"><summary>بعد از جایگزینی فایل در GitHub چه اتفاقی می‌افتد؟</summary><div class="guide-body"><p>فایل‌ها باید در مسیرهای صحیح شاخه اصلی قرار بگیرند و Build/Deploy موفق شود. راهنما و یادداشت انتشار باید همراه همان نسخه به‌روزرسانی شوند. صرف آپلود فایل در GitHub تا وقتی Cloudflare نسخه جدید را با موفقیت Deploy نکرده، به معنی فعال‌شدن تغییرات در ربات نیست.</p></div></details>
+            <details class="guide-item"><summary>چطور یک قابلیت را گزارش کنم؟</summary><div class="guide-body"><p>نام دستور/بخش، زمان تقریبی، نوع چت (خصوصی/گروه)، متن خطا و شناسه اجرا را از پنل لاگ/اجرای عامل بردار. کلید API، توکن ربات، شناسه محرمانه و متن خصوصی دیگران را ارسال نکن.</p></div></details>
+          </div>
+        </details>
+        <div class="guide-note"><b>یادآوری مهم:</b> این فهرست عمداً وضعیت واقعی هر مورد را مشخص می‌کند. موارد «در انتظار» هنوز قابل استفاده نیستند و موارد «بخشی موجود» یا «نسخه اولیه» محدودیت‌های نوشته‌شده را دارند. پاس‌شدن تست‌های خودکار به‌تنهایی معادل تست زنده Telegram، Gemini، WusRouter، Cloudflare AI یا ElevenLabs نیست.</div>
       </section>
     </main>
   </div>
@@ -1598,6 +1743,7 @@ const ICONS = {
   business:'<path d="M4 20V7l8-3 8 3v13"/><path d="M9 20v-6h6v6"/>',
   system:'<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"/>',
   personalization:'<path d="M4 5h16M4 12h10M4 19h16"/><circle cx="18" cy="12" r="2"/>',
+  guide:'<path d="M4 5h16M4 10h16M4 15h10M4 20h7"/><circle cx="18" cy="18" r="3"/>',
   factory:'<path d="M4 20V9l5 3V9l5 3V6l6 3v11z"/>',
 };
 function icon(id){ return '<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICONS[id]||ICONS.overview)+'</svg>'; }
@@ -1631,6 +1777,7 @@ const NAV_GROUPS = [
     {id:"business", label:"بیزینس"},
     {id:"system", label:"سیستم"},
     {id:"personalization", label:"شخصی‌سازی متن‌ها و دکمه‌ها"},
+    {id:"guide", label:"راهنمای کامل امکانات"},
   ]},
 ];
 const TABS = NAV_GROUPS.flatMap(g => g.tabs);
@@ -2538,6 +2685,7 @@ async function loadBroadcast(opts){
       `<div class="item"><b>${esc(j.status)} · ${j.percent}%</b>`+
       `<div class="bar"><i style="width:${Math.max(0,Math.min(100,j.percent))}%"></i></div>`+
       `<small style="margin-top:7px">مخاطب: ${esc(j.mode)} · ${fmtNum(j.processedIndex)} از ${fmtNum(j.totalUsers)}<br>`+
+      `👤 اعضا: ${fmtNum(j.userCount||0)} · 👥 گروه‌ها: ${fmtNum(j.groupCount||0)}<br>`+
       `✅ ${fmtNum(j.sent)} ارسال · ❌ ${fmtNum(j.failed)} خطا · ⚠️ ${fmtNum(j.uncertain)} بدون تأیید · ${esc(fmt(j.createdAt))}</small>`+
       `<small style="margin-top:6px;opacity:.75">${esc(j.message)}</small></div>`+
       (active?`<button class="danger" id="bcCancel" style="width:100%">🛑 لغو ارسال</button>`:"");
@@ -2553,13 +2701,13 @@ async function sendBroadcast(){
   const msg = $("bcMessage").value.trim();
   if(!msg){ toast("متن خالی است","err"); return; }
   const aud = $("bcAudience").value;
-  const label = aud==="all"?"همه کاربران":aud==="vip"?"کاربران VIP":"کاربران رایگان";
+  const label = aud==="all"?"همه اعضا و گروه‌های فعال":aud==="vip"?"کاربران VIP":"کاربران رایگان";
   if(!await confirmAction("ارسال همگانی","این پیام برای «"+label+"» ارسال می‌شود. مطمئنی؟")) return;
   const btn = $("bcSend"); btn.disabled = true;
   try{
     const d = await api("/api/admin/broadcast", { method:"POST", body:{ message:msg, audience:aud }, timeoutMs:20000 });
     $("bcMessage").value = ""; updateBcCount();
-    toast("ارسال شروع شد: "+fmtNum(d.total)+" گیرنده","ok");
+    toast("ارسال شروع شد: "+fmtNum(d.total)+" مخاطب ("+fmtNum(d.users||0)+" عضو، "+fmtNum(d.groups||0)+" گروه)","ok");
     invalidateTab("broadcast");
     await loadBroadcast();
   }catch(e){ toast("خطا: "+e.message,"err"); }
@@ -3174,8 +3322,8 @@ function renderKeyServices(services){
 }
 
 
-let providerState = { gemini:true, wusrouter:true };
-let providerConfigured = { gemini:false, wusrouter:false };
+let providerState = { gemini:true, groq:true, wusrouter:true };
+let providerConfigured = { gemini:false, groq:false, wusrouter:false };
 async function loadProviderSettings(){
   const host=$("providerToggles");
   if(!host) return;
@@ -3185,11 +3333,12 @@ async function loadProviderSettings(){
     providerConfigured=d.configured||providerConfigured;
     const rows=[
       {id:"gemini",name:"Google Gemini",desc:"موتور اصلی پاسخ‌گویی و ابزارهای هوشمند",icon:"🔷"},
-      {id:"wusrouter",name:"WusRouter · Qwen",desc:"موتور جایگزین برای چت و تولید کد",icon:"⚡"}
+      {id:"groq",name:"Groq · چند کلید",desc:"جایگزین سریع چت متنی با چرخش خودکار کلیدها",icon:"🚀"},
+      {id:"wusrouter",name:"WusRouter · Qwen",desc:"موتور جایگزین ثانویه برای چت متنی",icon:"⚡"}
     ];
     host.innerHTML=rows.map(p=>{
       const on=!!providerState[p.id], ready=!!providerConfigured[p.id];
-      return '<div class="provider-row"><div class="provider-info"><span class="provider-icon">'+p.icon+'</span><div><b>'+p.name+'</b><small>'+p.desc+'</small><small class="'+(ready?'good-text':'bad-text')+'">'+(ready?'اعتبارنامه تنظیم شده':'کلید API در Cloudflare تنظیم نشده')+'</small></div></div><button class="provider-switch '+(on?'is-on':'')+'" data-provider-toggle="'+p.id+'" aria-pressed="'+on+'" '+(!ready&&p.id==="wusrouter"?'disabled':'')+'><span></span>'+(on?'روشن':'خاموش')+'</button></div>';
+      return '<div class="provider-row"><div class="provider-info"><span class="provider-icon">'+p.icon+'</span><div><b>'+p.name+'</b><small>'+p.desc+'</small><small class="'+(ready?'good-text':'bad-text')+'">'+(ready?'اعتبارنامه تنظیم شده':'کلید API در Cloudflare تنظیم نشده')+'</small></div></div><button class="provider-switch '+(on?'is-on':'')+'" data-provider-toggle="'+p.id+'" aria-pressed="'+on+'" '+(!ready&&p.id!=="gemini"?'disabled':'')+'><span></span>'+(on?'روشن':'خاموش')+'</button></div>';
     }).join("");
   }catch(e){host.innerHTML='<div class="state err">خواندن وضعیت موتورهای AI ناموفق بود: '+esc(e.message||"خطا")+'</div>';}
 }
@@ -3429,6 +3578,24 @@ let personaCache = [];
 function bindStatic(){
   // ↻ صریحاً تازه‌سازی اجباری است، وگرنه کش تب جلوی درخواست را می‌گیرد.
   $("refreshBtn").onclick = ()=> loadTab(state.tab, true);
+  if($("guideSearch")) $("guideSearch").addEventListener("input", ()=>{
+    const q = $("guideSearch").value.trim().toLocaleLowerCase();
+    document.querySelectorAll("#panel-guide .guide-group").forEach(group=>{
+      const items = [...group.querySelectorAll(".guide-item")];
+      let visible = 0;
+      items.forEach(item=>{
+        const match = !q || item.textContent.toLocaleLowerCase().includes(q);
+        item.hidden = !match;
+        if(match) visible++;
+        if(q && match) item.open = true;
+        else if(!q) item.open = false;
+      });
+      group.hidden = !!q && visible===0;
+      if(q && visible) group.open = true;
+      else if(!q) group.open = false;
+    });
+  });
+
   $("closeBtn").onclick   = ()=>{ try{ tg.close(); }catch(e){} };
   $("hamburger").onclick  = openDrawer;
   $("drawerBackdrop").onclick = closeDrawer;
@@ -3451,6 +3618,11 @@ function bindStatic(){
   $("nextBtn").onclick  = ()=>{ if(!users.nextCursor) return; users.history.push(users.cursor); users.cursor = users.nextCursor; users.page++; loadUsers().catch(()=>{}); };
 
   $("bcSend").onclick    = sendBroadcast;
+  $("bcUpdateTemplate").onclick = ()=>{
+    $("bcMessage").value = "🚀 آپدیت جدید AI SHAKI منتشر شد!\\n\\n✨ چند قابلیت تازه و بهبود برای ربات اضافه شده است.\\n🛠 در این نسخه مجموعه‌ای از قابلیت‌ها و تغییرات تازه منتشر شده است.\\n\\nبرای استفاده از نسخه جدید، ربات را دوباره باز کنید.\\n@AI_SHAKI_BOT";
+    updateBcCount();
+    toast("متن آماده شد؛ قبل از ارسال می‌توانی ویرایشش کنی.","ok");
+  };
   $("bcRefresh").onclick = ()=> loadBroadcast();
   $("bcMessage").addEventListener("input", updateBcCount);
   $("dmSend").onclick    = sendDM;

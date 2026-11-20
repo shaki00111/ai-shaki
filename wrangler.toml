@@ -75,7 +75,7 @@ LOADING_GIF_URL = ""
 #   WEBHOOK_SECRET           Value expected in X-Telegram-Bot-Api-Secret-Token
 #   KEYRING_MASTER_KEY       32+ character secret for AES-GCM encrypted owner-managed Gemini keys
 #
-#   GEMINI_KEY_1 .. GEMINI_KEY_5          Google Gemini API key pool
+#   GEMINI_KEY_1 .. GEMINI_KEY_100        Numbered Google Gemini API key pool
 #   WUSROUTER_API_KEY                      Optional text/code fallback
 #
 #   GOOGLE_SEARCH_API_KEY                 Google Programmable Search key
@@ -91,3 +91,14 @@ LOADING_GIF_URL = ""
 #
 #   WALLET_ADDRESS                        (optional) shown by /donate
 #   SEED_STICKER_SETS                     (optional) sticker sets to seed
+
+# Isolated Cloudflare Preview configuration. Never point previews at production D1.
+[previews.vars]
+ENVIRONMENT = "preview"
+MAINTENANCE_MODE = "true"
+LOADING_GIF_URL = ""
+
+[[previews.d1_databases]]
+binding = "DB"
+database_name = "ai-shaki-preview-db"
+database_id = "8b98c0c6-2467-41c6-af33-2d26b59678f5"

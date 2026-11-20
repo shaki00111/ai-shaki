@@ -417,6 +417,92 @@ messageHandler.includes('const moderationCommand = ["/ban", "/unban", "/kick", "
   ? ok("authorized moderation commands remain available when bot replies are paused")
   : fail("paused groups must keep authorized moderation commands available");
 
+console.log("\\n[14] All-audience broadcast includes groups");
+indexSource.includes('groupChatIds?: number[]') &&
+indexSource.includes('await listGroups(env, true)') &&
+indexSource.includes('uid > 0 && !await chatCanReceive(env.DB,uid)') &&
+indexSource.includes('groupChatIds, processedIndex: 0')
+  ? ok("all-audience broadcast queues known groups as well as private members")
+  : fail("all-audience broadcast must include group chats and only apply private delivery suppression to users");
+adminSource.includes('value="all">همه اعضا + همه گروه‌ها</option>') &&
+adminSource.includes('fmtNum(d.groups||0)') &&
+adminSource.includes('j.groupCount||0') &&
+adminSource.includes('id="bcUpdateTemplate"') &&
+adminSource.includes('bcUpdateTemplate").onclick')
+  ? ok("admin panel confirms member/group audience and shows split progress")
+  : fail("admin broadcast panel must describe all members and groups and show both recipient counts");
+
+console.log("\\n[15] Group errors stay private");
+indexSource.includes("async function sendOwnerPrivateDiagnostic") &&
+indexSource.includes("if (chatId >= 0") &&
+indexSource.includes("if (chatId < 0) await sendOwnerPrivateDiagnostic(chatId, errText)") &&
+indexSource.includes("originalMsg.chat.type !== \"private\"") &&
+indexSource.includes("const errorMsg = ownerPrivate")
+  ? ok("group failures show friendly text and send redacted technical details to the owner privately")
+  : fail("technical error details must never be displayed in group chats");
+
+
+console.log("\\n[16] Interactive owner guide");
+adminSource.includes('id="panel-guide"') &&
+adminSource.includes('{id:"guide", label:"راهنمای کامل امکانات"}') &&
+adminSource.includes("قابلیت‌های ۱ تا ۱۰") &&
+adminSource.includes("قابلیت‌های ۱۱ تا ۲۰") &&
+adminSource.includes("قابلیت‌های ۲۱ تا ۲۸") &&
+adminSource.includes("قابلیت‌های ۲۹ تا ۳۵") &&
+adminSource.includes("قابلیت‌های ۳۶ تا ۴۴") &&
+adminSource.includes("قابلیت‌های ۴۵ تا ۴۸") &&
+adminSource.includes("همه اعضا + همه گروه‌ها") &&
+adminSource.includes("GEMINI_KEY_1") &&
+(adminSource.match(/class="guide-item"/g)||[]).length >= 60
+  ? ok("owner dashboard includes expandable guidance for all 48 roadmap items and admin workflows")
+  : fail("owner dashboard guide must cover all roadmap ranges, admin paths, update broadcasts and key setup");
+
+
+console.log("\\n[17] Native Telegram add-to-group entry point");
+indexSource.includes('startgroup=add_shaki') &&
+indexSource.includes('➕ افزودن AI SHAKI به گروه') &&
+indexSource.includes('urlBtn(') &&
+indexSource.includes('BOT_INFO?.username')
+  ? ok("private start/home menus expose Telegram's native add-to-group picker only when the bot username is known")
+  : fail("private menus must expose a localized Telegram startgroup deep link when the bot username is available");
+
+
+console.log("\\n[19] Group onboarding after every bot addition");
+const memberHandlerStart=indexSource.indexOf("if(update.my_chat_member)");
+const memberHandlerEnd=indexSource.indexOf("if (update.callback_query)",memberHandlerStart);
+const memberHandler=memberHandlerStart>=0&&memberHandlerEnd>memberHandlerStart?indexSource.slice(memberHandlerStart,memberHandlerEnd):"";
+memberHandler.includes("old_chat_member") &&
+memberHandler.includes("shouldSendGroupOnboarding(oldMember,member)") &&
+memberHandler.includes("if(shouldWelcome)") &&
+memberHandler.includes("AI SHAKI با موفقیت به گروه اضافه شد") &&
+memberHandler.includes("/help") &&
+memberHandler.includes("/img توضیح تصویر")
+  ? ok("bot addition sends one Persian onboarding guide on the membership transition, including group usage commands")
+  : fail("every group addition must send the full onboarding guide exactly on the not-member to member transition");
+const groupHelpStart=indexSource.indexOf("const groupHelp =");
+const groupHelpEnd=indexSource.indexOf("const kb:",groupHelpStart);
+const groupHelpSource=groupHelpStart>=0&&groupHelpEnd>groupHelpStart?indexSource.slice(groupHelpStart,groupHelpEnd):"";
+groupHelpSource.includes("/img [توضیح]") &&
+groupHelpSource.includes("/tts [متن]") &&
+groupHelpSource.includes("/summarize") &&
+groupHelpSource.includes("/help")
+  ? ok("group /help documents the main AI and media commands")
+  : fail("group /help must document the image, voice, web summary and group summary commands");
+
+console.log("\\n[18] Consent-based daily group promotion");
+indexSource.includes('case "/promo"') &&
+indexSource.includes("setGroupPromo(chat.id, true") &&
+indexSource.includes("processDailyGroupPromos(env)") &&
+indexSource.includes("GROUP_PROMO_INTERVAL_MS = 24 * 60 * 60 * 1000") &&
+indexSource.includes("isUserAdmin(from.id, chat.id)") &&
+indexSource.includes("startgroup=add_shaki") &&
+indexSource.includes("t.me/share/url")
+  ? ok("group promotion is admin opt-in, has off/status controls, daily rate limit, onboarding and share links")
+  : fail("group promotion must be opt-in, admin-only, rate-limited, cancellable and include working growth links");
+adminSource.includes("/promo on") && adminSource.includes("/promo off") && adminSource.includes("هر ۲۴ ساعت")
+  ? ok("owner guide documents the opt-in daily group promotion and its controls")
+  : fail("owner guide must document /promo controls and the 24-hour limit");
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
