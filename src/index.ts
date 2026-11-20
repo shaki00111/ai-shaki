@@ -5602,7 +5602,7 @@ async function handleAdminAPI(request: Request, env: Env, url: URL, ctx?: Execut
     if ((provider !== "gemini" && provider !== "groq" && provider !== "wusrouter") || typeof body.enabled !== "boolean") return json({ok:false,error:"invalid_provider_setting"},400);
     try {
       const providers = await setAIProviderEnabled(env, provider, body.enabled);
-      return json({ok:true,providers,configured:{gemini:cfg.GEMINI_KEYS.length>0,wusrouter:Boolean(env.WUSROUTER_API_KEY?.trim())}});
+      return json({ok:true,providers,configured:{gemini:cfg.GEMINI_KEYS.length>0,groq:groqKeysFromEnv(env as unknown as Record<string, unknown>).length>0,wusrouter:Boolean(env.WUSROUTER_API_KEY?.trim())}});
     } catch (e) { return json({ok:false,error:e instanceof Error?e.message:"provider_update_failed"},400); }
   }
   if (request.method === "GET" && path === "business") {

@@ -55,3 +55,11 @@ test("WusRouter fallback selects only model IDs advertised to the current key", 
   );
   assert.deepEqual(getWusRouterModelCandidates({ data: [] }, "missing-model"), []);
 });
+
+test("provider settings POST response keeps Groq credential visibility consistent with GET", async () => {
+  const source = await import("node:fs").then(({ readFileSync }) => readFileSync(new URL("../src/index.ts", import.meta.url), "utf8"));
+  const getRoute = source.slice(source.indexOf('request.method === "GET" && path === "providers"'), source.indexOf('request.method === "POST" && path === "providers"'));
+  const postRoute = source.slice(source.indexOf('request.method === "POST" && path === "providers"'), source.indexOf('request.method === "GET" && path === "business"'));
+  assert.match(getRoute, /groq:groqKeysFromEnv\(env as unknown as Record<string, unknown>\)\.length>0/);
+  assert.match(postRoute, /groq:groqKeysFromEnv\(env as unknown as Record<string, unknown>\)\.length>0/);
+});
