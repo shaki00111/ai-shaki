@@ -82,7 +82,7 @@ export async function awardActivityXp(db:GroupStatsDB,chatId:number,userId:numbe
       AND COALESCE((SELECT SUM(CAST(value_text AS INTEGER)) FROM kv_store
         WHERE key>=? AND key<? AND created_at>=? AND created_at<?),0) + ? <= ?
     ON CONFLICT(key) DO NOTHING`)
-    .bind(key,String(amount),seconds,key,earnPrefix,earnPrefix+"\\uffff",dayStart,dayEnd,amount,XP_DAILY_CAP).run();
+    .bind(key,String(amount),seconds,key,earnPrefix,earnPrefix+"\uffff",dayStart,dayEnd,amount,XP_DAILY_CAP).run();
   const xp=await getGroupPlayerScore(db,chatId,userId);
   return {awarded:Number(result.meta?.changes??0)>0,amount:Number(result.meta?.changes??0)>0?amount:0,xp,...levelForXp(xp)};
 }
@@ -103,23 +103,23 @@ export async function purchaseXpItem(db:GroupStatsDB,chatId:number,userId:number
   if(!Number.isFinite(now))throw new Error("Invalid timestamp");
   const purchase=safePart(purchaseId,"purchase id",60);
   const prefix=ledgerPrefix(chatId,userId);
-  const key=prefix+`buy-${item.id}-${purchase}`;
-  const itemPrefix=prefix+`buy-${item.id}-`;
+  const key=prefix+`buy-${item.id}--${purchase}`;
+  const itemPrefix=prefix+`buy-${item.id}--`;
   const result=await db.prepare(`INSERT INTO kv_store (key,value_text,value_blob,expires_at,created_at)
     SELECT ?, ?, NULL, NULL, ?
     WHERE COALESCE((SELECT SUM(CAST(value_text AS INTEGER)) FROM kv_store WHERE key>=? AND key<?),0) >= ?
       AND (? = 1 OR NOT EXISTS (SELECT 1 FROM kv_store WHERE key>=? AND key<?))
     ON CONFLICT(key) DO NOTHING`)
-    .bind(key,String(-item.price),Math.floor(now/1000),prefix,prefix+"\\uffff",item.price,item.stackable?1:0,itemPrefix,itemPrefix+"\\uffff").run();
+    .bind(key,String(-item.price),Math.floor(now/1000),prefix,prefix+"\uffff",item.price,item.stackable?1:0,itemPrefix,itemPrefix+"\uffff").run();
   const xp=await getGroupPlayerScore(db,chatId,userId);
   return {purchased:Number(result.meta?.changes??0)>0,item,xp,...levelForXp(xp)};
 }
 export async function getXpInventory(db:GroupStatsDB,chatId:number,userId:number):Promise<XpInventoryItem[]>{
   const prefix=ledgerPrefix(chatId,userId);
-  const result=await db.prepare("SELECT key FROM kv_store WHERE key>=? AND key<?").bind(prefix,prefix+"\\uffff").all<{key:string}>();
+  const result=await db.prepare("SELECT key FROM kv_store WHERE key>=? AND key<?").bind(prefix,prefix+"\uffff").all<{key:string}>();
   const counts=new Map<string,number>();
   for(const row of result.results??[]){
-    const match=/^buy-([a-z0-9_-]+)-[a-zA-Z0-9_-]+$/.exec(row.key.slice(prefix.length));
+    const match=/^buy-([a-z0-9_-]+)--[a-zA-Z0-9_-]+$/.exec(row.key.slice(prefix.length));
     if(match)counts.set(match[1],(counts.get(match[1])??0)+1);
   }
   return [...counts].map(([itemId,quantity])=>({itemId,quantity,item:XP_SHOP_ITEMS.find(x=>x.id===itemId)!})).filter(x=>x.item).sort((a,b)=>a.item.category.localeCompare(b.item.category)||a.item.price-b.item.price);
