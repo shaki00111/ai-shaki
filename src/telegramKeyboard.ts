@@ -122,7 +122,7 @@ function mainPanelText(firstName?: string): string {
 async function sendPanel(call: TelegramCall, chatId: number, firstName?: string, privateChat = true): Promise<void> {
   await call("sendMessage", {
     chat_id: chatId,
-    text: mainPanelText(firstName),
+    text: privateChat ? mainPanelText(firstName) : "پنل گروه همان پنل شیشه‌ای قبلی Mini App است؛ برای استفاده از دکمه‌های شیشه‌ای گروه، پنل گروه را از Mini App باز کنید.",
     reply_markup: privateChat ? replyKeyboard() : { remove_keyboard: true },
   });
 }
