@@ -3420,10 +3420,12 @@ header.topbar{background:linear-gradient(110deg,rgba(9,5,24,.97),rgba(13,8,35,.9
 
             function markHasMessages() { if (hasMessages) return;
                 hasMessages = true;
+                document.body.classList.add("shaki-chat-active");
                 hero.style.display = "none"; }
 
             function clearChatUI() { chatScroll.querySelectorAll(".row").forEach(r => r.remove());
                 hasMessages = false;
+                document.body.classList.remove("shaki-chat-active");
                 hero.style.display = "flex";
                 scrollFab.classList.remove("show"); }
 
@@ -4147,6 +4149,38 @@ document.addEventListener("shaki:companion-sad",()=>{c.style.filter="saturate(.4
 document.addEventListener("shaki:companion-thinking",()=>{c.classList.add("shaki-think");setTimeout(()=>c.classList.remove("shaki-think"),1600);});
 c.classList.add("shaki-blink");setTimeout(()=>c.classList.remove("shaki-blink"),180);
 })();
+</script>
+<style id="shaki-reference-user-dock-style">
+#hero>h1,#hero>p{display:none!important}
+#shakiUserDock{position:fixed;z-index:80;left:9px;right:9px;bottom:max(6px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:6px;border:1px solid rgba(155,103,255,.38);border-radius:18px;background:rgba(7,4,23,.96);backdrop-filter:blur(22px);box-shadow:0 8px 28px rgba(0,0,0,.48),0 0 22px rgba(105,40,255,.16)}
+#shakiUserDock button{min-width:0;min-height:43px;border:1px solid transparent;border-radius:12px;background:transparent;color:#b9abd9;font-size:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:3px}
+#shakiUserDock button i{font-style:normal;font-size:17px;line-height:1.1;color:#a9a0ff}
+#shakiUserDock button.active{background:linear-gradient(135deg,rgba(126,36,236,.52),rgba(35,87,226,.36));border-color:rgba(166,117,255,.42);color:#fff;box-shadow:0 0 13px rgba(130,45,255,.25)}
+#composerWrap{padding-bottom:calc(54px + env(safe-area-inset-bottom))!important}
+body.shaki-chat-active #shakiUserDock{display:none}
+body.shaki-chat-active #composerWrap{padding-bottom:var(--safe-bottom)!important}
+@media(min-width:700px){#shakiUserDock{left:50%;right:auto;transform:translateX(-50%);width:min(480px,calc(100% - 24px))}}
+</style>
+<nav id="shakiUserDock" aria-label="ناوبری اصلی">
+<button type="button" data-shaki-dock="home" class="active"><i>⌂</i>خانه</button>
+<button type="button" data-shaki-dock="ai"><i>▥</i>AI</button>
+<button type="button" data-shaki-dock="tools"><i>✦</i>ابزارها</button>
+<button type="button" data-shaki-dock="vip"><i>♛</i>هدایا</button>
+<button type="button" data-shaki-dock="account"><i>♙</i>حساب</button>
+</nav>
+<script id="shaki-reference-user-dock-actions">
+document.addEventListener("DOMContentLoaded",function(){
+ const dock=document.getElementById("shakiUserDock");if(!dock)return;
+ dock.addEventListener("click",e=>{const b=e.target.closest("button[data-shaki-dock]");if(!b)return;
+ dock.querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+ const action=b.dataset.shakiDock;
+ if(action==="home"){document.body.classList.remove("shaki-chat-active");const h=document.getElementById("hero");if(h)h.style.display="flex";const sc=document.getElementById("chatScroll");if(sc)sc.scrollTo({top:0,behavior:"smooth"});}
+ if(action==="ai"){const input=document.querySelector("#composerBar textarea,#composerBar input,textarea");if(input){document.body.classList.add("shaki-chat-active");input.focus();}}
+ if(action==="tools"){document.body.classList.add("shaki-chat-active");const plus=document.getElementById("plusBtn");if(plus)plus.click();}
+ if(action==="vip"){const status=document.getElementById("statusPill");if(status)status.click();}
+ if(action==="account"){const menu=document.getElementById("menuBtn");if(menu)menu.click();}
+ });
+});
 </script>
 </body>
 </html>
