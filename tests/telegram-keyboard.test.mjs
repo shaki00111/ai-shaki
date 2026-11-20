@@ -134,3 +134,37 @@ test("RPS callbacks are bound to the user who opened the game", async () => {
   assert.ok(calls.some(call => call.method === "answerCallbackQuery" && /شخص دیگری/.test(call.params.text)));
   assert.equal(calls.some(call => call.method === "editMessageText"), false);
 });
+
+
+test("joining AI SHAKI sends a Persian group usage guide and keyboard", async () => {
+  const calls = [];
+  const handled = await handleTelegramKeyboardUpdate({
+    message: {
+      message_id: 81,
+      chat: { id: -100987, type: "supergroup", title: "گروه آزمایشی" },
+      new_chat_members: [{ id: 123456, is_bot: true, first_name: "AI SHAKI", username: "AI_SHAKI_BOT" }],
+    },
+  }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
+  assert.equal(handled, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, "sendMessage");
+  assert.equal(calls[0].params.chat_id, -100987);
+  assert.match(calls[0].params.text, /AI SHAKI به گروه/);
+  assert.match(calls[0].params.text, /\/panel/);
+  assert.match(calls[0].params.text, /\/leaderboard/);
+  assert.match(calls[0].params.text, /\/poll/);
+  assert.ok(calls[0].params.reply_markup.keyboard.flat().some(button => button.text === "🎮 بازی‌ها"));
+});
+
+test("adding an ordinary member does not trigger the bot onboarding guide", async () => {
+  const calls = [];
+  const handled = await handleTelegramKeyboardUpdate({
+    message: {
+      message_id: 82,
+      chat: { id: -100987, type: "supergroup" },
+      new_chat_members: [{ id: 777, is_bot: false, first_name: "عضو جدید" }],
+    },
+  }, { TOKEN: "test" }, async (method, params) => { calls.push({ method, params }); return {}; });
+  assert.equal(handled, false);
+  assert.equal(calls.length, 0);
+});
