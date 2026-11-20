@@ -1,12 +1,13 @@
 import app from "./index";
-import type { ShakiTelegramEnv } from "./telegramKeyboard";
 import {
   classifyLegacyKeyboardUpdate,
   removeLegacyReplyKeyboard,
 } from "./legacyKeyboardGuard";
 
+type WorkerEnv = { TOKEN?: string; WEBHOOK_SECRET?: string };
+
 type ExistingWorker = {
-  fetch(request: Request, env: ShakiTelegramEnv, ctx: ExecutionContext): Promise<Response>;
+  fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response>;
   scheduled?: (controller: ScheduledController, env: ShakiTelegramEnv, ctx: ExecutionContext) => void | Promise<void>;
 };
 
