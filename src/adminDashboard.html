@@ -3906,13 +3906,18 @@ document.addEventListener("DOMContentLoaded",function(){
 });
 </script>
 
-<style id="shaki-companion-motion-polish">
-#shaki-companion-motion-polish{display:none!important;pointer-events:none!important}
-@media(prefers-reduced-motion:reduce){#shaki-companion-motion-polish{animation:none!important;transition:none!important}}
+
+
+<style id="shaki-emergency-layout-recovery">
+html,body{width:100%;min-height:100%;height:100%;overflow:hidden!important}
+body{display:flex!important;flex-direction:column!important;overscroll-behavior-y:auto!important}
+#app{display:flex!important;flex:1 1 auto!important;min-height:0!important;height:100%!important;overflow:hidden!important;flex-direction:column!important}
+.body{display:flex!important;flex:1 1 auto!important;min-height:0!important;height:auto!important;overflow:hidden!important}
+.main{display:block!important;flex:1 1 auto!important;min-height:0!important;height:auto!important;overflow-x:hidden!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:contain!important;touch-action:pan-y!important;padding-bottom:calc(100px + env(safe-area-inset-bottom,0px))!important}
+#mobileQuickNav{display:grid!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;z-index:999!important;bottom:0!important;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))!important}
+#shakiOwnerBottomNav{display:none!important}
+@media(min-width:901px){#mobileQuickNav{display:none!important}.main{padding-bottom:30px!important}}
 </style>
-<div id="shaki-companion-motion-polish" aria-hidden="true"></div>
-<script id="shaki-companion-motion-polish-script">
-(()=>{const c=document.getElementById("shaki-companion-motion-polish");if(!c)return;c.setAttribute("aria-hidden","true");const reduced=window.matchMedia&&window.matchMedia("(prefers-reduced-motion:reduce)").matches;if(reduced)return;let last=0;document.addEventListener("pointermove",e=>{if(!e.isPrimary)return;const now=Date.now();if(now-last<70)return;last=now;c.dataset.pointer=e.clientX>innerWidth/2?"right":"left";},{passive:true});document.addEventListener("focusin",()=>{c.classList.add("shaki-curious");});document.addEventListener("focusout",()=>{c.classList.remove("shaki-curious");});document.addEventListener("shaki:companion-sad",()=>{c.classList.add("shaki-sad");});document.addEventListener("shaki:companion-thinking",()=>{c.classList.add("shaki-think");setTimeout(()=>c.classList.remove("shaki-think"),1600);});c.classList.add("shaki-blink");})();
-</script>
+
 </body>
 </html>
