@@ -3,7 +3,7 @@ export type LegacyKeyboardDecision = "none" | "clear" | "reopen" | "close";
 export type LegacyKeyboardUpdate = {
   message?: {
     text?: string;
-    chat?: { id?: number };
+    chat?: { id?: number; type?: string };
   };
   callback_query?: {
     data?: string;
