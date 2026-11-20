@@ -21,7 +21,7 @@ import { geminiErrorWithHttpStatus, geminiStreamError } from "./geminiErrors";
 import { mergeGeminiKeys, hasGeminiKeyAfterUpdate } from "./geminiKeyring";
 import { persistCooldown, readCooldowns, migrateLegacyCooldowns, clearCooldowns } from "./keyCooldownStore";
 import { dailyChallengeText } from "./dailyChallenge";
-import { isTelegramMemberPresent } from "./groupOnboarding";
+import { isTelegramMemberPresent, shouldSendGroupOnboarding } from "./groupOnboarding";
 import { parsePollDraft, sendAnonymousPoll } from "./polls";
 import { creativeImagePrompt, type CreativeImageKind } from "./creativeImages";
 import { quoteCardSvg } from "./quoteCard";
@@ -27569,13 +27569,13 @@ async function dispatchUpdate(update: TgUpdate, env: Env): Promise<void> {
     if(update.my_chat_member){
       const {chat,new_chat_member:member}=update.my_chat_member;
       const oldMember=update.my_chat_member.old_chat_member;
-      const wasPresent=isTelegramMemberPresent(oldMember);
+      const shouldWelcome=shouldSendGroupOnboarding(oldMember,member);
       const present=isTelegramMemberPresent(member);
       if(present&&member.can_send_messages!==false){
         await clearDeliveryFailure(env.DB,chat.id);
         if(chat.type!=="private"){
           await saveGroupInfo(chat,env);
-          if(!wasPresent){
+          if(shouldWelcome){
             const welcome=
               "🎉 <b>AI SHAKI با موفقیت به گروه اضافه شد!</b>\n\n"+
               "💬 <b>شروع گفتگو:</b> شاکی را با نام SHAKI صدا بزن، ربات را منشن کن یا روی یکی از پیام‌هایش ریپلای بزن.\n\n"+

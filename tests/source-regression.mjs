@@ -472,8 +472,8 @@ const memberHandlerStart=indexSource.indexOf("if(update.my_chat_member)");
 const memberHandlerEnd=indexSource.indexOf("if (update.callback_query)",memberHandlerStart);
 const memberHandler=memberHandlerStart>=0&&memberHandlerEnd>memberHandlerStart?indexSource.slice(memberHandlerStart,memberHandlerEnd):"";
 memberHandler.includes("old_chat_member") &&
-memberHandler.includes("isTelegramMemberPresent(oldMember)") &&
-memberHandler.includes("if(!wasPresent)") &&
+memberHandler.includes("shouldSendGroupOnboarding(oldMember,member)") &&
+memberHandler.includes("if(shouldWelcome)") &&
 memberHandler.includes("AI SHAKI با موفقیت به گروه اضافه شد") &&
 memberHandler.includes("/help") &&
 memberHandler.includes("/img توضیح تصویر")
