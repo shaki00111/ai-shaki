@@ -119,11 +119,11 @@ function mainPanelText(firstName?: string): string {
   return `⚡ پنل کیبوردی AI SHAKI\n\n${firstName ? `${firstName}، ` : ""}از دکمه‌های پایین برای دسترسی سریع استفاده کن.\nبازی‌ها و ابزارها از همین منو اجرا می‌شن.`;
 }
 
-async function sendPanel(call: TelegramCall, chatId: number, firstName?: string): Promise<void> {
+async function sendPanel(call: TelegramCall, chatId: number, firstName?: string, privateChat = true): Promise<void> {
   await call("sendMessage", {
     chat_id: chatId,
-    text: mainPanelText(firstName),
-    reply_markup: replyKeyboard(),
+    text: privateChat ? mainPanelText(firstName) : "پنل گروه همان پنل شیشه‌ای قبلی Mini App است؛ برای استفاده از دکمه‌های شیشه‌ای گروه، پنل گروه را از Mini App باز کنید.",
+    reply_markup: privateChat ? replyKeyboard() : { remove_keyboard: true },
   });
 }
 
@@ -135,8 +135,8 @@ async function sendGroupOnboarding(call: TelegramCall, chatId: number, title?: s
 
 🤖 برای شروع، هر وقت خواستید ربات را صدا بزنید یا از دستورهای زیر استفاده کنید:
 
-• /panel — نمایش پنل کیبوردی
-• /panel و سپس 🎮 بازی‌ها — کوئیز، سنگ‌کاغذقیچی، حدس کلمه و جرئت یا حقیقت
+• بازی‌ها: کوئیز روزانه، سنگ‌کاغذقیچی، حدس کلمه و جرئت یا حقیقت
+• پنل گروه همان پنل شیشه‌ای قبلی Mini App است؛ گروه کیبورد جداگانه ندارد
 • /leaderboard — جدول امتیازهای همین گروه
 • /poll سؤال | گزینه ۱ | گزینه ۲ — ساخت نظرسنجی
 
@@ -144,16 +144,16 @@ async function sendGroupOnboarding(call: TelegramCall, chatId: number, title?: s
 ➕ برای افزودن ربات به گروه دیگر، از دکمه «➕ افزودن به گروه» در پنل استفاده کنید.
 
 💡 نکته: برای عملکرد کامل قابلیت‌های مدیریتی، دسترسی‌های لازم را از تنظیمات مدیران گروه به ربات بدهید. خوش بگذره! 💜`,
-    reply_markup: replyKeyboard(),
+    reply_markup: { remove_keyboard: true },
     disable_web_page_preview: true,
   });
 }
 
-async function sendGameMenu(call: TelegramCall, chatId: number): Promise<void> {
+async function sendGameMenu(call: TelegramCall, chatId: number, privateChat = true): Promise<void> {
   await call("sendMessage", {
     chat_id: chatId,
     text: "🎮 بخش بازی‌ها\nیکی از بازی‌های زیر رو انتخاب کن:",
-    reply_markup: replyKeyboard(GAME_KEYBOARD),
+    reply_markup: privateChat ? replyKeyboard(GAME_KEYBOARD) : { remove_keyboard: true },
   });
 }
 
@@ -188,8 +188,8 @@ async function showGroupAdminPanel(call: TelegramCall, chatId: number, userId: n
   }
   await call("sendMessage", {
     chat_id: chatId,
-    text: "👥 مدیریت گروه\n\n• ساخت نظرسنجی: /poll سؤال | گزینه ۱ | گزینه ۲\n• جدول امتیازها: /leaderboard\n• پنل کیبوردی: /panel\n\nابزارهای مدیریتی فقط با دسترسی مدیر گروه اجرا می‌شن.",
-    reply_markup: replyKeyboard(),
+    text: "👥 مدیریت گروه\n\n• ساخت نظرسنجی: /poll سؤال | گزینه ۱ | گزینه ۲\n• جدول امتیازها: /leaderboard\n• پنل گروه همان پنل شیشه‌ای قبلی Mini App است؛ اینجا کیبوردی نمایش داده نمی‌شود.\n\nابزارهای مدیریتی فقط با دسترسی مدیر گروه اجرا می‌شن.",
+    reply_markup: { remove_keyboard: true },
   });
 }
 
@@ -331,16 +331,16 @@ export async function handleTelegramKeyboardUpdate(
   }
 
   if (isKeyboardCommand(text)) {
-    await sendPanel(telegram, chatId, message.from?.first_name);
+    await sendPanel(telegram, chatId, message.from?.first_name, message.chat.type === "private");
     return true;
   }
 
   switch (text) {
     case "🎮 بازی‌ها":
-      await sendGameMenu(telegram, chatId);
+      await sendGameMenu(telegram, chatId, message.chat.type === "private");
       return true;
     case "⬅️ برگشت به پنل":
-      await sendPanel(telegram, chatId, message.from?.first_name);
+      await sendPanel(telegram, chatId, message.from?.first_name, message.chat.type === "private");
       return true;
     case "🤖 هوش مصنوعی":
       await telegram("sendMessage", { chat_id: chatId, text: "🤖 همین‌جا پیام متنی‌ات رو بفرست تا با هوش مصنوعی شاکی گفتگو کنی. برای ابزارهای تخصصی هم از دستورهای ربات استفاده کن." });
