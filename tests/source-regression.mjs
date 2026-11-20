@@ -466,6 +466,28 @@ indexSource.includes('BOT_INFO?.username')
   ? ok("private start/home menus expose Telegram's native add-to-group picker only when the bot username is known")
   : fail("private menus must expose a localized Telegram startgroup deep link when the bot username is available");
 
+
+console.log("\\n[19] Group onboarding after every bot addition");
+const memberHandlerStart=indexSource.indexOf("if(update.my_chat_member)");
+const memberHandlerEnd=indexSource.indexOf("if (update.callback_query)",memberHandlerStart);
+const memberHandler=memberHandlerStart>=0&&memberHandlerEnd>memberHandlerStart?indexSource.slice(memberHandlerStart,memberHandlerEnd):"";
+memberHandler.includes("old_chat_member") &&
+memberHandler.includes("if(!wasPresent)") &&
+memberHandler.includes("AI SHAKI با موفقیت به گروه اضافه شد") &&
+memberHandler.includes("/help") &&
+memberHandler.includes("/img توضیح تصویر")
+  ? ok("bot addition sends one Persian onboarding guide on the membership transition, including group usage commands")
+  : fail("every group addition must send the full onboarding guide exactly on the not-member to member transition");
+const groupHelpStart=indexSource.indexOf("const groupHelp =");
+const groupHelpEnd=indexSource.indexOf("const kb:",groupHelpStart);
+const groupHelpSource=groupHelpStart>=0&&groupHelpEnd>groupHelpStart?indexSource.slice(groupHelpStart,groupHelpEnd):"";
+groupHelpSource.includes("/img [توضیح]") &&
+groupHelpSource.includes("/tts [متن]") &&
+groupHelpSource.includes("/summarize") &&
+groupHelpSource.includes("/help")
+  ? ok("group /help documents the main AI and media commands")
+  : fail("group /help must document the image, voice, web summary and group summary commands");
+
 console.log("\\n[18] Consent-based daily group promotion");
 indexSource.includes('case "/promo"') &&
 indexSource.includes("setGroupPromo(chat.id, true") &&

@@ -3406,7 +3406,7 @@ interface TgChosenInlineResult {
 interface TgUpdate {
   update_id: number;
   message?: TgMessage;
-  my_chat_member?: { chat:TgChat; new_chat_member:{status:string;can_send_messages?:boolean;is_member?:boolean} };
+  my_chat_member?: { chat:TgChat; old_chat_member?:{status:string;is_member?:boolean}; new_chat_member:{status:string;can_send_messages?:boolean;is_member?:boolean} };
   callback_query?: TgCallbackQuery;
   inline_query?: TgInlineQuery;
   chosen_inline_result?: TgChosenInlineResult;
@@ -21406,19 +21406,6 @@ async function handleStart(msg: TgMessage, env: Env): Promise<void> {
 
   const session = await getOrCreateSession(chat, from, env);
   const isGroup = chat.type !== "private";
-  if (isGroup && /(?:^|\s)add_shaki(?:\s|$)/i.test(msg.text ?? "")) {
-    const lang = session.language;
-    const welcome = lang === "en"
-      ? "🎉 <b>AI SHAKI is ready in this group!</b>\nMention SHAKI or reply to one of her messages to chat. Group admins can enable an optional daily introduction with <code>/promo on</code> and disable it anytime with <code>/promo off</code>."
-      : lang === "ar"
-        ? "🎉 <b>تمت إضافة AI SHAKI إلى المجموعة!</b>\nاذكر SHAKI أو ردّ على إحدى رسائلها لبدء المحادثة. يمكن للمديرين تفعيل التعريف اليومي عبر <code>/promo on</code> وإيقافه عبر <code>/promo off</code>."
-        : "🎉 <b>AI SHAKI به گروه اضافه شد!</b>\nبرای گفتگو شاکی رو منشن کن یا روی یکی از پیام‌هاش ریپلای بزن. مدیران گروه می‌تونن معرفی روزانه رو با <code>/promo on</code> فعال و با <code>/promo off</code> خاموش کنن.";
-    await sendMessage(chat.id, welcome, {
-      reply_to_message_id: msg.message_id, parse_mode: "HTML",
-      reply_markup: JSON.stringify({ inline_keyboard: BOT_INFO?.username ? [[urlBtn("🤖 شروع خصوصی AI SHAKI", `https://t.me/${BOT_INFO.username}?start=group_promo`)]] : [] }),
-    });
-    return;
-  }
   // GROUP AVAILABILITY: groups are enabled by default.
   // If an administrator explicitly disables replies, /start only opens the
   // settings surface; it never silently re-enables a disabled group.
@@ -21555,6 +21542,10 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
         `• \`/start\` — منوی شخصی شما در این گروه\n` +
         `• \`/new\` — پاک کردن حافظه‌ی گفتگوی شما در این گروه\n` +
         `• \`/challenge\` — چالش روزانه شاکی\n` +
+        `• \`/img [توضیح]\` — درخواست ساخت تصویر با هوش مصنوعی\\n` +
+        `• \`/tts [متن]\` — تبدیل متن به ویس\\n` +
+        `• \`/read [لینک]\` — خلاصه صفحه وب؛ \`/ocr\` — استخراج متن از عکس\\n` +
+        `• \`/summarize\` — خلاصه گفتگوی اخیر گروه\\n` +
         `• \`/promo on|off|status\` — معرفی روزانه اختیاری (فقط مدیران)\n` +
         `• \`/quiz\` — مسابقه روزانه گروهی (شروع فقط برای مدیران)\n` +
         `• \`/poll سؤال | گزینه ۱ | گزینه ۲\` — نظرسنجی ناشناس (فقط مدیران)\n` +
@@ -27575,9 +27566,31 @@ async function dispatchUpdate(update: TgUpdate, env: Env): Promise<void> {
 
     if(update.my_chat_member){
       const {chat,new_chat_member:member}=update.my_chat_member;
+      const oldMember=update.my_chat_member.old_chat_member;
+      const wasPresent=Boolean(oldMember&&(["member","administrator","creator"].includes(oldMember.status)||(oldMember.status==="restricted"&&oldMember.is_member!==false)));
       const present=["member","administrator","creator"].includes(member.status)||(member.status==="restricted"&&member.is_member!==false);
-      if(present&&member.can_send_messages!==false){await clearDeliveryFailure(env.DB,chat.id);if(chat.type!=="private")await saveGroupInfo(chat,env);}
-      else await noteDeliveryFailure(env.DB,chat.id,present?"not enough rights to send text messages":"bot was kicked");
+      if(present&&member.can_send_messages!==false){
+        await clearDeliveryFailure(env.DB,chat.id);
+        if(chat.type!=="private"){
+          await saveGroupInfo(chat,env);
+          if(!wasPresent){
+            const welcome=
+              "🎉 <b>AI SHAKI با موفقیت به گروه اضافه شد!</b>\n\n"+
+              "💬 <b>شروع گفتگو:</b> شاکی را با نام SHAKI صدا بزن، ربات را منشن کن یا روی یکی از پیام‌هایش ریپلای بزن.\n\n"+
+              "📖 <b>راهنمای کامل:</b> دستور <code>/help</code> را بفرست.\n"+
+              "👤 <code>/start</code> — پنل شخصی هر عضو؛ تنظیمات و شخصیت هر نفر جداست.\n"+
+              "🆕 <code>/new</code> — پاک کردن حافظه گفتگوی خودت، نه بقیه اعضا.\n"+
+              "🖼 <code>/img توضیح تصویر</code> — درخواست ساخت تصویر.\n"+
+              "🎙 <code>/tts متن</code> — تبدیل متن به ویس.\n"+
+              "📄 <code>/read لینک</code> — خلاصه صفحه وب؛ <code>/ocr</code> — استخراج متن از عکس.\n"+
+              "⚡ <code>/challenge</code> — چالش روزانه؛ <code>/summarize</code> — خلاصه گفتگوی اخیر.\n"+
+              "🧩 <code>/quiz</code> و <code>/poll</code> — ابزارهای تعاملی گروه (شروع نظرسنجی/مسابقه با مدیران).\n"+
+              "📣 <code>/promo on|off|status</code> — معرفی روزانه اختیاری، فقط با اجازه مدیران.\n\n"+
+              "🔐 شخصیت و حافظه هر عضو مستقل است؛ تنظیمات شخصی یک نفر روی بقیه اثر نمی‌گذارد.";
+            await sendMessage(chat.id,welcome,{parse_mode:"HTML"}).catch(e=>logger.warn("[group-onboarding] welcome failed",e));
+          }
+        }
+      }else await noteDeliveryFailure(env.DB,chat.id,present?"not enough rights to send text messages":"bot was kicked");
       return;
     }
     if (update.callback_query) {
