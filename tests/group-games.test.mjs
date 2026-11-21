@@ -124,3 +124,16 @@ test("XP boost and hint items modify the active game without changing the answer
  assert.equal(applyGamePower(quiz,"power_xp_boost").applied,true);
  assert.equal(quiz.xpBoost,true);
 });
+
+test("truth-pass and rematch consumables have real effects",()=>{
+ const truth=createGameSession(-100,77,"truth");
+ assert.equal(applyGamePower(truth,"fun_truth_pass").applied,true);
+ const skipped=playGame(truth,"truth");
+ assert.match(skipped.text,/از این نوبت گذشتی/);
+ const rematch=createGameSession(-100,77,"rps");
+ const oldId=rematch.id;
+ const restarted=applyGamePower(rematch,"fun_rematch");
+ assert.equal(restarted.applied,true);
+ assert.notEqual(rematch.id,oldId);
+ assert.equal(rematch.status,"active");
+});
