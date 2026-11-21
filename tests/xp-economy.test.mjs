@@ -106,3 +106,14 @@ test("consumable item use is recorded once and requires a prior purchase",async(
  assert.match(db.calls[0].sql,/ON CONFLICT\(key\) DO NOTHING/);
  assert.equal(db.calls[0].values[0],"shaki:group-xp:v1:-100:event:7:use-power_hint--callback-1");
 });
+
+test("XP mission and inventory SQL use complete Unicode key-range boundaries",async()=>{
+ const prefix="shaki:group-xp:v1:-100:event:7:";
+ const db=fakeDb({rows:[]});
+ await getXpMissions(db,-100,7,Date.UTC(2026,10,21,12));
+ assert.equal(db.calls[0].values[1],prefix+"earn-\\uffff");
+ const useDb=fakeDb({changes:1});
+ await consumeXpItem(useDb,-100,7,"power_hint","use-2");
+ assert.equal(useDb.calls[0].values[3],prefix+"buy-power_hint--\\uffff");
+ assert.equal(useDb.calls[0].values[5],prefix+"use-power_hint--\\uffff");
+});
