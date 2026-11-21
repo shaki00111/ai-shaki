@@ -36,8 +36,8 @@ async function showXpScreen(env:XpWorkerEnv,chatId:number,userId:number,messageI
   if(screen==="profile"){
     const p=await getXpProfile(db,chatId,userId);
     const owned=await getXpInventory(db,chatId,userId);
-    const titles=owned.filter(x=>x.item.category==="title").map(x=>x.item.name);
-    const badges=owned.filter(x=>x.item.category==="collectible").map(x=>x.item.name);
+    const titles=[...new Set(owned.filter(x=>x.item.category==="title").map(x=>x.item.name))];
+    const badges=[...new Set(owned.filter(x=>x.item.category==="collectible").map(x=>x.item.name))];
     text=(note?note+"\n\n":"")+"👤 پروفایل بازیکن\n\n⭐ موجودی XP: "+p.xp+"\n🏅 سطح: "+p.level+"\n📈 پیشرفت سطح: "+p.progress+"٪"+(titles.length?"\n👑 لقب‌ها: "+titles.join("، "):"")+(badges.length?"\n💎 افتخارات: "+badges.join("، "):"")+"\n\nبا بازی و مأموریت XP جمع کن و در فروشگاه خرجش کن.";
     rows=XP_HOME;
   }else if(screen==="shop"){
