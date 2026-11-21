@@ -1,6 +1,6 @@
 import { getGroupPlayerScore, getGroupLeaderboard, type GroupStatsDB, type GroupPlayerScore } from "./groupStats";
 
-export type XpReason = "participation" | "win" | "correct_answer" | "daily_login" | "mission" | "tournament";
+export type XpReason = "participation" | "win" | "correct_answer" | "boosted_participation" | "boosted_win" | "boosted_correct_answer" | "daily_login" | "mission" | "tournament";
 export type XpItemCategory = "title" | "power" | "fun" | "collectible" | "ticket";
 export interface XpShopItem {
   id: string; name: string; description: string; category: XpItemCategory;
@@ -10,7 +10,7 @@ export interface XpInventoryItem { itemId: string; quantity: number; item: XpSho
 
 export const XP_DAILY_CAP = 500;
 export const XP_REWARDS: Readonly<Record<XpReason, number>> = Object.freeze({
-  participation: 5, win: 30, correct_answer: 10, daily_login: 20, mission: 50, tournament: 100,
+  participation: 5, win: 30, correct_answer: 10, boosted_participation: 10, boosted_win: 60, boosted_correct_answer: 20, daily_login: 20, mission: 50, tournament: 100,
 });
 
 export const XP_SHOP_ITEMS: readonly XpShopItem[] = Object.freeze([
@@ -139,10 +139,28 @@ export async function getXpInventory(db:GroupStatsDB,chatId:number,userId:number
   const result=await db.prepare("SELECT key FROM kv_store WHERE key>=? AND key<?").bind(prefix,prefix+"\uffff").all<{key:string}>();
   const counts=new Map<string,number>();
   for(const row of result.results??[]){
-    const match=/^buy-([a-z0-9_-]+)--[a-zA-Z0-9_-]+$/.exec(row.key.slice(prefix.length));
-    if(match)counts.set(match[1],(counts.get(match[1])??0)+1);
+    const match=/^(buy|use)-([a-z0-9_-]+)--[a-zA-Z0-9_-]+$/.exec(row.key.slice(prefix.length));
+    if(match)counts.set(match[2],(counts.get(match[2])??0)+(match[1]==="buy"?1:-1));
   }
-  return [...counts].map(([itemId,quantity])=>({itemId,quantity,item:XP_SHOP_ITEMS.find(x=>x.id===itemId)!})).filter(x=>x.item).sort((a,b)=>a.item.category.localeCompare(b.item.category)||a.item.price-b.item.price);
+  return [...counts].map(([itemId,quantity])=>({itemId,quantity,item:XP_SHOP_ITEMS.find(x=>x.id===itemId)!})).filter(x=>x.item&&x.quantity>0).sort((a,b)=>a.item.category.localeCompare(b.item.category)||a.item.price-b.item.price);
+}
+
+export async function consumeXpItem(db:GroupStatsDB,chatId:number,userId:number,itemId:string,useId:string,now=Date.now()){
+  const item=XP_SHOP_ITEMS.find(x=>x.id===itemId);
+  if(!item||!item.stackable)throw new Error("This item cannot be consumed");
+  if(!Number.isFinite(now))throw new Error("Invalid timestamp");
+  const use=safePart(useId,"use id",60);
+  const prefix=ledgerPrefix(chatId,userId);
+  const buyPrefix=prefix+"buy-"+item.id+"--";
+  const usePrefix=prefix+"use-"+item.id+"--";
+  const key=usePrefix+use;
+  const result=await db.prepare(`INSERT INTO kv_store (key,value_text,value_blob,expires_at,created_at)
+    SELECT ?, "0", NULL, NULL, ?
+    WHERE (SELECT COUNT(*) FROM kv_store WHERE key>=? AND key<?) >
+      (SELECT COUNT(*) FROM kv_store WHERE key>=? AND key<?)
+    ON CONFLICT(key) DO NOTHING`)
+    .bind(key,Math.floor(now/1000),buyPrefix,buyPrefix+"\\uffff",usePrefix,usePrefix+"\\uffff").run();
+  return {used:Number(result.meta?.changes??0)>0,item};
 }
 export async function getXpLeaderboard(db:GroupStatsDB,chatId:number,limit=10):Promise<GroupPlayerScore[]>{
   return getGroupLeaderboard(db,chatId,limit);
