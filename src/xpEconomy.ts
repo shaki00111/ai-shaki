@@ -128,7 +128,7 @@ export async function claimMissionXp(db:GroupStatsDB,chatId:number,userId:number
       AND COALESCE((SELECT SUM(CAST(value_text AS INTEGER)) FROM kv_store
         WHERE key>=? AND key<? AND created_at>=? AND created_at<?),0) + ? <= ?
     ON CONFLICT(key) DO NOTHING`)
-    .bind(key,String(reward),Math.floor(now/1000),key,earnPrefix,earnPrefix+"\\uffff",dayStart,dayEnd,reward,XP_DAILY_CAP).run();
+    .bind(key,String(reward),Math.floor(now/1000),key,earnPrefix,earnPrefix+String.fromCharCode(65535),dayStart,dayEnd,reward,XP_DAILY_CAP).run();
   const xp=await getGroupPlayerScore(db,chatId,userId);
   const awarded=Number(result.meta?.changes??0)>0;
   return {awarded,amount:awarded?reward:0,xp,...levelForXp(xp)};
