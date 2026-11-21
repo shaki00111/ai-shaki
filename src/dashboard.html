@@ -4205,5 +4205,51 @@ body.shaki-chat-active #shakiUserDock{display:none!important}
 #composerWrap{flex:0 0 auto!important;position:relative!important;z-index:20!important}
 </style>
 
+<script id="shaki-companion-motion-runtime">
+(() => {
+  if (window.__shakiCompanionMotionReady) return;
+  window.__shakiCompanionMotionReady = true;
+  const mount = () => {
+    if (!document.body || document.getElementById("shaki-companion")) return;
+    const companion = document.createElement("div");
+    companion.id = "shaki-companion";
+    companion.setAttribute("aria-hidden","true");
+    companion.innerHTML = '<div class="bot shaki-blink"><span class="bow"></span><div class="face"><i class="eye"></i><i class="eye"></i><span class="mouth"></span></div><span class="spark">✦</span><span class="bubble">✨</span></div>';
+    document.body.appendChild(companion);
+    const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+    let frame = 0;
+    document.addEventListener("pointermove", event => {
+      if (reduced || frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const x = Math.max(10, Math.min(window.innerWidth - 90, event.clientX - 38));
+        const y = Math.max(10, Math.min(window.innerHeight - 110, event.clientY - 46));
+        companion.style.left = x + "px";
+        companion.style.top = y + "px";
+        companion.style.bottom = "auto";
+        companion.classList.add("shaki-curious");
+      });
+    }, {passive:true});
+    document.addEventListener("focusin", () => {
+      companion.classList.remove("shaki-blink");
+      companion.classList.add("shaki-curious");
+    });
+    window.addEventListener("shaki:companion-sad", () => {
+      companion.classList.remove("happy","shaki-think");
+      companion.classList.add("sad");
+    });
+    window.addEventListener("shaki:companion-thinking", () => {
+      companion.classList.remove("sad","shaki-curious");
+      companion.classList.add("shaki-think");
+    });
+    window.addEventListener("shaki:companion-happy", () => {
+      companion.classList.remove("sad","shaki-think");
+      companion.classList.add("happy","shaki-blink");
+    });
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount, {once:true});
+  else mount();
+})();
+</script>
 </body>
 </html>
