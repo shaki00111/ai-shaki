@@ -47,7 +47,10 @@ async function showXpScreen(env:XpWorkerEnv,chatId:number,userId:number,messageI
     rows.push([{text:"⬅️ بازگشت به پروفایل",callback_data:"shaki_xp:profile"}]);
   }else if(screen==="category"&&category){
     const items=getXpShop(category).slice(0,8);
-    text="🛍️ "+(XP_CATEGORIES.find(c=>c.id===category)?.label??"فروشگاه")+"\n\nبرای خرید محصول انتخاب کن:";
+    const profile=await getXpProfile(db,chatId,userId);
+    text="🛍️ "+(XP_CATEGORIES.find(c=>c.id===category)?.label??"فروشگاه")+"\\n⭐ موجودی تو: "+profile.xp+" XP\\n\\n"+
+      items.map((item,index)=>(index+1)+". "+item.name+" — "+item.price+" XP\\n"+item.description).join("\\n\\n")+
+      "\\n\\nبرای خرید، دکمه محصول را بزن:";
     rows=items.map(item=>[{text:item.name+" · "+item.price+" XP",callback_data:"shaki_xp:buy:"+item.id}]);
     rows.push([{text:"⬅️ دسته‌ها",callback_data:"shaki_xp:shop"},{text:"👤 پروفایل",callback_data:"shaki_xp:profile"}]);
   }else if(screen==="inventory"){
