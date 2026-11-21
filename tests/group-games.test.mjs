@@ -19,7 +19,7 @@ function memoryDb(){
   }};
 }
 
-test("game menu offers seven text-first games with callback navigation",()=>{
+test("game menu offers ten text-first games with callback navigation",()=>{
   const menu=gameMenu();
   assert.equal(menu.rows.flat().length,10);
   assert.ok(menu.rows.flat().every(button=>button.callback_data.startsWith("shaki_game:")));
