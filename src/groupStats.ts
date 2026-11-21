@@ -61,5 +61,5 @@ export async function getGroupLeaderboard(db: GroupStatsDB, chatId: number, limi
     if (!Number.isSafeInteger(userId) || !Number.isSafeInteger(amount)) continue;
     scores.set(userId, (scores.get(userId) ?? 0) + amount);
   }
-  return [...scores].map(([userId,xp])=>({userId,xp})).sort((a,b)=>b.xp-a.xp || a.userId-b.userId).slice(0,safeLimit);
+  return [...scores].map(([userId,xp])=>({userId,xp:Math.max(0,xp)})).filter(player=>player.xp>0).sort((a,b)=>b.xp-a.xp || a.userId-b.userId).slice(0,safeLimit);
 }
