@@ -101,10 +101,10 @@ export async function getXpMissions(db:GroupStatsDB,chatId:number,userId:number,
   const prefix=ledgerPrefix(chatId,userId);
   const dayStart=Math.floor(now/DAY)*86400;
   const dayEnd=dayStart+86400;
-  const rows=await db.prepare("SELECT key FROM kv_store WHERE key>=? AND key<? AND created_at>=? AND created_at<?").bind(prefix+"earn-",prefix+"earn-\\uffff",dayStart,dayEnd).all<{key:string}>();
+  const rows=await db.prepare("SELECT key FROM kv_store WHERE key>=? AND key<? AND created_at>=? AND created_at<?").bind(prefix+"earn-",prefix+"earn-\uffff",dayStart,dayEnd).all<{key:string}>();
   const keys=(rows.results??[]).map(row=>row.key.slice(prefix.length));
   const date=new Date(now).toISOString().slice(0,10).replace(/-/g,"");
-  const claimed=await db.prepare("SELECT key FROM kv_store WHERE key>=? AND key<?").bind(prefix+"earn-mission-",prefix+"earn-mission-\\uffff").all<{key:string}>();
+  const claimed=await db.prepare("SELECT key FROM kv_store WHERE key>=? AND key<?").bind(prefix+"earn-mission-",prefix+"earn-mission-\uffff").all<{key:string}>();
   const claimedIds=new Set((claimed.results??[]).map(row=>row.key.slice((prefix+"earn-mission-").length)));
   return XP_MISSIONS.map(m=>{const progress=keys.filter(m.match).length;const isClaimed=claimedIds.has(m.id+"-"+date);return {id:m.id,title:m.title,description:m.description,progress:Math.min(progress,m.target),target:m.target,reward:m.reward,claimed:isClaimed,complete:progress>=m.target&&!isClaimed};});
 }
@@ -159,7 +159,7 @@ export async function consumeXpItem(db:GroupStatsDB,chatId:number,userId:number,
     WHERE (SELECT COUNT(*) FROM kv_store WHERE key>=? AND key<?) >
       (SELECT COUNT(*) FROM kv_store WHERE key>=? AND key<?)
     ON CONFLICT(key) DO NOTHING`)
-    .bind(key,Math.floor(now/1000),buyPrefix,buyPrefix+"\\uffff",usePrefix,usePrefix+"\\uffff").run();
+    .bind(key,Math.floor(now/1000),buyPrefix,buyPrefix+"\uffff",usePrefix,usePrefix+"\uffff").run();
   return {used:Number(result.meta?.changes??0)>0,item};
 }
 export async function getXpLeaderboard(db:GroupStatsDB,chatId:number,limit=10):Promise<GroupPlayerScore[]>{
