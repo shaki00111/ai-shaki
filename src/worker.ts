@@ -134,7 +134,7 @@ async function handleXpUpdate(update:TgUpdate,env:XpWorkerEnv):Promise<boolean>{
       await showXpScreen(env,chatId,userId,messageId,"inventory",undefined,notice);
     }else if(action==="category"&&parts[2]){
       await showXpScreen(env,chatId,userId,messageId,"category",parts[2] as XpItemCategory);
-    }else if(["shop","profile","inventory","rank"].includes(action)){
+    }else if(["shop","profile","inventory","rank","missions"].includes(action)){
       await showXpScreen(env,chatId,userId,messageId,action);
     }else{
       notice="این گزینه معتبر نیست.";
