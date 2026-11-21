@@ -102,7 +102,7 @@ test("power items apply hints, extra guesses, option removal and retry",()=>{
  const quiz=createGameSession(-100,77,"quiz");
  const removed=applyGamePower(quiz,"power_remove_option");
  assert.equal(removed.applied,true);
- assert.equal(removed.screen.rows.flat().length,2);
+ assert.equal(removed.screen.rows.flat().filter(button=>/:a[0-3]$/.test(button.callback_data)).length,2);
  const retry=createGameSession(-100,77,"number");
  retry.attempts=1;
  assert.equal(applyGamePower(retry,"power_retry").applied,true);
