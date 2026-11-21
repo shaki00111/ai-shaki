@@ -21547,6 +21547,10 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
         `• \`/start\` — منوی شخصی شما در این گروه\n` +
         `• \`/new\` — پاک کردن حافظه‌ی گفتگوی شما در این گروه\n` +
         `• \`/challenge\` — چالش روزانه شاکی\n` +
+        `• \\`/games\\` — بازی‌های گروهی و کسب XP\\n` +
+        `• \\`/xp\\` — پروفایل و امتیاز؛ \\`/shop\\` — فروشگاه XP\\n` +
+        `• \\`/rank\\` — رتبه‌بندی؛ \\`/inventory\\` — کوله‌پشتی\\n` +
+        `• \\`/daily\\` — پاداش روزانه؛ \\`/missions\\` — مأموریت‌ها\\n` +
         `• \`/img [توضیح]\` — ساخت تصویر (با تنظیم موتور تصویر در پنل مالک)\n` +
         `• \`/tts [متن]\` — تبدیل متن به ویس\n` +
         `• \`/read [لینک]\` — خلاصه صفحه وب؛ \`/ocr\` — استخراج متن از عکس\n` +
@@ -21562,6 +21566,10 @@ async function handleHelp(msg: TgMessage, env: Env, editId?: number): Promise<vo
         `• \`/start\` — Your personal menu in this group\n` +
         `• \`/new\` — Clear your own chat memory here\n` +
         `• \`/challenge\` — SHAKI's daily challenge\n` +
+        `• \\`/games\\` — group mini-games and XP\\n` +
+        `• \\`/xp\\` — profile and balance; \\`/shop\\` — XP store\\n` +
+        `• \\`/rank\\` — leaderboard; \\`/inventory\\` — your items\\n` +
+        `• \\`/daily\\` — daily reward; \\`/missions\\` — daily missions\\n` +
         `• \`/img [prompt]\` — generate an image (requires an image provider)\n` +
         `• \`/tts [text]\` — convert text to a voice message\n` +
         `• \`/read [URL]\` — summarize a web page; \`/ocr\` — extract text from an image\n` +
