@@ -193,7 +193,7 @@ export function playGame(state:GameSession,action:string):GameScreen {
     note=(action==="truth"?"🗣️ حقیقت: ":"🔥 جرئت: ")+pick(action==="truth"?TRUTHS:DARES);
     outcome="participation";
   }
-  if(outcome&&state.retryAvailable&&outcome!=="win"){state.retryAvailable=false;return {...renderGame(state,"🛟 کارت فرصت دوباره مصرف شد؛ یک بار دیگر امتحان کن.\n\n"+note),outcome:null,finished:false};}
+  if(outcome&&state.retryAvailable&&outcome!=="win"){state.retryAvailable=false;if(state.kind==="number")state.attempts=1;return {...renderGame(state,"🛟 کارت فرصت دوباره مصرف شد؛ یک بار دیگر امتحان کن.\n\n"+note),outcome:null,finished:false};}
   if(outcome){state.status="finished";return {text:note,rows:[[{text:"🎮 بازی دوباره",callback_data:"shaki_game:menu"}]],outcome,finished:true};}
   return renderGame(state,note);
 }
