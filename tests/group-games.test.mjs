@@ -110,6 +110,7 @@ test("power items apply hints, extra guesses, option removal and retry",()=>{
  const first=playGame(retry,String(wrong));
  assert.equal(first.outcome,null);
  assert.equal(retry.status,"active");
+ assert.equal(retry.attempts,1);
  assert.equal(playGame(retry,String(retry.secret)).outcome,"win");
 });
 
