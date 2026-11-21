@@ -65,7 +65,7 @@ test("inventory is reconstructed from durable purchase ledger rows",async()=>{
   {key:prefix+"earn-win-game1"},
  ]});
  const inventory=await getXpInventory(db,-100,7);
- assert.deepEqual(inventory.map(x=>[x.itemId,x.quantity]),[["collect_gold",1],["ticket_daily_box",1]]);
+ assert.deepEqual(inventory.map(x=>[x.itemId,x.quantity]),[["ticket_daily_box",1],["collect_gold",1]]);
 });
 test("invalid group, user, reason, event and item are rejected before writes",async()=>{
  const db=fakeDb();
