@@ -10,6 +10,7 @@ export interface GameSession {
   id: string; chatId: number; userId: number; kind: GameKind;
   createdAt: number; status: "active" | "finished"; secret: number;
   attempts: number; prompt: string; answer: string;
+  hiddenOptions?: number[]; retryAvailable?: boolean; xpBoost?: boolean;
 }
 export interface GameScreen {
   text: string;
@@ -100,14 +101,60 @@ export function renderGame(state:GameSession,note=""):GameScreen {
   if(state.kind==="number")return {text:"🎯 حدس عدد\n\nیک عدد بین ۱ تا ۶ انتخاب کن. سه فرصت داری.\n"+note+"\nفرصت باقی‌مانده: "+state.attempts,rows:[[1,2,3],[4,5,6]].map(group=>group.map(n=>button(String(n),id,String(n)))),outcome:null,finished:false};
   if(["quiz","emoji","math","memory"].includes(state.kind)){
     const answers=state.answer.split("|");
+    const hidden=new Set(state.hiddenOptions??[]);
+    const visible=answers.map((answer,index)=>({answer,index})).filter(item=>!hidden.has(item.index));
     const heading=state.kind==="quiz"?"🧠 مسابقه اطلاعات عمومی":state.kind==="emoji"?"🧩 معمای ایموجی":state.kind==="math"?"➕ چالش ریاضی":"🧠 حافظه سریع";
-    return {text:heading+"\n\n"+state.prompt+"\n\n"+answers.map((a,i)=>(i+1)+". "+a).join("\n"),rows:answers.map((_,i)=>[button("گزینه "+(i+1),id,"a"+i)]),outcome:null,finished:false};
+    return {text:heading+"\n\n"+state.prompt+"\n\n"+visible.map(item=>(item.index+1)+". "+item.answer).join("\n"),rows:visible.map(item=>[button("گزینه "+(item.index+1),id,"a"+item.index)]),outcome:null,finished:false};
   }
   if(state.kind==="word")return {text:"🔤 حدس کلمه\n\nحروف به‌هم‌ریخته: "+state.prompt+"\n\nجوابت رو انتخاب کن:",rows:[[{text:"کتاب",callback_data:"shaki_game:play:"+id+":w0"},{text:"دریا",callback_data:"shaki_game:play:"+id+":w1"}],[{text:"باران",callback_data:"shaki_game:play:"+id+":w2"},{text:"ستاره",callback_data:"shaki_game:play:"+id+":w3"}],[{text:"مداد",callback_data:"shaki_game:play:"+id+":w4"},{text:"پنجره",callback_data:"shaki_game:play:"+id+":w5"}],...back],outcome:null,finished:false};
   if(state.kind==="coin")return {text:"🪙 شیر یا خط\n\nحدست رو انتخاب کن:",rows:[[button("شیر",id,"heads"),button("خط",id,"tails")],...back],outcome:null,finished:false};
   if(state.kind==="dice")return {text:"🎲 تاس رقابتی\n\nحدس بزن تاس تو از تاس SHAKI بیشتر می‌شود یا کمتر؟",rows:[[button("بیشتر می‌شود ⬆️",id,"high"),button("کمتر می‌شود ⬇️",id,"low")],...back],outcome:null,finished:false};
   return {text:"🎭 جرئت یا حقیقت\n\nیکی رو انتخاب کن:",rows:[[button("🗣️ حقیقت",id,"truth"),button("🔥 جرئت",id,"dare")],...back],outcome:null,finished:false};
 }
+export function applyGamePower(state:GameSession,itemId:string):{applied:boolean;screen:GameScreen}{
+  if(state.status!=="active")return {applied:false,screen:renderGame(state,"اول یک بازی فعال شروع کن.")};
+  const multiple=["quiz","emoji","math","memory"].includes(state.kind);
+  if(itemId==="power_hint"){
+    let hint="راهنمایی: ";
+    if(state.kind==="number")hint+=state.secret%2===0?"عدد زوج است.":"عدد فرد است.";
+    else if(state.kind==="word")hint+="کلمه با «"+state.answer.slice(0,1)+"» شروع می‌شود.";
+    else if(multiple)hint+="پاسخ درست با «"+(state.answer.split("|")[state.secret]??"").slice(0,1)+"» شروع می‌شود.";
+    else return {applied:false,screen:renderGame(state,"این راهنما برای این بازی کاربرد ندارد.")};
+    const screen=renderGame(state);
+    return {applied:true,screen:{...screen,text:screen.text+"\n\n💡 "+hint}};
+  }
+  if(itemId==="power_extra_guess"){
+    if(state.kind!=="number"||state.attempts>=5)return {applied:false,screen:renderGame(state,"حدس اضافه فقط برای حدس عدد کاربرد دارد یا سقف فرصت‌ها پر است.")};
+    state.attempts++;
+    return {applied:true,screen:renderGame(state,"⚡ یک فرصت حدس اضافه گرفتی.")};
+  }
+  if(itemId==="power_remove_option"){
+    if(!multiple||(state.hiddenOptions?.length??0)>=1)return {applied:false,screen:renderGame(state,"حذف گزینه فقط یک بار در کوئیز، معما، ریاضی یا حافظه قابل استفاده است.")};
+    const wrong=state.answer.split("|").map((_,i)=>i).filter(i=>i!==state.secret);
+    const hide=pick(wrong);
+    state.hiddenOptions=[...(state.hiddenOptions??[]),hide];
+    return {applied:true,screen:renderGame(state,"🧩 یک گزینه اشتباه حذف شد.")};
+  }
+  if(itemId==="power_retry"||itemId==="power_second_chance"){
+    if(state.retryAvailable)return {applied:false,screen:renderGame(state,"فرصت دوباره این بازی قبلاً فعال شده است.")};
+    state.retryAvailable=true;
+    return {applied:true,screen:renderGame(state,"🛡️ فرصت دوباره فعال شد؛ اگر اشتباه کنی یک بار دیگر تلاش می‌کنی.")};
+  }
+  if(itemId==="power_xp_boost"){
+    if(state.xpBoost)return {applied:false,screen:renderGame(state,"تقویت XP برای این بازی قبلاً فعال شده است.")};
+    state.xpBoost=true;
+    return {applied:true,screen:renderGame(state,"⚡ پاداش XP این بازی دو برابر می‌شود.")};
+  }
+  if(itemId==="fun_question_swap"&&multiple){
+    if(state.kind==="quiz"){const q=pick(QUIZZES);state.prompt=q.q;state.answer=q.a.join("|");state.secret=q.correct;}
+    else if(state.kind==="emoji"){const q=pick(EMOJI);state.prompt=q.q;state.answer=q.a.join("|");state.secret=q.correct;}
+    else return {applied:false,screen:renderGame(state,"تعویض سؤال برای این بازی در دسترس نیست.")};
+    state.hiddenOptions=[];
+    return {applied:true,screen:renderGame(state,"🔄 سؤال جدید جایگزین شد.")};
+  }
+  return {applied:false,screen:renderGame(state,"این آیتم در بازی فعلی قابل استفاده نیست.")};
+}
+
 export function playGame(state:GameSession,action:string):GameScreen {
   if(state.status!=="active")return renderGame(state,"این بازی قبلاً تمام شده.");
   let outcome:GameOutcome=null, note="";
@@ -146,6 +193,7 @@ export function playGame(state:GameSession,action:string):GameScreen {
     note=(action==="truth"?"🗣️ حقیقت: ":"🔥 جرئت: ")+pick(action==="truth"?TRUTHS:DARES);
     outcome="participation";
   }
+  if(outcome&&state.retryAvailable&&outcome!=="win"){state.retryAvailable=false;return {...renderGame(state,"🛟 کارت فرصت دوباره مصرف شد؛ یک بار دیگر امتحان کن.\n\n"+note),outcome:null,finished:false};}
   if(outcome){state.status="finished";return {text:note,rows:[[{text:"🎮 بازی دوباره",callback_data:"shaki_game:menu"}]],outcome,finished:true};}
   return renderGame(state,note);
 }
