@@ -10,7 +10,7 @@ export interface GameSession {
   id: string; chatId: number; userId: number; kind: GameKind;
   createdAt: number; status: "active" | "finished"; secret: number;
   attempts: number; prompt: string; answer: string;
-  hiddenOptions?: number[]; retryAvailable?: boolean; xpBoost?: boolean;
+  hiddenOptions?: number[]; retryAvailable?: boolean; xpBoost?: boolean; truthPass?: boolean;
 }
 export interface GameScreen {
   text: string;
@@ -135,7 +135,7 @@ export function applyGamePower(state:GameSession,itemId:string):{applied:boolean
     state.hiddenOptions=[...(state.hiddenOptions??[]),hide];
     return {applied:true,screen:renderGame(state,"🧩 یک گزینه اشتباه حذف شد.")};
   }
-  if(itemId==="power_retry"||itemId==="power_second_chance"){
+  if(itemId==="power_retry"||itemId==="power_second_chance"||itemId==="power_shield"){
     if(state.retryAvailable)return {applied:false,screen:renderGame(state,"فرصت دوباره این بازی قبلاً فعال شده است.")};
     state.retryAvailable=true;
     return {applied:true,screen:renderGame(state,"🛡️ فرصت دوباره فعال شد؛ اگر اشتباه کنی یک بار دیگر تلاش می‌کنی.")};
@@ -144,6 +144,16 @@ export function applyGamePower(state:GameSession,itemId:string):{applied:boolean
     if(state.xpBoost)return {applied:false,screen:renderGame(state,"تقویت XP برای این بازی قبلاً فعال شده است.")};
     state.xpBoost=true;
     return {applied:true,screen:renderGame(state,"⚡ پاداش XP این بازی دو برابر می‌شود.")};
+  }
+  if(itemId==="fun_truth_pass"){
+    if(state.kind!=="truth")return {applied:false,screen:renderGame(state,"کارت عبور فقط در جرئت یا حقیقت کاربرد دارد.")};
+    state.truthPass=true;
+    return {applied:true,screen:renderGame(state,"🎟️ کارت عبور آماده شد؛ می‌توانی از نوبت رد شوی.")};
+  }
+  if(itemId==="fun_rematch"){
+    const fresh=createGameSession(state.chatId,state.userId,state.kind);
+    Object.assign(state,fresh);
+    return {applied:true,screen:renderGame(state,"🔁 بازی دوباره شروع شد.")};
   }
   if(itemId==="fun_question_swap"&&multiple){
     if(state.kind==="quiz"){const q=pick(QUIZZES);state.prompt=q.q;state.answer=q.a.join("|");state.secret=q.correct;}
@@ -190,7 +200,7 @@ export function playGame(state:GameSession,action:string):GameScreen {
     note="تاس تو: "+you+" | تاس SHAKI: "+bot+"\n"+(win?"🏆 برنده شدی! +۳۰ XP":you===bot?"🤝 مساوی شد؛ +۵ XP":"این دور رو باختی؛ +۵ XP");
   }else if(state.kind==="truth"){
     if(action!=="truth"&&action!=="dare")return renderGame(state);
-    note=(action==="truth"?"🗣️ حقیقت: ":"🔥 جرئت: ")+pick(action==="truth"?TRUTHS:DARES);
+    note=state.truthPass?"🎟️ کارت عبور استفاده شد؛ از این نوبت گذشتی.":(action==="truth"?"🗣️ حقیقت: ":"🔥 جرئت: ")+pick(action==="truth"?TRUTHS:DARES);
     outcome="participation";
   }
   if(outcome&&state.retryAvailable&&outcome!=="win"){state.retryAvailable=false;if(state.kind==="number")state.attempts=1;return {...renderGame(state,"🛟 کارت فرصت دوباره مصرف شد؛ یک بار دیگر امتحان کن.\n\n"+note),outcome:null,finished:false};}
