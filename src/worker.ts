@@ -6,10 +6,11 @@ import {
 
 type WorkerEnv = { TOKEN?: string; WEBHOOK_SECRET?: string };
 import {
-  claimDailyXp, getXpInventory, getXpLeaderboard, getXpProfile,
+  awardActivityXp, claimDailyXp, getXpInventory, getXpLeaderboard, getXpProfile,
   getXpShop, purchaseXpItem, type XpItemCategory,
 } from "./xpEconomy";
 import type { GroupStatsDB } from "./groupStats";
+import { clearGameSession, createGameSession, gameMenu, loadGameSession, parseGameKind, playGame, renderGame, saveGameSession } from "./groupGames";
 
 type XpWorkerEnv = WorkerEnv & { DB?: GroupStatsDB };
 type TgMessage = { message_id:number; chat:{id:number;type:string}; from?:{id:number;is_bot?:boolean}; text?:string };
@@ -112,6 +113,56 @@ async function handleXpUpdate(update:TgUpdate,env:XpWorkerEnv):Promise<boolean>{
 }
 
 
+async function handleGamesUpdate(update:TgUpdate,env:XpWorkerEnv):Promise<boolean>{
+  if(!env.DB||!env.TOKEN)return false;
+  const message=update.message;
+  const callback=update.callback_query;
+  if(message?.text&&message.chat.id<0&&message.chat.type!=="private"&&message.from&&!message.from.is_bot){
+    const command=message.text.trim().split(/\\s+/,1)[0].split("@",1)[0].toLowerCase();
+    if(command==="/games"||command==="/game"){
+      const screen=gameMenu();
+      await telegramCall(env.TOKEN,"sendMessage",{chat_id:message.chat.id,text:screen.text,reply_markup:xpKeyboard(screen.rows)});
+      return true;
+    }
+  }
+  if(!callback?.data?.startsWith("shaki_game:")||!callback.message||callback.message.chat.id>=0)return false;
+  const chatId=callback.message.chat.id,userId=callback.from.id,messageId=callback.message.message_id;
+  const parts=callback.data.split(":");
+  let notice="";
+  try{
+    if(parts[1]==="menu"){
+      await clearGameSession(env.DB,chatId,userId);
+      const screen=gameMenu();
+      await telegramCall(env.TOKEN,"editMessageText",{chat_id:chatId,message_id:messageId,text:screen.text,reply_markup:xpKeyboard(screen.rows)});
+    }else if(parts[1]==="play"&&parts[2]==="menu"&&parts[3]){
+      const kind=parseGameKind(parts[3]);
+      if(!kind)throw new Error("بازی نامعتبر است.");
+      const state=createGameSession(chatId,userId,kind);
+      await saveGameSession(env.DB,state);
+      const screen=renderGame(state);
+      await telegramCall(env.TOKEN,"editMessageText",{chat_id:chatId,message_id:messageId,text:screen.text,reply_markup:xpKeyboard(screen.rows)});
+    }else if(parts[1]==="play"&&parts[2]&&parts[3]){
+      const state=await loadGameSession(env.DB,chatId,userId);
+      if(!state||state.id!==parts[2]){
+        notice="این بازی منقضی شده یا متعلق به تو نیست. /games را بزن.";
+      }else{
+        const screen=playGame(state,parts[3]);
+        await saveGameSession(env.DB,state);
+        if(screen.outcome){
+          const eventId="game-"+state.id;
+          const reward=await awardActivityXp(env.DB,chatId,userId,screen.outcome,eventId);
+          notice=reward.awarded?"پاداش بازی ثبت شد: +"+reward.amount+" XP":"این پاداش قبلاً ثبت شده است.";
+        }
+        await telegramCall(env.TOKEN,"editMessageText",{chat_id:chatId,message_id:messageId,text:screen.text,reply_markup:xpKeyboard(screen.rows)});
+      }
+    }
+  }catch(error){
+    notice=String(error).slice(0,180);
+  }
+  await telegramCall(env.TOKEN,"answerCallbackQuery",{callback_query_id:callback.id,text:notice||"انجام شد",show_alert:!!notice}).catch(()=>{});
+  return true;
+}
+
 type ExistingWorker = {
   fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response>;
   scheduled?: (controller: ScheduledController, env: WorkerEnv, ctx: ExecutionContext) => void | Promise<void>;
@@ -175,6 +226,7 @@ export default {
       request.headers.get("X-Telegram-Bot-Api-Secret-Token") === env.WEBHOOK_SECRET) {
       try {
         const update = await request.clone().json() as TgUpdate;
+        if (await handleGamesUpdate(update, env as XpWorkerEnv)) return ok();
         if (await handleXpUpdate(update, env as XpWorkerEnv)) return ok();
       } catch {
         // Keep the existing bot handler as the safe fallback for unrelated updates.
