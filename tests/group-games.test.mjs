@@ -21,9 +21,9 @@ function memoryDb(){
 
 test("game menu offers seven text-first games with callback navigation",()=>{
   const menu=gameMenu();
-  assert.equal(menu.rows.flat().length,7);
+  assert.equal(menu.rows.flat().length,10);
   assert.ok(menu.rows.flat().every(button=>button.callback_data.startsWith("shaki_game:")));
-  for(const kind of ["rps","number","quiz","word","dice","truth","emoji"]) assert.equal(parseGameKind(kind),kind);
+  for(const kind of ["rps","number","quiz","word","dice","truth","emoji","coin","math","memory"]) assert.equal(parseGameKind(kind),kind);
   assert.equal(parseGameKind("not-a-game"),null);
 });
 
@@ -75,4 +75,22 @@ test("invalid game owner and invalid game actions do not finish a session",()=>{
   const screen=playGame(state,"not-an-action");
   assert.equal(screen.finished,false);
   assert.equal(screen.outcome,null);
+});
+
+test("math and memory challenges have valid answer choices",()=>{
+ for(const kind of ["math","memory"]){
+  const state=createGameSession(-100,77,kind);
+  const choices=state.answer.split("|");
+  assert.ok(choices.length>=3);
+  assert.ok(state.secret>=0&&state.secret<choices.length);
+  const screen=playGame(state,"a"+state.secret);
+  assert.equal(screen.outcome,"correct_answer");
+ }
+});
+
+test("coin toss accepts only heads or tails and resolves the round",()=>{
+ const state=createGameSession(-100,77,"coin");
+ const screen=playGame(state,state.secret===0?"heads":"tails");
+ assert.equal(screen.outcome,"win");
+ assert.equal(screen.finished,true);
 });
