@@ -93,9 +93,9 @@ export async function claimDailyXp(db:GroupStatsDB,chatId:number,userId:number,n
 }
 export interface XpMissionStatus { id:string; title:string; description:string; progress:number; target:number; reward:number; claimed:boolean; complete:boolean; }
 const XP_MISSIONS = [
-  {id:"play_one",title:"شروع قدرتمند",description:"یک بازی را کامل کن",target:1,reward:50,match:(key:string)=>/earn-(win|participation|correct_answer)-game-/.test(key)},
-  {id:"win_one",title:"اولین پیروزی",description:"حداقل یک بازی را ببر",target:1,reward:80,match:(key:string)=>/earn-win-game-/.test(key)},
-  {id:"correct_three",title:"ذهن برتر",description:"سه پاسخ درست در بازی‌ها ثبت کن",target:3,reward:100,match:(key:string)=>/earn-correct_answer-game-/.test(key)},
+  {id:"play_one",title:"شروع قدرتمند",description:"یک بازی را کامل کن",target:1,reward:50,match:(key:string)=>/earn-(win|participation|correct_answer|boosted_win|boosted_participation|boosted_correct_answer)-game-/.test(key)},
+  {id:"win_one",title:"اولین پیروزی",description:"حداقل یک بازی را ببر",target:1,reward:80,match:(key:string)=>/earn-(win|boosted_win)-game-/.test(key)},
+  {id:"correct_three",title:"ذهن برتر",description:"سه پاسخ درست در بازی‌ها ثبت کن",target:3,reward:100,match:(key:string)=>/earn-(correct_answer|boosted_correct_answer)-game-/.test(key)},
 ] as const;
 export async function getXpMissions(db:GroupStatsDB,chatId:number,userId:number,now=Date.now()):Promise<XpMissionStatus[]>{
   const prefix=ledgerPrefix(chatId,userId);
