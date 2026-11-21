@@ -151,7 +151,7 @@ async function handleGamesUpdate(update:TgUpdate,env:XpWorkerEnv):Promise<boolea
   const message=update.message;
   const callback=update.callback_query;
   if(message?.text&&message.chat.id<0&&message.chat.type!=="private"&&message.from&&!message.from.is_bot){
-    const command=message.text.trim().split(/\\s+/,1)[0].split("@",1)[0].toLowerCase();
+    const command=message.text.trim().split(/\s+/,1)[0].split("@",1)[0].toLowerCase();
     if(command==="/games"||command==="/game"){
       const screen=gameMenu();
       await telegramCall(env.TOKEN,"sendMessage",{chat_id:message.chat.id,text:screen.text,reply_markup:xpKeyboard(screen.rows)});
