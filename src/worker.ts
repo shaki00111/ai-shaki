@@ -22,7 +22,6 @@ const XP_CATEGORIES: {id:XpItemCategory;label:string}[] = [
   {id:"power",label:"⚔️ قدرت بازی"},
   {id:"fun",label:"🎲 سرگرمی"},
   {id:"collectible",label:"💎 کلکسیونی"},
-  {id:"ticket",label:"🎟️ بلیت و جعبه"},
 ];
 const XP_HOME = [[{text:"👤 پروفایل من",callback_data:"shaki_xp:profile"},{text:"🛒 فروشگاه",callback_data:"shaki_xp:shop"}],
   [{text:"🎒 کوله‌پشتی",callback_data:"shaki_xp:inventory"},{text:"🏆 رتبه‌بندی",callback_data:"shaki_xp:rank"}],
