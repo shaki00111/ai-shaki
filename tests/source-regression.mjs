@@ -485,8 +485,11 @@ const groupHelpSource=groupHelpStart>=0&&groupHelpEnd>groupHelpStart?indexSource
 groupHelpSource.includes("/img [توضیح]") &&
 groupHelpSource.includes("/tts [متن]") &&
 groupHelpSource.includes("/summarize") &&
-groupHelpSource.includes("/help")
-  ? ok("group /help documents the main AI and media commands")
+groupHelpSource.includes("/help") &&
+groupHelpSource.includes("/games") && groupHelpSource.includes("/xp") &&
+groupHelpSource.includes("/shop") && groupHelpSource.includes("/rank") &&
+groupHelpSource.includes("/inventory") && groupHelpSource.includes("/daily") && groupHelpSource.includes("/missions")
+  ? ok("group /help documents AI, games, XP, shop, leaderboard, inventory and missions")
   : fail("group /help must document the image, voice, web summary and group summary commands");
 
 console.log("\\n[18] Consent-based daily group promotion");
