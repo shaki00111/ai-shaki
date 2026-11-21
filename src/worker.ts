@@ -53,7 +53,7 @@ async function showXpScreen(env:XpWorkerEnv,chatId:number,userId:number,messageI
     rows=[[{text:"🛒 فروشگاه",callback_data:"shaki_xp:shop"},{text:"👤 پروفایل",callback_data:"shaki_xp:profile"}]];
   }else if(screen==="missions"){
     const missions=await getXpMissions(db,chatId,userId);
-    text="🎯 مأموریت‌های روزانه\\n\\n"+missions.map(m=>(m.claimed?"✅ ":m.complete?"🎁 ":"🔹 ")+m.title+" — "+m.description+" ("+m.progress+"/"+m.target+")"+(m.claimed?" · دریافت شد":m.complete?" · جایزه "+m.reward+" XP":"")).join("\\n");
+    text="🎯 مأموریت‌های روزانه\n\n"+missions.map(m=>(m.claimed?"✅ ":m.complete?"🎁 ":"🔹 ")+m.title+" — "+m.description+" ("+m.progress+"/"+m.target+")"+(m.claimed?" · دریافت شد":m.complete?" · جایزه "+m.reward+" XP":"")).join("\n");
     rows=missions.filter(m=>m.complete).map(m=>[{text:"🎁 دریافت "+m.reward+" XP · "+m.title,callback_data:"shaki_xp:mission:"+m.id}]);
     rows.push([{text:"👤 پروفایل",callback_data:"shaki_xp:profile"},{text:"🎮 بازی‌ها",callback_data:"shaki_game:menu"}]);
   }else if(screen==="rank"){
