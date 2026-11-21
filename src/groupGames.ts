@@ -68,7 +68,7 @@ export function createGameSession(chatId:number,userId:number,kind:GameKind,now=
   const a=Math.floor(Math.random()*12)+3, b=Math.floor(Math.random()*9)+2, sum=a+b;
   const mathOptions=[sum,sum+2,Math.max(1,sum-3)].sort(()=>Math.random()-.5);
   const memoryOptions=["🍎","🍌","🍇","🍒"];
-  const memoryAnswer=pick(memoryOptions);
+  const memorySequence=memoryOptions.slice().sort(()=>Math.random()-.5).slice(0,3);\n  const memoryAnswer=memoryOptions.find(item=>!memorySequence.includes(item))!;
   return {
     id,chatId,userId,kind,createdAt:now,status:"active",attempts:3,
     secret:kind==="number"?Math.floor(Math.random()*6)+1:
@@ -76,7 +76,7 @@ export function createGameSession(chatId:number,userId:number,kind:GameKind,now=
       kind==="math"?mathOptions.indexOf(sum):kind==="memory"?memoryOptions.indexOf(memoryAnswer):
       kind==="coin"?Math.floor(Math.random()*2):0,
     prompt:kind==="word"?word.scramble:kind==="quiz"?quiz.q:kind==="emoji"?emoji.q:
-      kind==="math"?a+" + "+b+" = ؟":kind==="memory"?"کدام میوه در دنباله بود؟ 🍎 🍇 🍌":kind==="coin"?"شیر یا خط؟":"",
+      kind==="math"?a+" + "+b+" = ؟":kind==="memory"?"کدام میوه در دنباله جا افتاده بود؟ "+memorySequence.join(" "):kind==="coin"?"شیر یا خط؟":"",
     answer:kind==="word"?word.word:kind==="quiz"?quiz.a.join("|"):kind==="emoji"?emoji.a.join("|"):
       kind==="math"?mathOptions.join("|"):kind==="memory"?memoryOptions.join("|"):"",
   };
