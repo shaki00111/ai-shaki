@@ -1,7 +1,7 @@
 import { getGroupPlayerScore, getGroupLeaderboard, type GroupStatsDB, type GroupPlayerScore } from "./groupStats";
 
 export type XpReason = "participation" | "win" | "correct_answer" | "boosted_participation" | "boosted_win" | "boosted_correct_answer" | "daily_login" | "mission" | "tournament";
-export type XpItemCategory = "title" | "power" | "fun" | "collectible" | "ticket";
+export type XpItemCategory = "title" | "power" | "fun" | "collectible";
 export interface XpShopItem {
   id: string; name: string; description: string; category: XpItemCategory;
   price: number; stackable: boolean; effect: string;
@@ -26,24 +26,24 @@ export const XP_SHOP_ITEMS: readonly XpShopItem[] = Object.freeze([
   { id:"power_xp_boost",name:"تقویت XP",description:"افزایش پاداش یک بازی واجد شرایط؛ با سقف روزانه",category:"power",price:1800,stackable:true,effect:"xp_boost:1" },
   { id:"power_shield",name:"محافظ امتیاز",description:"محافظت از امتیاز در بازی‌هایی که این قابلیت را دارند",category:"power",price:900,stackable:true,effect:"score_shield:1" },
   { id:"power_second_chance",name:"نجات نهایی",description:"یک بار نجات از حذف در بازی‌های پشتیبانی‌شده",category:"power",price:1100,stackable:true,effect:"save_from_elimination:1" },
-  { id:"fun_duel",name:"دعوت دوئل",description:"ساخت یک چالش دوئل با عضو گروه",category:"fun",price:600,stackable:true,effect:"create_duel:1" },
+  { id:"fun_duel",name:"لقب دوئل‌طلب",description:"عنوان دائمی دوئل‌طلب در پروفایل گروهی",category:"title",price:600,stackable:false,effect:"profile_title:duelist" },
   { id:"fun_rematch",name:"درخواست انتقام",description:"درخواست بازی مجدد از حریف",category:"fun",price:300,stackable:true,effect:"rematch:1" },
   { id:"fun_truth_pass",name:"کارت عبور",description:"رد کردن یک نوبت جرئت یا حقیقت در صورت پشتیبانی بازی",category:"fun",price:800,stackable:true,effect:"truth_pass:1" },
   { id:"fun_question_swap",name:"تعویض سؤال",description:"تعویض سؤال در بازی‌های پشتیبانی‌شده",category:"fun",price:400,stackable:true,effect:"question_swap:1" },
-  { id:"fun_challenge",name:"چالش اختصاصی",description:"ساخت یک چالش متنی برای گروه",category:"fun",price:1300,stackable:true,effect:"custom_challenge:1" },
-  { id:"fun_lucky_spin",name:"گردونه ویژه",description:"یک بار چرخش گردونه جایزه",category:"fun",price:1000,stackable:true,effect:"lucky_spin:1" },
+  { id:"fun_challenge",name:"لقب چالش‌ساز",description:"عنوان دائمی سازنده چالش در پروفایل گروهی",category:"title",price:1300,stackable:false,effect:"profile_title:challenger" },
+  { id:"fun_lucky_spin",name:"لقب خوش‌شانس",description:"عنوان دائمی خوش‌شانس در پروفایل گروهی",category:"title",price:1000,stackable:false,effect:"profile_title:lucky" },
   { id:"collect_bronze",name:"مدال برنز",description:"نشان کلکسیونی در پروفایل",category:"collectible",price:500,stackable:false,effect:"badge:bronze" },
   { id:"collect_silver",name:"مدال نقره",description:"نشان کلکسیونی در پروفایل",category:"collectible",price:1400,stackable:false,effect:"badge:silver" },
   { id:"collect_gold",name:"مدال طلا",description:"نشان کلکسیونی در پروفایل",category:"collectible",price:3200,stackable:false,effect:"badge:gold" },
   { id:"collect_champion",name:"جام قهرمانی",description:"یادبود دائمی قهرمانی",category:"collectible",price:6000,stackable:false,effect:"trophy:champion" },
   { id:"collect_streak",name:"نشان وفاداری",description:"یادبود حضور پیوسته",category:"collectible",price:1600,stackable:false,effect:"badge:loyal" },
   { id:"collect_100wins",name:"نشان صد برد",description:"نشان افتخاری کلکسیون",category:"collectible",price:7500,stackable:false,effect:"badge:100_wins" },
-  { id:"ticket_tournament",name:"بلیت تورنمنت",description:"ورود به یک تورنمنت پشتیبانی‌شده",category:"ticket",price:2200,stackable:true,effect:"tournament_ticket:1" },
-  { id:"ticket_private",name:"اتاق رقابت خصوصی",description:"ساخت یک رقابت خصوصی در گروه",category:"ticket",price:3500,stackable:true,effect:"private_match:1" },
-  { id:"ticket_daily_box",name:"جعبه روزانه",description:"دریافت یک جایزه تصادفی از جدول جوایز",category:"ticket",price:750,stackable:true,effect:"daily_box:1" },
-  { id:"ticket_rare_box",name:"جعبه کمیاب",description:"شانس دریافت آیتم کلکسیونی یا مصرفی",category:"ticket",price:2800,stackable:true,effect:"rare_box:1" },
-  { id:"ticket_mystery",name:"جعبه اسرارآمیز",description:"جایزه تصادفی از فهرست محدود",category:"ticket",price:5200,stackable:true,effect:"mystery_box:1" },
-  { id:"ticket_name_color",name:"رنگ نام ویژه",description:"عنوان رنگی متنی در نمایش‌های پشتیبانی‌شده",category:"title",price:1900,stackable:false,effect:"name_style:neon" },
+  { id:"ticket_tournament",name:"جام تورنمنت",description:"نشان دائمی قهرمان تورنمنت در پروفایل",category:"collectible",price:2200,stackable:false,effect:"badge:tournament" },
+  { id:"ticket_private",name:"مدال رقابت خصوصی",description:"نشان دائمی بازیکن رقابت خصوصی در پروفایل",category:"collectible",price:3500,stackable:false,effect:"badge:private_competitor" },
+  { id:"ticket_daily_box",name:"نشان کلکسیون روزانه",description:"نشان دائمی بازیکن وفادار در پروفایل",category:"collectible",price:750,stackable:false,effect:"badge:daily_collector" },
+  { id:"ticket_rare_box",name:"نشان کمیاب",description:"نشان دائمی کمیاب برای کلکسیون پروفایل",category:"collectible",price:2800,stackable:false,effect:"badge:rare_collector" },
+  { id:"ticket_mystery",name:"نشان اسرارآمیز",description:"نشان دائمی ویژه در کلکسیون پروفایل",category:"collectible",price:5200,stackable:false,effect:"badge:mystery" },
+  { id:"ticket_name_color",name:"لقب نئون",description:"عنوان نئون برای نمایش در پروفایل گروهی",category:"title",price:1900,stackable:false,effect:"profile_title:neon" },
 ]);
 
 const PREFIX = "shaki:group-xp:v1:";
