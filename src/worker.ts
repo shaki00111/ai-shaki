@@ -50,7 +50,7 @@ async function showXpScreen(env:XpWorkerEnv,chatId:number,userId:number,messageI
   }else if(screen==="inventory"){
     const inventory=await getXpInventory(db,chatId,userId);
     text="🎒 کوله‌پشتی من\n\n"+(inventory.length?inventory.map(x=>"• "+x.item.name+" × "+x.quantity).join("\n"):"هنوز آیتمی نخریدی.")+"\n\nبرای استفاده از قدرت‌ها، ابتدا یک بازی را شروع کن و سپس آیتم را از اینجا فعال کن.";
-    rows=inventory.filter(x=>["power_hint","power_extra_guess","power_remove_option","power_retry","power_xp_boost","power_second_chance","fun_question_swap"].includes(x.itemId)).map(x=>[{text:"⚡ استفاده: "+x.item.name+" × "+x.quantity,callback_data:"shaki_xp:use:"+x.itemId}]);
+    rows=inventory.filter(x=>["power_hint","power_extra_guess","power_remove_option","power_retry","power_xp_boost","power_second_chance","power_shield","fun_question_swap","fun_truth_pass","fun_rematch"].includes(x.itemId)).map(x=>[{text:"⚡ استفاده: "+x.item.name+" × "+x.quantity,callback_data:"shaki_xp:use:"+x.itemId}]);
     rows.push([{text:"🛒 فروشگاه",callback_data:"shaki_xp:shop"},{text:"👤 پروفایل",callback_data:"shaki_xp:profile"}]);
   }else if(screen==="missions"){
     const missions=await getXpMissions(db,chatId,userId);
