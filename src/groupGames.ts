@@ -7,27 +7,21 @@ import type { GroupStatsDB } from "./groupStats";
 export type GameKind = "rps" | "number" | "quiz" | "word" | "dice" | "truth" | "emoji" | "coin" | "math" | "memory";
 export type GameOutcome = "win" | "correct_answer" | "participation" | null;
 export interface GameSession {
-  id: string;
-  chatId: number;
-  userId: number;
-  kind: GameKind;
-  createdAt: number;
-  status: "active" | "finished";
-  secret: number;
-  attempts: number;
-  prompt: string;
-  answer: string;
+  id: string; chatId: number; userId: number; kind: GameKind;
+  createdAt: number; status: "active" | "finished"; secret: number;
+  attempts: number; prompt: string; answer: string;
 }
-export interface GameScreen { text: string; rows: Array<Array<{text:string;callback_data:string}>>; outcome: GameOutcome; finished: boolean; }
-
+export interface GameScreen {
+  text: string;
+  rows: Array<Array<{text:string;callback_data:string}>>;
+  outcome: GameOutcome;
+  finished: boolean;
+}
 const PREFIX = "shaki:group-games:v1:";
 const WORDS = [
-  {word:"کتاب",scramble:"باکت",hint:"چیزی برای خواندن"},
-  {word:"دریا",scramble:"ایرد",hint:"آب فراوان و موج"},
-  {word:"باران",scramble:"ناربا",hint:"از آسمان می‌بارد"},
-  {word:"ستاره",scramble:"راتسه",hint:"در آسمان شب می‌درخشد"},
-  {word:"مداد",scramble:"دامد",hint:"برای نوشتن"},
-  {word:"پنجره",scramble:"جرهپن",hint:"از آن بیرون را می‌بینی"},
+  {word:"کتاب",scramble:"باکت"},{word:"دریا",scramble:"ایرد"},
+  {word:"باران",scramble:"ناربا"},{word:"ستاره",scramble:"راتسه"},
+  {word:"مداد",scramble:"دامد"},{word:"پنجره",scramble:"جرهپن"},
 ];
 const QUIZZES = [
   {q:"کدام سیاره به سیاره سرخ معروف است؟",a:["مریخ","زهره","مشتری"],correct:0},
@@ -45,8 +39,7 @@ const EMOJI = [
   {q:"🕷️🧑🏙️",a:["بتمن","مرد عنکبوتی","سوپرمن"],correct:1},
   {q:"🧙‍♂️💍🌋",a:["هری پاتر","ارباب حلقه‌ها","هابیت"],correct:1},
 ];
-
-function pick<T>(items: readonly T[]): T { return items[Math.floor(Math.random()*items.length)]; }
+function pick<T>(items: readonly T[]):T { return items[Math.floor(Math.random()*items.length)]; }
 function sessionKey(chatId:number,userId:number):string {
   if(!Number.isSafeInteger(chatId)||chatId>=0||!Number.isSafeInteger(userId)||userId<=0) throw new Error("Invalid game owner");
   return PREFIX+chatId+":"+userId;
@@ -71,15 +64,21 @@ export function createGameSession(chatId:number,userId:number,kind:GameKind,now=
   sessionKey(chatId,userId);
   if(!Number.isFinite(now))throw new Error("Invalid game timestamp");
   const id=Math.random().toString(36).slice(2,10)+now.toString(36);
-  const word=pick(WORDS);
-  const quiz=pick(QUIZZES);
-  const emoji=pick(EMOJI);
+  const word=pick(WORDS), quiz=pick(QUIZZES), emoji=pick(EMOJI);
+  const a=Math.floor(Math.random()*12)+3, b=Math.floor(Math.random()*9)+2, sum=a+b;
+  const mathOptions=[sum,sum+2,Math.max(1,sum-3)].sort(()=>Math.random()-.5);
+  const memoryOptions=["🍎","🍌","🍇","🍒"];
+  const memoryAnswer=pick(memoryOptions);
   return {
-    id,chatId,userId,kind,createdAt:now,status:"active",
-    secret:kind==="number"?Math.floor(Math.random()*6)+1:kind==="quiz"?quiz.correct:kind==="emoji"?emoji.correct:kind==="math"?mathOptions.indexOf(mathAnswer):kind==="memory"?memoryOptions.indexOf(memoryAnswer):kind==="coin"?Math.floor(Math.random()*2):0,
-    attempts:3,
-    prompt:kind==="word"?word.scramble:kind==="quiz"?quiz.q:kind==="emoji"?emoji.q:kind==="math"?mathA+" + "+mathB+" = ؟":kind==="memory"?"کدام میوه در دنباله بود؟ 🍎 🍇 🍌":kind==="coin"?"شیر یا خط؟": "",
-    answer:kind==="word"?word.word:kind==="quiz"?quiz.a.join("|"):kind==="emoji"?emoji.a.join("|"):kind==="math"?mathOptions.join("|"):kind==="memory"?memoryOptions.join("|"): "",
+    id,chatId,userId,kind,createdAt:now,status:"active",attempts:3,
+    secret:kind==="number"?Math.floor(Math.random()*6)+1:
+      kind==="quiz"?quiz.correct:kind==="emoji"?emoji.correct:
+      kind==="math"?mathOptions.indexOf(sum):kind==="memory"?memoryOptions.indexOf(memoryAnswer):
+      kind==="coin"?Math.floor(Math.random()*2):0,
+    prompt:kind==="word"?word.scramble:kind==="quiz"?quiz.q:kind==="emoji"?emoji.q:
+      kind==="math"?a+" + "+b+" = ؟":kind==="memory"?"کدام میوه در دنباله بود؟ 🍎 🍇 🍌":kind==="coin"?"شیر یا خط؟":"",
+    answer:kind==="word"?word.word:kind==="quiz"?quiz.a.join("|"):kind==="emoji"?emoji.a.join("|"):
+      kind==="math"?mathOptions.join("|"):kind==="memory"?memoryOptions.join("|"):"",
   };
 }
 function button(text:string,id:string,action:string){return {text,callback_data:"shaki_game:play:"+id+":"+action};}
@@ -88,7 +87,8 @@ export function gameMenu():GameScreen {
     [button("⚔️ سنگ کاغذ قیچی","menu","rps"),button("🎯 حدس عدد","menu","number")],
     [button("🧠 اطلاعات عمومی","menu","quiz"),button("🔤 حدس کلمه","menu","word")],
     [button("🎲 تاس رقابتی","menu","dice"),button("🎭 جرئت یا حقیقت","menu","truth")],
-    [button("🧩 معمای ایموجی","menu","emoji"),button("🪙 شیر یا خط","menu","coin")],\n    [button("➕ چالش ریاضی","menu","math"),button("🧠 حافظه سریع","menu","memory")],
+    [button("🧩 معمای ایموجی","menu","emoji"),button("🪙 شیر یا خط","menu","coin")],
+    [button("➕ چالش ریاضی","menu","math"),button("🧠 حافظه سریع","menu","memory")],
   ],outcome:null,finished:false};
 }
 export function renderGame(state:GameSession,note=""):GameScreen {
@@ -97,41 +97,44 @@ export function renderGame(state:GameSession,note=""):GameScreen {
   if(state.status==="finished")return {text:note+"\n\nبازی تمام شد! برای بازی دوباره به منو برگرد.",rows:back,outcome:null,finished:true};
   if(state.kind==="rps")return {text:"⚔️ سنگ، کاغذ، قیچی\n\nحرکتت رو انتخاب کن:",rows:[[button("✊ سنگ",id,"rock"),button("✋ کاغذ",id,"paper"),button("✌️ قیچی",id,"scissors")],...back],outcome:null,finished:false};
   if(state.kind==="number")return {text:"🎯 حدس عدد\n\nیک عدد بین ۱ تا ۶ انتخاب کن. سه فرصت داری.\n"+note+"\nفرصت باقی‌مانده: "+state.attempts,rows:[[1,2,3],[4,5,6]].map(group=>group.map(n=>button(String(n),id,String(n)))),outcome:null,finished:false};
-  if(state.kind==="quiz"||state.kind==="emoji"||state.kind==="math"||state.kind==="memory"){
+  if(["quiz","emoji","math","memory"].includes(state.kind)){
     const answers=state.answer.split("|");
-    return {text:(state.kind==="quiz"?"🧠 مسابقه اطلاعات عمومی":"🧩 معمای ایموجی")+"\n\n"+state.prompt+"\n\n"+answers.map((a,i)=>(i+1)+". "+a).join("\n"),rows:answers.map((_,i)=>[button("گزینه "+(i+1),id,"a"+i)]),outcome:null,finished:false};
+    const heading=state.kind==="quiz"?"🧠 مسابقه اطلاعات عمومی":state.kind==="emoji"?"🧩 معمای ایموجی":state.kind==="math"?"➕ چالش ریاضی":"🧠 حافظه سریع";
+    return {text:heading+"\n\n"+state.prompt+"\n\n"+answers.map((a,i)=>(i+1)+". "+a).join("\n"),rows:answers.map((_,i)=>[button("گزینه "+(i+1),id,"a"+i)]),outcome:null,finished:false};
   }
-  if(state.kind==="word")return {text:"🔤 حدس کلمه\n\nحروف به‌هم‌ریخته: "+state.prompt+"\nراهنما: "+pick(["یک وسیله روزمره","یک پدیده طبیعی","چیزی در خانه","چیزی در طبیعت"])+"\n\nجوابت رو از بین گزینه‌ها انتخاب کن:",rows:[[{text:"کتاب",callback_data:"shaki_game:play:"+id+":w0"},{text:"دریا",callback_data:"shaki_game:play:"+id+":w1"}],[{text:"باران",callback_data:"shaki_game:play:"+id+":w2"},{text:"ستاره",callback_data:"shaki_game:play:"+id+":w3"}],[{text:"مداد",callback_data:"shaki_game:play:"+id+":w4"},{text:"پنجره",callback_data:"shaki_game:play:"+id+":w5"}],...back],outcome:null,finished:false};
-  if(state.kind==="coin")return {text:"🪙 شیر یا خط\\n\\nحدست رو انتخاب کن:",rows:[[button("شیر",id,"heads"),button("خط",id,"tails")],...back],outcome:null,finished:false};\n  if(state.kind==="dice")return {text:"🎲 تاس رقابتی\n\nحدس بزن تاس تو از تاس SHAKI بیشتر می‌شود یا کمتر؟",rows:[[button("بیشتر می‌شود ⬆️",id,"high"),button("کمتر می‌شود ⬇️",id,"low")],...back],outcome:null,finished:false};
+  if(state.kind==="word")return {text:"🔤 حدس کلمه\n\nحروف به‌هم‌ریخته: "+state.prompt+"\n\nجوابت رو انتخاب کن:",rows:[[{text:"کتاب",callback_data:"shaki_game:play:"+id+":w0"},{text:"دریا",callback_data:"shaki_game:play:"+id+":w1"}],[{text:"باران",callback_data:"shaki_game:play:"+id+":w2"},{text:"ستاره",callback_data:"shaki_game:play:"+id+":w3"}],[{text:"مداد",callback_data:"shaki_game:play:"+id+":w4"},{text:"پنجره",callback_data:"shaki_game:play:"+id+":w5"}],...back],outcome:null,finished:false};
+  if(state.kind==="coin")return {text:"🪙 شیر یا خط\n\nحدست رو انتخاب کن:",rows:[[button("شیر",id,"heads"),button("خط",id,"tails")],...back],outcome:null,finished:false};
+  if(state.kind==="dice")return {text:"🎲 تاس رقابتی\n\nحدس بزن تاس تو از تاس SHAKI بیشتر می‌شود یا کمتر؟",rows:[[button("بیشتر می‌شود ⬆️",id,"high"),button("کمتر می‌شود ⬇️",id,"low")],...back],outcome:null,finished:false};
   return {text:"🎭 جرئت یا حقیقت\n\nیکی رو انتخاب کن:",rows:[[button("🗣️ حقیقت",id,"truth"),button("🔥 جرئت",id,"dare")],...back],outcome:null,finished:false};
 }
 export function playGame(state:GameSession,action:string):GameScreen {
   if(state.status!=="active")return renderGame(state,"این بازی قبلاً تمام شده.");
-  let outcome:GameOutcome=null;
-  let note="";
+  let outcome:GameOutcome=null, note="";
   if(state.kind==="rps"){
     if(!["rock","paper","scissors"].includes(action))return renderGame(state);
     const bot=pick(["rock","paper","scissors"] as const);
     const win=(action==="rock"&&bot==="scissors")||(action==="paper"&&bot==="rock")||(action==="scissors"&&bot==="paper");
-    const draw=action===bot;
-    outcome=win?"win":"participation";
-    note="انتخاب تو: "+action+"\nانتخاب SHAKI: "+bot+"\n"+(win?"🏆 بردی! +۳۰ XP":draw?"🤝 مساوی شد؛ +۵ XP":"این دور رو باختی؛ +۵ XP");
+    const draw=action===bot; outcome=win?"win":"participation";
+    const names:Record<string,string>={rock:"سنگ",paper:"کاغذ",scissors:"قیچی"};
+    note="انتخاب تو: "+names[action]+"\nانتخاب SHAKI: "+names[bot]+"\n"+(win?"🏆 بردی! +۳۰ XP":draw?"🤝 مساوی شد؛ +۵ XP":"این دور رو باختی؛ +۵ XP");
   }else if(state.kind==="number"){
     const guess=Number(action);
     if(!Number.isInteger(guess)||guess<1||guess>6)return renderGame(state,"انتخاب نامعتبر است.");
     if(guess===state.secret){outcome="win";note="🎯 درست حدس زدی! عدد "+state.secret+" بود؛ +۳۰ XP";}
     else {state.attempts--;if(state.attempts<=0){outcome="participation";note="فرصت‌ها تمام شد؛ عدد "+state.secret+" بود. +۵ XP";}else note=(guess<state.secret?"عدد بزرگ‌تره.":"عدد کوچک‌تره.")+" دوباره تلاش کن.";}
-  }else if(state.kind==="quiz"||state.kind==="emoji"||state.kind==="math"||state.kind==="memory"){
-    const match=action.match(/^a([0-2])$/);if(!match)return renderGame(state,"گزینه نامعتبر است.");
-    const correct=Number(match[1])===state.secret;
-    outcome=correct?"correct_answer":"participation";
+  }else if(["quiz","emoji","math","memory"].includes(state.kind)){
+    const match=action.match(/^a([0-3])$/);if(!match)return renderGame(state,"گزینه نامعتبر است.");
+    const correct=Number(match[1])===state.secret;outcome=correct?"correct_answer":"participation";
     note=correct?"✅ پاسخ درست بود! +۱۰ XP":"❌ پاسخ درست نبود. +۵ XP";
   }else if(state.kind==="word"){
     const match=action.match(/^w([0-5])$/);if(!match)return renderGame(state,"گزینه نامعتبر است.");
     const words=WORDS;const correct=words[Number(match[1])].word===state.answer;
-    outcome=correct?"win":"participation";
-    note=correct?"🔤 آفرین! کلمه رو پیدا کردی؛ +۳۰ XP":"جواب درست نبود؛ +۵ XP";
-  }else if(state.kind==="coin"){\n    if(action!=="heads"&&action!=="tails")return renderGame(state);\n    const guess=action==="heads"?0:1;\n    const win=guess===state.secret;\n    outcome=win?"win":"participation";\n    note=win?"🪙 درست حدس زدی! +۳۰ XP":"این بار درست نشد؛ +۵ XP";\n  }else if(state.kind==="dice"){
+    outcome=correct?"win":"participation";note=correct?"🔤 آفرین! کلمه رو پیدا کردی؛ +۳۰ XP":"جواب درست نبود؛ +۵ XP";
+  }else if(state.kind==="coin"){
+    if(action!=="heads"&&action!=="tails")return renderGame(state);
+    const win=(action==="heads"?0:1)===state.secret;outcome=win?"win":"participation";
+    note=win?"🪙 درست حدس زدی! +۳۰ XP":"این بار درست نشد؛ +۵ XP";
+  }else if(state.kind==="dice"){
     if(action!=="high"&&action!=="low")return renderGame(state);
     const you=Math.floor(Math.random()*6)+1,bot=Math.floor(Math.random()*6)+1;
     const win=you!==bot&&(action==="high"?you>bot:you<bot);
@@ -142,7 +145,7 @@ export function playGame(state:GameSession,action:string):GameScreen {
     note=(action==="truth"?"🗣️ حقیقت: ":"🔥 جرئت: ")+pick(action==="truth"?TRUTHS:DARES);
     outcome="participation";
   }
-  if(outcome){state.status="finished";return {text:note,rows:[[ {text:"🎮 بازی دوباره",callback_data:"shaki_game:menu"} ]],outcome,finished:true};}
+  if(outcome){state.status="finished";return {text:note,rows:[[{text:"🎮 بازی دوباره",callback_data:"shaki_game:menu"}]],outcome,finished:true};}
   return renderGame(state,note);
 }
 export function parseGameKind(value:string):GameKind|null {
