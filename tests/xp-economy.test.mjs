@@ -95,7 +95,17 @@ test("mission claims reject incomplete work and award only validated completed m
  const complete=fakeDb({xp:60,rows:[{key:prefix+"earn-win-game-one",created_at:dayStart+10}]});
  const claimed=await claimMissionXp(complete,-100,7,"win_one",now);
  assert.equal(claimed.awarded,true);
- assert.equal(claimed.amount,XP_REWARDS.mission);
+ assert.equal(claimed.amount,80);
+ assert.equal(complete.calls.at(-1).values[1],"80");
+ const correct=fakeDb({xp:200,rows:[
+  {key:prefix+"earn-correct_answer-game-one",created_at:dayStart+10},
+  {key:prefix+"earn-correct_answer-game-two",created_at:dayStart+20},
+  {key:prefix+"earn-correct_answer-game-three",created_at:dayStart+30},
+ ]});
+ const claimedCorrect=await claimMissionXp(correct,-100,7,"correct_three",now);
+ assert.equal(claimedCorrect.awarded,true);
+ assert.equal(claimedCorrect.amount,100);
+ assert.equal(correct.calls.at(-1).values[1],"100");
 });
 
 test("consumable item use is recorded once and requires a prior purchase",async()=>{
