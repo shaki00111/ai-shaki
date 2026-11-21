@@ -68,6 +68,8 @@ export async function clearGameSession(db:GroupStatsDB,chatId:number,userId:numb
   await db.prepare("DELETE FROM kv_store WHERE key=?").bind(sessionKey(chatId,userId)).run();
 }
 export function createGameSession(chatId:number,userId:number,kind:GameKind,now=Date.now()):GameSession {
+  sessionKey(chatId,userId);
+  if(!Number.isFinite(now))throw new Error("Invalid game timestamp");
   const id=Math.random().toString(36).slice(2,10)+now.toString(36);
   const word=pick(WORDS);
   const quiz=pick(QUIZZES);
