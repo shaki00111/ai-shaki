@@ -38,10 +38,10 @@ test("leaderboard aggregates event ledger by user and caps results",async()=>{
  const db=fakeDb({rows:[
   {key:prefix+"2:ev1",value_text:"90"},
   {key:prefix+"1:ev2",value_text:"40"},
-  {key:prefix+"2:ev3",value_text:"10"},
+  {key:prefix+"2:ev3",value_text:"10"},\n  {key:prefix+"2:purchase1",value_text:"-30"},\n  {key:prefix+"3:purchase2",value_text:"-200"},
   {key:prefix+"bad:ev4",value_text:"999"},
  ]});
  const rows=await getGroupLeaderboard(db,-55,500);
- assert.deepEqual(rows,[{userId:2,xp:100},{userId:1,xp:40}]);
+ assert.deepEqual(rows,[{userId:2,xp:70},{userId:1,xp:40}]);
  assert.deepEqual(db.calls[0].values,[prefix,prefix+"\uffff"]);
 });
