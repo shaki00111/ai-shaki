@@ -115,7 +115,23 @@ export async function claimMissionXp(db:GroupStatsDB,chatId:number,userId:number
   const status=(await getXpMissions(db,chatId,userId,now)).find(item=>item.id===mission);
   if(!status)throw new Error("Unknown XP mission");
   if(!status.complete){const xp=await getGroupPlayerScore(db,chatId,userId);return {awarded:false,amount:0,xp,...levelForXp(xp)};}
-  return awardActivityXp(db,chatId,userId,"mission",mission+"-"+day.toISOString().slice(0,10).replace(/-/g,""),now);
+  const reward=status.reward;
+  const event=safePart(mission+"-"+day.toISOString().slice(0,10).replace(/-/g,""),"event id",80);
+  const prefix=ledgerPrefix(chatId,userId);
+  const key=prefix+"earn-mission-"+event;
+  const earnPrefix=prefix+"earn-";
+  const dayStart=Math.floor(now/DAY)*86400;
+  const dayEnd=dayStart+86400;
+  const result=await db.prepare(`INSERT INTO kv_store (key,value_text,value_blob,expires_at,created_at)
+    SELECT ?, ?, NULL, NULL, ?
+    WHERE NOT EXISTS (SELECT 1 FROM kv_store WHERE key=?)
+      AND COALESCE((SELECT SUM(CAST(value_text AS INTEGER)) FROM kv_store
+        WHERE key>=? AND key<? AND created_at>=? AND created_at<?),0) + ? <= ?
+    ON CONFLICT(key) DO NOTHING`)
+    .bind(key,String(reward),Math.floor(now/1000),key,earnPrefix,earnPrefix+"\\uffff",dayStart,dayEnd,reward,XP_DAILY_CAP).run();
+  const xp=await getGroupPlayerScore(db,chatId,userId);
+  const awarded=Number(result.meta?.changes??0)>0;
+  return {awarded,amount:awarded?reward:0,xp,...levelForXp(xp)};
 }
 export async function purchaseXpItem(db:GroupStatsDB,chatId:number,userId:number,itemId:string,purchaseId:string,now=Date.now()){
   const item=XP_SHOP_ITEMS.find(x=>x.id===itemId);
