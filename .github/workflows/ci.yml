@@ -35,3 +35,5 @@ jobs:
 
       - name: Regression tests (incl. secret-leak guard)
         run: npm run test:repeat
+      - name: Cloudflare Worker bundle dry-run
+        run: npx wrangler deploy --dry-run --outdir=.wrangler/dry
