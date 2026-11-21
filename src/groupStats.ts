@@ -58,7 +58,7 @@ export async function getGroupLeaderboard(db: GroupStatsDB, chatId: number, limi
     if (!match) continue;
     const userId = Number(match[1]);
     const amount = Number.parseInt(String(row.value_text ?? "0"), 10);
-    if (!Number.isSafeInteger(userId) || !Number.isSafeInteger(amount) || amount < 0) continue;
+    if (!Number.isSafeInteger(userId) || !Number.isSafeInteger(amount)) continue;
     scores.set(userId, (scores.get(userId) ?? 0) + amount);
   }
   return [...scores].map(([userId,xp])=>({userId,xp})).sort((a,b)=>b.xp-a.xp || a.userId-b.userId).slice(0,safeLimit);
