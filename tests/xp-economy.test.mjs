@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { awardActivityXp, claimDailyXp, claimMissionXp, getXpMissions, getXpInventory, getXpShop, purchaseXpItem, XP_DAILY_CAP, XP_REWARDS } from "../src/xpEconomy.ts";
+import { awardActivityXp, claimDailyXp, claimMissionXp, consumeXpItem, getXpMissions, getXpInventory, getXpShop, purchaseXpItem, XP_DAILY_CAP, XP_REWARDS } from "../src/xpEconomy.ts";
 
 function fakeDb({changes=1,xp=0,rows=[]}={}){
  const calls=[];
@@ -55,7 +55,7 @@ test("inventory is reconstructed from durable purchase ledger rows",async()=>{
   {key:prefix+"earn-win-game1"},
  ]});
  const inventory=await getXpInventory(db,-100,7);
- assert.deepEqual(inventory.map(x=>[x.itemId,x.quantity]),[["collect_gold",1],["ticket_daily_box",2]]);
+ assert.deepEqual(inventory.map(x=>[x.itemId,x.quantity]),[["collect_gold",1],["ticket_daily_box",1]]);
 });
 test("invalid group, user, reason, event and item are rejected before writes",async()=>{
  const db=fakeDb();
@@ -95,4 +95,13 @@ test("mission claims reject incomplete work and award only validated completed m
  const claimed=await claimMissionXp(complete,-100,7,"win_one",now);
  assert.equal(claimed.awarded,true);
  assert.equal(claimed.amount,XP_REWARDS.mission);
+});
+
+test("consumable item use is recorded once and requires a prior purchase",async()=>{
+ const db=fakeDb({changes:1});
+ const used=await consumeXpItem(db,-100,7,"power_hint","callback-1",1_800_000_000_000);
+ assert.equal(used.used,true);
+ assert.match(db.calls[0].sql,/SELECT COUNT\(\*\)/);
+ assert.match(db.calls[0].sql,/ON CONFLICT\(key\) DO NOTHING/);
+ assert.equal(db.calls[0].values[0],"shaki:group-xp:v1:-100:event:7:use-power_hint--callback-1");
 });
