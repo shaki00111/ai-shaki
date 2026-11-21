@@ -6,11 +6,11 @@ import {
 
 type WorkerEnv = { TOKEN?: string; WEBHOOK_SECRET?: string };
 import {
-  awardActivityXp, claimDailyXp, claimMissionXp, getXpMissions, getXpInventory, getXpLeaderboard, getXpProfile,
+  awardActivityXp, claimDailyXp, claimMissionXp, consumeXpItem, getXpMissions, getXpInventory, getXpLeaderboard, getXpProfile,
   getXpShop, purchaseXpItem, type XpItemCategory,
 } from "./xpEconomy";
 import type { GroupStatsDB } from "./groupStats";
-import { clearGameSession, createGameSession, gameMenu, loadGameSession, parseGameKind, playGame, renderGame, saveGameSession } from "./groupGames";
+import { applyGamePower, clearGameSession, createGameSession, gameMenu, loadGameSession, parseGameKind, playGame, renderGame, saveGameSession } from "./groupGames";
 
 type XpWorkerEnv = WorkerEnv & { DB?: GroupStatsDB };
 type TgMessage = { message_id:number; chat:{id:number;type:string}; from?:{id:number;is_bot?:boolean}; text?:string };
@@ -49,8 +49,9 @@ async function showXpScreen(env:XpWorkerEnv,chatId:number,userId:number,messageI
     rows.push([{text:"⬅️ دسته‌ها",callback_data:"shaki_xp:shop"},{text:"👤 پروفایل",callback_data:"shaki_xp:profile"}]);
   }else if(screen==="inventory"){
     const inventory=await getXpInventory(db,chatId,userId);
-    text="🎒 کوله‌پشتی من\n\n"+(inventory.length?inventory.map(x=>"• "+x.item.name+" × "+x.quantity).join("\n"):"هنوز آیتمی نخریدی.")+"\n\nاثر آیتم‌ها با اتصال هر قابلیت به بازی مربوط فعال می‌شود.";
-    rows=[[{text:"🛒 فروشگاه",callback_data:"shaki_xp:shop"},{text:"👤 پروفایل",callback_data:"shaki_xp:profile"}]];
+    text="🎒 کوله‌پشتی من\n\n"+(inventory.length?inventory.map(x=>"• "+x.item.name+" × "+x.quantity).join("\n"):"هنوز آیتمی نخریدی.")+"\n\nبرای استفاده از قدرت‌ها، ابتدا یک بازی را شروع کن و سپس آیتم را از اینجا فعال کن.";
+    rows=inventory.filter(x=>["power_hint","power_extra_guess","power_remove_option","power_retry","power_xp_boost","power_second_chance","fun_question_swap"].includes(x.itemId)).map(x=>[{text:"⚡ استفاده: "+x.item.name+" × "+x.quantity,callback_data:"shaki_xp:use:"+x.itemId}]);
+    rows.push([{text:"🛒 فروشگاه",callback_data:"shaki_xp:shop"},{text:"👤 پروفایل",callback_data:"shaki_xp:profile"}]);
   }else if(screen==="missions"){
     const missions=await getXpMissions(db,chatId,userId);
     text="🎯 مأموریت‌های روزانه\n\n"+missions.map(m=>(m.claimed?"✅ ":m.complete?"🎁 ":"🔹 ")+m.title+" — "+m.description+" ("+m.progress+"/"+m.target+")"+(m.claimed?" · دریافت شد":m.complete?" · جایزه "+m.reward+" XP":"")).join("\n");
@@ -97,7 +98,26 @@ async function handleXpUpdate(update:TgUpdate,env:XpWorkerEnv):Promise<boolean>{
     const parts=callback.data.split(":");
     const action=parts[1];
     let notice="انجام شد";
-    if(action==="mission"&&parts[2]){
+    if(action==="use"&&parts[2]){
+      const state=await loadGameSession(env.DB,chatId,userId);
+      if(!state){
+        notice="اول یک بازی فعال را از /games شروع کن.";
+      }else{
+        const applied=applyGamePower(state,parts[2]);
+        if(!applied.applied){
+          notice="این آیتم در بازی فعلی قابل استفاده نیست.";
+        }else{
+          const consumed=await consumeXpItem(env.DB,chatId,userId,parts[2],callback.id);
+          if(!consumed.used){
+            notice="از این آیتم در کوله‌پشتی موجود نداری.";
+          }else{
+            await saveGameSession(env.DB,state);
+            await telegramCall(env.TOKEN,"editMessageText",{chat_id:chatId,message_id:messageId,text:applied.screen.text,reply_markup:xpKeyboard(applied.screen.rows)});
+            notice="آیتم فعال شد.";
+          }
+        }
+      }
+    }else if(action==="mission"&&parts[2]){
       const result=await claimMissionXp(env.DB,chatId,userId,parts[2]);
       notice=result.awarded?"🎯 مأموریت تکمیل شد؛ +"+result.amount+" XP":"هنوز شرایط مأموریت کامل نشده یا جایزه قبلاً دریافت شده است.";
       await showXpScreen(env,chatId,userId,messageId,"missions");
@@ -160,7 +180,8 @@ async function handleGamesUpdate(update:TgUpdate,env:XpWorkerEnv):Promise<boolea
         await saveGameSession(env.DB,state);
         if(screen.outcome){
           const eventId="game-"+state.id;
-          const reward=await awardActivityXp(env.DB,chatId,userId,screen.outcome,eventId);
+          const rewardReason=state.xpBoost?(screen.outcome==="win"?"boosted_win":screen.outcome==="correct_answer"?"boosted_correct_answer":"boosted_participation"):screen.outcome;
+          const reward=await awardActivityXp(env.DB,chatId,userId,rewardReason,eventId);
           notice=reward.awarded?"پاداش بازی ثبت شد: +"+reward.amount+" XP":"این پاداش قبلاً ثبت شده است.";
         }
         await telegramCall(env.TOKEN,"editMessageText",{chat_id:chatId,message_id:messageId,text:screen.text,reply_markup:xpKeyboard(screen.rows)});
