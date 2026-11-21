@@ -98,13 +98,13 @@ export function renderGame(state:GameSession,note=""):GameScreen {
   const back=[[{text:"🎮 منوی بازی‌ها",callback_data:"shaki_game:menu"}]];
   if(state.status==="finished")return {text:note+"\n\nبازی تمام شد! برای بازی دوباره به منو برگرد.",rows:back,outcome:null,finished:true};
   if(state.kind==="rps")return {text:"⚔️ سنگ، کاغذ، قیچی\n\nحرکتت رو انتخاب کن:",rows:[[button("✊ سنگ",id,"rock"),button("✋ کاغذ",id,"paper"),button("✌️ قیچی",id,"scissors")],...back],outcome:null,finished:false};
-  if(state.kind==="number")return {text:"🎯 حدس عدد\n\nیک عدد بین ۱ تا ۶ انتخاب کن. سه فرصت داری.\n"+note+"\nفرصت باقی‌مانده: "+state.attempts,rows:[[1,2,3],[4,5,6]].map(group=>group.map(n=>button(String(n),id,String(n)))),outcome:null,finished:false};
+  if(state.kind==="number")return {text:"🎯 حدس عدد\n\nیک عدد بین ۱ تا ۶ انتخاب کن. سه فرصت داری.\n"+note+"\nفرصت باقی‌مانده: "+state.attempts,rows:[...[ [1,2,3],[4,5,6] ].map(group=>group.map(n=>button(String(n),id,String(n)))),...back],outcome:null,finished:false};
   if(["quiz","emoji","math","memory"].includes(state.kind)){
     const answers=state.answer.split("|");
     const hidden=new Set(state.hiddenOptions??[]);
     const visible=answers.map((answer,index)=>({answer,index})).filter(item=>!hidden.has(item.index));
     const heading=state.kind==="quiz"?"🧠 مسابقه اطلاعات عمومی":state.kind==="emoji"?"🧩 معمای ایموجی":state.kind==="math"?"➕ چالش ریاضی":"🧠 حافظه سریع";
-    return {text:heading+"\n\n"+state.prompt+"\n\n"+visible.map(item=>(item.index+1)+". "+item.answer).join("\n"),rows:visible.map(item=>[button("گزینه "+(item.index+1),id,"a"+item.index)]),outcome:null,finished:false};
+    return {text:heading+"\n\n"+state.prompt+"\n\n"+visible.map(item=>(item.index+1)+". "+item.answer).join("\n"),rows:[...visible.map(item=>[button("گزینه "+(item.index+1),id,"a"+item.index)]),...back],outcome:null,finished:false};
   }
   if(state.kind==="word")return {text:"🔤 حدس کلمه\n\nحروف به‌هم‌ریخته: "+state.prompt+"\n\nجوابت رو انتخاب کن:",rows:[[{text:"کتاب",callback_data:"shaki_game:play:"+id+":w0"},{text:"دریا",callback_data:"shaki_game:play:"+id+":w1"}],[{text:"باران",callback_data:"shaki_game:play:"+id+":w2"},{text:"ستاره",callback_data:"shaki_game:play:"+id+":w3"}],[{text:"مداد",callback_data:"shaki_game:play:"+id+":w4"},{text:"پنجره",callback_data:"shaki_game:play:"+id+":w5"}],...back],outcome:null,finished:false};
   if(state.kind==="coin")return {text:"🪙 شیر یا خط\n\nحدست رو انتخاب کن:",rows:[[button("شیر",id,"heads"),button("خط",id,"tails")],...back],outcome:null,finished:false};
