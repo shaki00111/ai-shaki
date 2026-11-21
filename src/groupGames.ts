@@ -68,7 +68,8 @@ export function createGameSession(chatId:number,userId:number,kind:GameKind,now=
   const a=Math.floor(Math.random()*12)+3, b=Math.floor(Math.random()*9)+2, sum=a+b;
   const mathOptions=[sum,sum+2,Math.max(1,sum-3)].sort(()=>Math.random()-.5);
   const memoryOptions=["🍎","🍌","🍇","🍒"];
-  const memorySequence=memoryOptions.slice().sort(()=>Math.random()-.5).slice(0,3);\n  const memoryAnswer=memoryOptions.find(item=>!memorySequence.includes(item))!;
+  const memorySequence=memoryOptions.slice().sort(()=>Math.random()-.5).slice(0,3);
+  const memoryAnswer=memoryOptions.find(item=>!memorySequence.includes(item))!;
   return {
     id,chatId,userId,kind,createdAt:now,status:"active",attempts:3,
     secret:kind==="number"?Math.floor(Math.random()*6)+1:
