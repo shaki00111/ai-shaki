@@ -503,6 +503,15 @@ adminSource.includes("/promo on") && adminSource.includes("/promo off") && admin
   ? ok("owner guide documents the opt-in daily group promotion and its controls")
   : fail("owner guide must document /promo controls and the 24-hour limit");
 
+
+console.log("\\n[20] XP mission navigation");
+const workerSource = readFileSync("src/worker.ts", "utf8");
+workerSource.includes('["shop","profile","inventory","rank","missions"].includes(action)') &&
+workerSource.includes('callback_data:"shaki_xp:missions"') &&
+workerSource.includes('screen==="missions"')
+  ? ok("XP home button opens the daily missions screen")
+  : fail("daily mission navigation must be wired from the XP home keyboard");
+
 console.log("");
 if (failures > 0) {
   console.error(`FAILED: ${failures} problem(s) found.\n`);
