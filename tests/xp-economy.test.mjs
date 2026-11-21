@@ -51,6 +51,7 @@ test("inventory is reconstructed from durable purchase ledger rows",async()=>{
  const db=fakeDb({rows:[
   {key:prefix+"buy-ticket_daily_box--p1"},
   {key:prefix+"buy-ticket_daily_box--p2"},
+  {key:prefix+"use-ticket_daily_box--u1"},
   {key:prefix+"buy-collect_gold--p3"},
   {key:prefix+"earn-win-game1"},
  ]});
