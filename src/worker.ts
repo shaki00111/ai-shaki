@@ -6,7 +6,7 @@ import {
 
 type WorkerEnv = { TOKEN?: string; WEBHOOK_SECRET?: string };
 import {
-  awardActivityXp, claimDailyXp, getXpInventory, getXpLeaderboard, getXpProfile,
+  awardActivityXp, claimDailyXp, claimMissionXp, getXpMissions, getXpInventory, getXpLeaderboard, getXpProfile,
   getXpShop, purchaseXpItem, type XpItemCategory,
 } from "./xpEconomy";
 import type { GroupStatsDB } from "./groupStats";
@@ -26,7 +26,7 @@ const XP_CATEGORIES: {id:XpItemCategory;label:string}[] = [
 ];
 const XP_HOME = [[{text:"👤 پروفایل من",callback_data:"shaki_xp:profile"},{text:"🛒 فروشگاه",callback_data:"shaki_xp:shop"}],
   [{text:"🎒 کوله‌پشتی",callback_data:"shaki_xp:inventory"},{text:"🏆 رتبه‌بندی",callback_data:"shaki_xp:rank"}],
-  [{text:"🎁 دریافت XP روزانه",callback_data:"shaki_xp:daily"}]];
+  [{text:"🎁 دریافت XP روزانه",callback_data:"shaki_xp:daily"}],\n  [{text:"🎯 مأموریت‌های روزانه",callback_data:"shaki_xp:missions"}]];
 function xpKeyboard(rows: unknown[][]){return {inline_keyboard:rows};}
 async function showXpScreen(env:XpWorkerEnv,chatId:number,userId:number,messageId:number|undefined,screen:string,category?:XpItemCategory,note=""){
   if(!env.DB||!env.TOKEN)return;
@@ -50,7 +50,7 @@ async function showXpScreen(env:XpWorkerEnv,chatId:number,userId:number,messageI
     const inventory=await getXpInventory(db,chatId,userId);
     text="🎒 کوله‌پشتی من\n\n"+(inventory.length?inventory.map(x=>"• "+x.item.name+" × "+x.quantity).join("\n"):"هنوز آیتمی نخریدی.")+"\n\nاثر آیتم‌ها با اتصال هر قابلیت به بازی مربوط فعال می‌شود.";
     rows=[[{text:"🛒 فروشگاه",callback_data:"shaki_xp:shop"},{text:"👤 پروفایل",callback_data:"shaki_xp:profile"}]];
-  }else if(screen==="rank"){
+  }else if(screen==="missions"){\n    const missions=await getXpMissions(db,chatId,userId);\n    text="🎯 مأموریت‌های روزانه\\n\\n"+missions.map(m=>(m.claimed?"✅ ":m.complete?"🎁 ":"🔹 ")+m.title+" — "+m.description+" ("+m.progress+"/"+m.target+")"+(m.claimed?" · دریافت شد":m.complete?" · جایزه "+m.reward+" XP":"")).join("\\n");\n    rows=missions.filter(m=>m.complete).map(m=>[{text:"🎁 دریافت "+m.reward+" XP · "+m.title,callback_data:"shaki_xp:mission:"+m.id}]);\n    rows.push([{text:"👤 پروفایل",callback_data:"shaki_xp:profile"},{text:"🎮 بازی‌ها",callback_data:"shaki_game:menu"}]);\n  }else if(screen==="rank"){
     const list=await getXpLeaderboard(db,chatId,10);
     text="🏆 برترین بازیکنان این گروه\n\n"+(list.length?list.map((x,i)=>(i+1)+". کاربر "+x.userId+" — "+x.xp+" XP").join("\n"):"هنوز امتیازی ثبت نشده.");
     rows=[[{text:"👤 پروفایل من",callback_data:"shaki_xp:profile"},{text:"🛒 فروشگاه",callback_data:"shaki_xp:shop"}]];
@@ -74,13 +74,13 @@ async function handleXpUpdate(update:TgUpdate,env:XpWorkerEnv):Promise<boolean>{
   const callback=update.callback_query;
   if(message?.text&&message.chat.id<0&&message.chat.type!=="private"&&message.from&&!message.from.is_bot){
     const command=message.text.trim().split(/\s+/,1)[0].split("@",1)[0].toLowerCase();
-    if(["/xp","/shop","/rank","/inventory","/daily"].includes(command)){
+    if(["/xp","/shop","/rank","/inventory","/daily","/missions"].includes(command)){
       if(command==="/daily"){
         const reward=await claimDailyXp(env.DB,message.chat.id,message.from.id);
         const note=reward.awarded?"🎁 پاداش روزانه دریافت شد: +"+reward.amount+" XP":"⏳ پاداش امروزت را قبلاً دریافت کرده‌ای.";
         await showXpScreen(env,message.chat.id,message.from.id,undefined,"profile",undefined,note);
       }else{
-        const screen=command==="/shop"?"shop":command==="/rank"?"rank":command==="/inventory"?"inventory":"profile";
+        const screen=command==="/shop"?"shop":command==="/rank"?"rank":command==="/inventory"?"inventory":command==="/missions"?"missions":"profile";
         await showXpScreen(env,message.chat.id,message.from.id,undefined,screen);
       }
       return true;
@@ -91,7 +91,7 @@ async function handleXpUpdate(update:TgUpdate,env:XpWorkerEnv):Promise<boolean>{
     const parts=callback.data.split(":");
     const action=parts[1];
     let notice="انجام شد";
-    if(action==="daily"){
+    if(action==="mission"&&parts[2]){\n      const result=await claimMissionXp(env.DB,chatId,userId,parts[2]);\n      notice=result.awarded?"🎯 مأموریت تکمیل شد؛ +"+result.amount+" XP":"هنوز شرایط مأموریت کامل نشده یا جایزه قبلاً دریافت شده است.";\n      await showXpScreen(env,chatId,userId,messageId,"missions");\n    }else if(action==="daily"){
       const result=await claimDailyXp(env.DB,chatId,userId);
       notice=result.awarded?"🎁 "+result.amount+" XP دریافت کردی":"امروز پاداش روزانه‌ات را قبلاً گرفتی.";
       await showXpScreen(env,chatId,userId,messageId,"profile");
