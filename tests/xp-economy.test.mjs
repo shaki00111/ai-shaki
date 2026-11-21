@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { awardActivityXp, claimDailyXp, getXpInventory, getXpShop, purchaseXpItem, XP_DAILY_CAP, XP_REWARDS } from "../src/xpEconomy.ts";
+import { awardActivityXp, claimDailyXp, claimMissionXp, getXpMissions, getXpInventory, getXpShop, purchaseXpItem, XP_DAILY_CAP, XP_REWARDS } from "../src/xpEconomy.ts";
 
 function fakeDb({changes=1,xp=0,rows=[]}={}){
  const calls=[];
@@ -65,4 +65,34 @@ test("invalid group, user, reason, event and item are rejected before writes",as
  await assert.rejects(awardActivityXp(db,-100,7,"win","bad:event"),/event id/);
  await assert.rejects(purchaseXpItem(db,-100,7,"not-real","p"),/Unknown shop item/);
  assert.equal(db.calls.length,0);
+});
+
+test("daily missions derive progress from verified game reward ledger events",async()=>{
+ const prefix="shaki:group-xp:v1:-100:event:7:";
+ const now=Date.UTC(2026,10,21,12);
+ const dayStart=Math.floor(now/86_400_000)*86400;
+ const db=fakeDb({rows:[
+  {key:prefix+"earn-win-game-one",created_at:dayStart+10},
+  {key:prefix+"earn-correct_answer-game-two",created_at:dayStart+20},
+  {key:prefix+"earn-correct_answer-game-three",created_at:dayStart+30},
+  {key:prefix+"earn-correct_answer-game-four",created_at:dayStart+40},
+ ]});
+ const missions=await getXpMissions(db,-100,7,now);
+ assert.deepEqual(missions.map(m=>[m.id,m.progress,m.complete]),[
+  ["play_one",1,true],["win_one",1,true],["correct_three",3,true],
+ ]);
+});
+
+test("mission claims reject incomplete work and award only validated completed missions",async()=>{
+ const prefix="shaki:group-xp:v1:-100:event:7:";
+ const now=Date.UTC(2026,10,21,12);
+ const dayStart=Math.floor(now/86_400_000)*86400;
+ const incomplete=fakeDb({xp:10});
+ const denied=await claimMissionXp(incomplete,-100,7,"win_one",now);
+ assert.equal(denied.awarded,false);
+ assert.equal(denied.amount,0);
+ const complete=fakeDb({xp:60,rows:[{key:prefix+"earn-win-game-one",created_at:dayStart+10}]});
+ const claimed=await claimMissionXp(complete,-100,7,"win_one",now);
+ assert.equal(claimed.awarded,true);
+ assert.equal(claimed.amount,XP_REWARDS.mission);
 });
