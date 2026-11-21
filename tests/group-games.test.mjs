@@ -137,3 +137,10 @@ test("truth-pass and rematch consumables have real effects",()=>{
  assert.notEqual(rematch.id,oldId);
  assert.equal(rematch.status,"active");
 });
+
+test("every active game screen keeps a back-to-menu button",()=>{
+ for(const kind of ["rps","number","quiz","word","dice","truth","emoji","coin","math","memory"]){
+  const screen=renderGame(createGameSession(-100,77,kind));
+  assert.ok(screen.rows.flat().some(button=>button.callback_data==="shaki_game:menu"),kind);
+ }
+});
