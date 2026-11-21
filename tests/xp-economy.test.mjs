@@ -37,6 +37,15 @@ test("XP shop has many text-first products across categories",()=>{
  for(const item of all) assert.ok(item.name&&item.description&&item.effect&&item.price>0);
  assert.ok(getXpShop("power").length>=5);
 });
+test("XP store exposes only implemented consumables and permanent cosmetics",()=>{
+ const all=getXpShop();
+ assert.equal(all.length,30);
+ assert.deepEqual(getXpShop("fun").map(item=>item.id).sort(),["fun_question_swap","fun_rematch","fun_truth_pass"]);
+ for(const item of [...getXpShop("title"),...getXpShop("collectible")]) assert.equal(item.stackable,false,item.id);
+ assert.ok(getXpShop("title").length>=8);
+ assert.ok(getXpShop("collectible").length>=10);
+});
+
 test("purchase is an atomic balance-checked ledger insert and permanent items cannot be duplicated",async()=>{
  const db=fakeDb({changes:0,xp:400});
  const result=await purchaseXpItem(db,-100,7,"collect_gold","retry-1");
