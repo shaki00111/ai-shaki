@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  clearGameSession, createGameSession, gameMenu, loadGameSession,
+  applyGamePower, clearGameSession, createGameSession, gameMenu, loadGameSession,
   parseGameKind, playGame, renderGame, saveGameSession,
 } from "../src/groupGames.ts";
 
@@ -93,4 +93,33 @@ test("coin toss accepts only heads or tails and resolves the round",()=>{
  const screen=playGame(state,state.secret===0?"heads":"tails");
  assert.equal(screen.outcome,"win");
  assert.equal(screen.finished,true);
+});
+
+test("power items apply hints, extra guesses, option removal and retry",()=>{
+ const number=createGameSession(-100,77,"number");
+ assert.equal(applyGamePower(number,"power_extra_guess").applied,true);
+ assert.equal(number.attempts,4);
+ const quiz=createGameSession(-100,77,"quiz");
+ const removed=applyGamePower(quiz,"power_remove_option");
+ assert.equal(removed.applied,true);
+ assert.equal(removed.screen.rows.flat().length,2);
+ const retry=createGameSession(-100,77,"number");
+ retry.attempts=1;
+ assert.equal(applyGamePower(retry,"power_retry").applied,true);
+ const wrong=retry.secret===1?2:1;
+ const first=playGame(retry,String(wrong));
+ assert.equal(first.outcome,null);
+ assert.equal(retry.status,"active");
+ assert.equal(playGame(retry,String(retry.secret)).outcome,"win");
+});
+
+test("XP boost and hint items modify the active game without changing the answer",()=>{
+ const quiz=createGameSession(-100,77,"quiz");
+ const correct=quiz.secret;
+ const hint=applyGamePower(quiz,"power_hint");
+ assert.equal(hint.applied,true);
+ assert.match(hint.screen.text,/راهنمایی/);
+ assert.equal(quiz.secret,correct);
+ assert.equal(applyGamePower(quiz,"power_xp_boost").applied,true);
+ assert.equal(quiz.xpBoost,true);
 });
