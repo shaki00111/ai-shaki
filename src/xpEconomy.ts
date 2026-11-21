@@ -91,10 +91,30 @@ export async function claimDailyXp(db:GroupStatsDB,chatId:number,userId:number,n
   if(!Number.isFinite(date.getTime()))throw new Error("Invalid timestamp");
   return awardActivityXp(db,chatId,userId,"daily_login",date.toISOString().slice(0,10).replace(/-/g,""),now);
 }
+export interface XpMissionStatus { id:string; title:string; description:string; progress:number; target:number; reward:number; claimed:boolean; complete:boolean; }
+const XP_MISSIONS = [
+  {id:"play_one",title:"شروع قدرتمند",description:"یک بازی را کامل کن",target:1,reward:50,match:(key:string)=>/earn-(win|participation|correct_answer)-game-/.test(key)},
+  {id:"win_one",title:"اولین پیروزی",description:"حداقل یک بازی را ببر",target:1,reward:80,match:(key:string)=>/earn-win-game-/.test(key)},
+  {id:"correct_three",title:"ذهن برتر",description:"سه پاسخ درست در بازی‌ها ثبت کن",target:3,reward:100,match:(key:string)=>/earn-correct_answer-game-/.test(key)},
+] as const;
+export async function getXpMissions(db:GroupStatsDB,chatId:number,userId:number,now=Date.now()):Promise<XpMissionStatus[]>{
+  const prefix=ledgerPrefix(chatId,userId);
+  const dayStart=Math.floor(now/DAY)*86400;
+  const dayEnd=dayStart+86400;
+  const rows=await db.prepare("SELECT key FROM kv_store WHERE key>=? AND key<? AND created_at>=? AND created_at<?").bind(prefix+"earn-",prefix+"earn-\\uffff",dayStart,dayEnd).all<{key:string}>();
+  const keys=(rows.results??[]).map(row=>row.key.slice(prefix.length));
+  const date=new Date(now).toISOString().slice(0,10).replace(/-/g,"");
+  const claimed=await db.prepare("SELECT key FROM kv_store WHERE key>=? AND key<?").bind(prefix+"earn-mission-",prefix+"earn-mission-\\uffff").all<{key:string}>();
+  const claimedIds=new Set((claimed.results??[]).map(row=>row.key.slice((prefix+"earn-mission-").length)));
+  return XP_MISSIONS.map(m=>{const progress=keys.filter(m.match).length;const isClaimed=claimedIds.has(m.id+"-"+date);return {id:m.id,title:m.title,description:m.description,progress:Math.min(progress,m.target),target:m.target,reward:m.reward,claimed:isClaimed,complete:progress>=m.target&&!isClaimed};});
+}
 export async function claimMissionXp(db:GroupStatsDB,chatId:number,userId:number,missionId:string,now=Date.now()){
   const day=new Date(now);
   if(!Number.isFinite(day.getTime()))throw new Error("Invalid timestamp");
   const mission=safePart(missionId,"mission id",50);
+  const status=(await getXpMissions(db,chatId,userId,now)).find(item=>item.id===mission);
+  if(!status)throw new Error("Unknown XP mission");
+  if(!status.complete){const xp=await getGroupPlayerScore(db,chatId,userId);return {awarded:false,amount:0,xp,...levelForXp(xp)};}
   return awardActivityXp(db,chatId,userId,"mission",mission+"-"+day.toISOString().slice(0,10).replace(/-/g,""),now);
 }
 export async function purchaseXpItem(db:GroupStatsDB,chatId:number,userId:number,itemId:string,purchaseId:string,now=Date.now()){
